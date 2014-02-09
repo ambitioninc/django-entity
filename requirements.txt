@@ -1,0 +1,6 @@
+south==0.7.6
+django==1.6
+django-nose
+pep8
+psycopg2==2.4.5
+pyflakes
