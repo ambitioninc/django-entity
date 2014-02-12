@@ -1,6 +1,7 @@
-south==0.7.6
 django==1.6
-django-nose
+django-nose==1.1
+jsonfield==0.9.20
 pep8
 psycopg2==2.4.5
 pyflakes
+south==0.7.6
