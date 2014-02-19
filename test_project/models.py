@@ -1,7 +1,6 @@
 from django.db import models
 
-from entity.models import EntityModelMixin, Entity
-
+from entity import EntityModelMixin, Entity
 
 
 class Team(models.Model, EntityModelMixin):
@@ -59,7 +58,31 @@ class Account(models.Model, EntityModelMixin):
 class EntityPointer(models.Model):
     """
     Describes a test model that points to an entity. Used for ensuring
-    that operations on entities (such as updates) don't cause
-    side effects of having a pointer to an entity.
+    that syncing entities doesn't perform any Entity deletes (causing models like
+    this to be cascade deleted)
     """
     entity = models.ForeignKey(Entity)
+
+
+class DummyModel(models.Model):
+    """
+    Used to ensure that models that don't inherit from EntityModelMixin aren't syned.
+    """
+    dummy_data = models.CharField(max_length=64)
+
+
+class BaseEntityClass(models.Model, EntityModelMixin):
+    """
+    A base class that inherits EntityModelMixin. Helps ensure that mutliple-inherited
+    entities are still synced properly.
+    """
+    class Meta:
+        abstract = True
+
+
+class MultiInheritEntity(BaseEntityClass):
+    """
+    Verifies that entities that dont directly inherit from the EntityModelMixin are
+    still synced properly.
+    """
+    data = models.CharField(max_length=64)

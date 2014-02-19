@@ -2,17 +2,128 @@
 Provides tests for the syncing functionalities in django entity.
 """
 from django.contrib.contenttypes.models import ContentType
-from entity.models import Entity, EntityRelationship
+from django.core.management import call_command
+from django.db.models.signals import post_delete, post_save
+from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
+from entity.sync import sync_entities
 
-from test_project.models import Account, Team, EntityPointer
+from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
 from .utils import EntityTestCase
 
 
-class TestAccountEntitySignalSync(EntityTestCase):
+class TestSyncAllEntities(EntityTestCase):
     """
-    Tests that Account entities (from the test models) are properly synced upon post_save and
+    Tests that all entities can be synced at once and tests the management command to
+    sync all entities.
+    """
+    def setUp(self):
+        super(TestSyncAllEntities, self).setUp()
+        # Disconnect signal handlers to test syncing all entities
+        post_delete.disconnect(delete_entity_signal_handler)
+        post_save.disconnect(save_entity_signal_handler)
+
+    def test_sync_entities_management_command(self):
+        """
+        Tests that the management command for syncing entities works properly.
+        """
+        # Create five test accounts
+        for i in range(5):
+            Account.objects.create()
+
+        # Test that the management command syncs all five entities
+        self.assertEquals(Entity.objects.all().count(), 0)
+        call_command('sync_entities')
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+    def test_sync_dummy_data(self):
+        """
+        Tests that dummy data (i.e data that does not inherit EntityModelMixin) doesn't
+        get synced.
+        """
+        # Create dummy data
+        DummyModel.objects.create()
+        # Sync all entities and verify that none were created
+        sync_entities()
+        self.assertEquals(Entity.objects.all().count(), 0)
+
+    def test_sync_multi_inherited_data(self):
+        """
+        Test when models are synced that don't directly inherit EntityModelMixin.
+        """
+        # Create an entity that does not directly inherit EntityModelMixin
+        MultiInheritEntity.objects.create()
+        # Sync all entities and verify that one was created
+        sync_entities()
+        self.assertEquals(Entity.objects.all().count(), 1)
+
+    def test_sync_all_account_no_teams(self):
+        """
+        Tests syncing all accounts with no super entities.
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+
+        # Sync all of the entities and verify that five Entity models were created for the Account model
+        self.assertEquals(Entity.objects.all().count(), 0)
+        sync_entities()
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+        # Delete an account. When all entities are synced again,
+        # there should only be four accounts
+        accounts[0].delete()
+        self.assertEquals(Entity.objects.all().count(), 5)
+        sync_entities()
+        self.assertEquals(Entity.objects.all().count(), 4)
+
+    def test_sync_all_accounts_teams(self):
+        """
+        Tests syncing of all accounts when they have syper entities.
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        # Sync all the entities. There should be 7 (5 accounts 2 teams)
+        sync_entities()
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 7)
+
+        # There should be four entity relationships since four accounts have teams
+        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+
+
+class TestEntitySignalSync(EntityTestCase):
+    """
+    Tests that entities (from the test models) are properly synced upon post_save and
     post_delete calls.
     """
+    def test_post_save_dummy_data(self):
+        """
+        Tests that dummy data that does not inherit from EntityModelMixin is not synced
+        when saved.
+        """
+        DummyModel.objects.create()
+        # Verify that no entities were created
+        self.assertEquals(Entity.objects.all().count(), 0)
+
+    def test_post_save_multi_inherit_model(self):
+        """
+        Tests that a model that does not directly inherit EntityModelMixin is still synced.
+        """
+        MultiInheritEntity.objects.create()
+        # Verify that one entity was synced
+        self.assertEquals(Entity.objects.all().count(), 1)
+
     def test_post_delete_no_entity(self):
         """
         Tests a post_delete on an account that has no current mirrored entity.
