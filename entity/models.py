@@ -36,7 +36,7 @@ class Entity(models.Model):
             filtered_entity: The relating entity to filter based on activity.
 
         Returns:
-            True if the the is_active filter passes, False otherwise.
+            True if the is_active filter passes, False otherwise.
         """
         return is_active is None or is_active == (filtered_entity.is_active and filtered_relationship.is_active)
 
