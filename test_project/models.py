@@ -24,7 +24,7 @@ class Team(models.Model, EntityModelMixin):
         return self.is_active
 
     def get_super_entities(self):
-        return [] if self.team_group is None else [self.team_group]
+        return [self.team_group] if self.team_group is not None else []
 
 
 class Account(models.Model, EntityModelMixin):
