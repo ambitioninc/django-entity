@@ -3,8 +3,9 @@ Provides functions for syncing entities and their relationships to the
 Entity and EntityRelationship tables.
 """
 from django.contrib.contenttypes.models import ContentType
+from django.db import models
 
-from .models import Entity, EntityRelationship
+from .models import Entity, EntityRelationship, EntityModelMixin
 
 
 def sync_entity(model_obj, is_deleted):
@@ -51,3 +52,19 @@ def sync_entity(model_obj, is_deleted):
 
         return entity
 
+
+def sync_entities():
+    """
+    Sync all entities in a project.
+    """
+    # Loop through all entities that inherit EntityModelMixin and sync the entity.
+    entity_models = [model_class for model_class in models.get_models() if issubclass(model_class, EntityModelMixin)]
+    for entity_model in entity_models:
+        model_obj_ids = []
+        for model_obj in entity_model.objects.all():
+            sync_entity(model_obj, False)
+            model_obj_ids.append(model_obj.id)
+
+        # Delete any existing entities that are not in the model obj table
+        Entity.objects.filter(entity_type=ContentType.objects.get_for_model(entity_model)).exclude(
+            entity_id__in=model_obj_ids).delete()
