@@ -11,7 +11,7 @@ class TestEntityModel(EntityTestCase):
     """
     def test_get_super_entities_none(self):
         """
-        Tests that super entities are retrieved for mirroed entities that
+        Tests that super entities are retrieved for mirrored entities that
         have no super entities
         """
         # Create an account with no team
