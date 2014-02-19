@@ -75,8 +75,8 @@ Let's start off with an example of two entities, an Account and a Group.
             Save the email and group of the Account as additional metaata.
             """
             return {
-                'email': email,
-                'group': group.name,
+                'email': self.email,
+                'group': self.group.name,
             }
 
         def get_super_entities(self):
