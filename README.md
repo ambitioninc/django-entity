@@ -38,13 +38,104 @@ After the entities have been synced, they can then be accessed in the primary En
     # Get its entity object from the entity table
     entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Account), entity_id=account.id)
 
-## How Do I Specify Relationships and Additonal Metadata about My Entities?
+## How Do I Specify Relationships And Additonal Metadata About My Entities?
 Django entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the EntityModelMixin that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
 
-- get_entity_meta(self): Return a dictionary of any JSON-serializable data. This data will be serialized into JSON and stored as a string for later access by any application. This function provides your project with the ability to save application-specific data in the metadata that can later be retrieved or viewed without having to access the main project tables. Defaults to returning None.
+- **get_entity_meta(self)**: Return a dictionary of any JSON-serializable data. This data will be serialized into JSON and stored as a string for later access by any application. This function provides your project with the ability to save application-specific data in the metadata that can later be retrieved or viewed without having to access the main project tables. Defaults to returning None.
 
-- is_entity_active(self): Returns True if this entity is active or False otherwise. This function provides the ability to specify if a given entity in your project is active. Sometimes it is valuable to retain information about entities in your system but be able to access them in different ways based on if they are active or inactive. For example, Django's User model provides the ability to specify if the User is still active without deleting the User model. This attribute can be mirrored here in this function. Defaults to returning True.
+- **is_entity_active(self)**: Returns True if this entity is active or False otherwise. This function provides the ability to specify if a given entity in your project is active. Sometimes it is valuable to retain information about entities in your system but be able to access them in different ways based on if they are active or inactive. For example, Django's User model provides the ability to specify if the User is still active without deleting the User model. This attribute can be mirrored here in this function. Defaults to returning True.
 
-- get_super_entities(self): Returns a list of all of the models in your project that have a "super" relationship with this entity. In other words, what models in your project enclose this entity? For example, a Django User could have a Group super entity that encapsulates the current User models and any other User models in the same Group. Defaults to returning an empty list.
+- **get_super_entities(self)**: Returns a list of all of the models in your project that have a "super" relationship with this entity. In other words, what models in your project enclose this entity? For example, a Django User could have a Group super entity that encapsulates the current User models and any other User models in the same Group. Defaults to returning an empty list.
 
-- is_super_entity_relationship_active(self, super_entity_model_obj): Returns True if the entity has an active relationship with the given super entity model object. Similar to how entities can be active or inactive, their relationships to super entities can be active or inactive. This allows entities to still belong to a larger super entity, but be excluded from queries to the relationships of entities. For example, a User of a Group may be temporarily banned from the Group, but the User's Group relationship may still be important for other things. This function defaults to returning True.
+- **is_super_entity_relationship_active(self, super_entity_model_obj)**: Returns True if the entity has an active relationship with the given super entity model object. Similar to how entities can be active or inactive, their relationships to super entities can be active or inactive. This allows entities to still belong to a larger super entity, but be excluded from queries to the relationships of entities. For example, a User of a Group may be temporarily banned from the Group, but the User's Group relationship may still be important for other things. This function defaults to returning True.
+
+## Now That My Entities And Relationships Are Specified, How Do I Use It?
+Let's start off with an example of two entities, an Account and a Group.
+
+    from djagno.db import models
+    from entity import EntityModelMixin
+
+    class Group(models.Model, EntityModelMixin):
+        name = models.CharField(max_length=64)
+
+        def get_entity_meta(self):
+            """
+            Save the name as metadata about the entity.
+            """
+            return {'name': self.name}
+
+    class Account(models.Model, EntityModelMixin):
+        email = models.CharField(max_length=64)
+        group = models.ForeignKey(Group)
+        is_active = models.BooleanField(default=True)
+
+        def get_entity_meta(self):
+            """
+            Save the email and group of the Account as additional metaata.
+            """
+            return {
+                'email': email,
+                'group': group.name,
+            }
+
+        def get_super_entities(self):
+            """
+            The group is a super entity of the Account.
+            """
+            return [self.group]
+
+        def is_entity_active(self):
+            return self.is_active
+
+The Account and Group entities have defined how they want their metadata mirrored along with how their relationship is set up. In this case, Accounts belong to Groups. We can create an example Account and Group and then access their mirrored metadata in the following way.
+
+    group = Group.objects.create(name='Hello Group')
+    account = Account.objects.create(email='hello@hello.com', group=group)
+
+    # Entity syncing happens automatically behind the scenes. Grab the entity of the account and group.
+    # Check out their metadata.
+    account_entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Account), entity_id=account.id)
+    print account_entity.entity_meta
+    {'email': 'hello@hello.com', 'group': 'Hello Group'}
+
+    group_entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Group), entity_id=group.id)
+    print group_entity.entity_meta
+    {'name': 'Hello Group'}
+
+The entity metadata can be very powerful for REST APIs and other components that wish to return data about entities within the application without actually having to query the project's tables.
+
+Once the entities are obtained, it is also easy to query for relationships among the entities.
+
+    # Print off the sub entity metadata of the group
+    for entity in group_entity.get_sub_entities():
+        print entity.entity_meta
+    {'email': 'hello@hello.com', 'group': 'Hello Group'}
+
+    # Similarly, print off the super entities of the account
+    for entity in account_entity.get_super_entities():
+        print entity.entity_meta
+    {'name': 'Hello Group'}
+
+    # Make the account inactive and query for active sub entities from the Group.
+    # It should not return anything since the account is inactive
+    account.is_active = False
+    account.save()
+
+    print len(group_entity.get_sub_entities(is_active=True))
+    0
+    # The account still remains a sub entity, just an inactive one
+    print len(group_entity.get_sub_entities())
+    1
+
+One can also filter on the sub/super entities by their type. This is useful if the entity has many relationships of different types.
+
+    for entity in group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Account)):
+        print entity.entity_meta
+    {'email': 'hello@hello.com', 'group': 'Hello Group'}
+
+    # Groups are not a subentity of themselves, so this function returns nothing
+    print len(group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Group)))
+    0
+
+## Caveats With Djagno Entity
+Django entity connects to the post_save and post_delete signals defined in Django to sync up your entity models when they are changed or deleted. However, since Django does not send any signals upon bulk creates or updates, you will have to ensure that your app calls sync_entities() after any bulk create or update. If your application does not depend on having entities fully synced at all times, a simpler solution is to set up a recurring job that syncs your entities to catch these caveats.
