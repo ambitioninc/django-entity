@@ -10,7 +10,7 @@ What is an entity? An entity is any model in your Django project. For example, a
 ## A Use Case
 Imagine that you have a Django project that defines many types of groupings of your users. For example, let's say in your enterprise project, you allow users to define their manager, their company position, and their regional branch location. Similarly, let's say that you have an app that can email groups of users based on their manager (or anyone who is under the managers of that manager), their position, or their region. This email app would likely have to know application-specific modeling of these relationships in order to be built. Similarly, doing things like querying for all users undera manager hierachy can be an expensive lookup depending on how it is modeled.
 
-Using Djagoo entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities(entity_type=ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
+Using Django entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities(entity_type=ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
 ## How Does It Work?
 In order to sync entities and their relationships from your project to the Django entity table, you must first create a model that inherits DjangoEntityMixin.
@@ -53,7 +53,7 @@ Django entity provides the ability to model relationships of your entities to ot
 ## Now That My Entities And Relationships Are Specified, How Do I Use It?
 Let's start off with an example of two entities, an Account and a Group.
 
-    from djagno.db import models
+    from django.db import models
     from entity import EntityModelMixin
 
     class Group(models.Model, EntityModelMixin):
@@ -138,5 +138,5 @@ One can also filter on the sub/super entities by their type. This is useful if t
     print len(group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Group)))
     0
 
-## Caveats With Djagno Entity
+## Caveats With Django Entity
 Django entity connects to the post_save and post_delete signals defined in Django to sync up your entity models when they are changed or deleted. However, since Django does not send any signals upon bulk creates or updates, you will have to ensure that your app calls sync_entities() after any bulk create or update. If your application does not depend on having entities fully synced at all times, a simpler solution is to set up a recurring job that syncs your entities to catch these caveats.
