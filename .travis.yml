@@ -1,0 +1,14 @@
+language: python
+python:
+  - '2.7'
+env:
+  - DJANGO=1.6.1 DB=postgres
+install:
+  - pip install -q Django==$DJANGO --use-mirrors
+  - pip install requirements.txt --use-mirrors
+before_script:
+  - find . | grep .py$ | xargs pep8 --max-line-length=120
+  - find . | grep .py$ | grep -v __init__.py | xargs pyflakes
+script:
+  - coverage run --source='entity' --branch manage.py test
+  - coverage report --fail-under=100
