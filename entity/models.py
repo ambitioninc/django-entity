@@ -22,7 +22,7 @@ class Entity(models.Model):
 
     def passes_is_active(self, filtered_relationship, filtered_entity, is_active):
         """
-        Returns True if the relationship and its relating subentity is active based on the
+        Returns True if the relationship and its relating sub entity is active based on the
         is_active flag. If is_active is True, both the relationship and the relating entity
         have to be active. If is_active is False, the relationship or relating entity
         has to be inactive in order to pass the filter.

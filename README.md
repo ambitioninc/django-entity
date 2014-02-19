@@ -134,7 +134,7 @@ One can also filter on the sub/super entities by their type. This is useful if t
         print entity.entity_meta
     {'email': 'hello@hello.com', 'group': 'Hello Group'}
 
-    # Groups are not a subentity of themselves, so this function returns nothing
+    # Groups are not a sub entity of themselves, so this function returns nothing
     print len(group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Group)))
     0
 
