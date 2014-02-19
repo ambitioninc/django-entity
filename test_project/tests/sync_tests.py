@@ -334,3 +334,45 @@ class TestEntitySignalSync(EntityTestCase):
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
         self.assertEquals(relationship.is_active, False)
+
+    def test_post_update_filter_super_entities(self):
+        """
+        Tests that accounts can filter their super entities based on a given entity type.
+        """
+        # Create an account that belongs to a team
+        team = Team.objects.create(name='Team')
+        account = Account.objects.create(email='test@test.com', team=team)
+
+        # Get the entity related to the account
+        account_entity = Entity.objects.get(
+            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        team_entity = Entity.objects.get(
+            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        # Check the filter of the super entity type
+        self.assertEquals(
+            account_entity.get_super_entities(entity_type=ContentType.objects.get_for_model(team)),
+            [team_entity])
+        # Check that the filter returns nothing for a different entity type
+        self.assertEquals(
+            account_entity.get_super_entities(entity_type=ContentType.objects.get_for_model(account)), [])
+
+    def test_post_update_filter_sub_entities(self):
+        """
+        Tests that teams can filter their sub entities based on a given entity type.
+        """
+        # Create an account that belongs to a team
+        team = Team.objects.create(name='Team')
+        account = Account.objects.create(email='test@test.com', team=team)
+
+        # Get the entity related to the account
+        account_entity = Entity.objects.get(
+            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        team_entity = Entity.objects.get(
+            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        # Check the filter of the sub entity type
+        self.assertEquals(
+            team_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(account)),
+            [account_entity])
+        # Check that the filter returns nothing for a different entity type
+        self.assertEquals(
+            team_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(team)), [])
