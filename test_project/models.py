@@ -3,6 +3,13 @@ from django.db import models
 from entity import EntityModelMixin, Entity
 
 
+class TeamGroup(models.Model, EntityModelMixin):
+    """
+    A grouping of teams.
+    """
+    name = models.CharField(max_length=256)
+
+
 class Team(models.Model, EntityModelMixin):
     """
     A team entity model. Encapsulates accounts.
@@ -10,9 +17,14 @@ class Team(models.Model, EntityModelMixin):
     name = models.CharField(max_length=256)
     # Used for testing if the entity is active
     is_active = models.BooleanField(default=True)
+    # Used for additional super entity tests
+    team_group = models.ForeignKey(TeamGroup, null=True)
 
     def is_entity_active(self):
         return self.is_active
+
+    def get_super_entities(self):
+        return [] if self.team_group is None else [self.team_group]
 
 
 class Account(models.Model, EntityModelMixin):

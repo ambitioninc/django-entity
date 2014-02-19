@@ -30,10 +30,12 @@ setup(
     author='Wes Kendall',
     author_email='wesleykendall@gmail.com',
     license='MIT',
-    packages=['entity'],
+    packages=[
+        'entity',
+        'entity.management',
+        'entity.management.commands',
+    ],
     install_requires=['django>=1.6.1'],
     include_package_data=True,
     zip_safe=False,
-    test_suite='nose.collector',
-    tests_require=['nose>=1.3.0'],
 )

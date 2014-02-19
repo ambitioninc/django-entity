@@ -7,7 +7,7 @@ from django.db.models.signals import post_delete, post_save
 from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
 from entity.sync import sync_entities
 
-from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
+from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity, TeamGroup
 from .utils import EntityTestCase
 
 
@@ -334,6 +334,24 @@ class TestEntitySignalSync(EntityTestCase):
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
         self.assertEquals(relationship.is_active, False)
+
+
+class TestEntityRelationshipFilters(EntityTestCase):
+    """
+    Tests various filtering on entities and their relationsips.
+    """
+    def test_default_entity_relationship_is_active(self):
+        """
+        Tests that the default entity relationships are set to active by using
+        an Team entity that does not define the is_super_entity_relationship_active function.
+        """
+        team_group = TeamGroup.objects.create(name='Group')
+        team = Team.objects.create(name='Team', team_group=team_group)
+        team_entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        team_group_entity = Entity.objects.get(
+            entity_type=ContentType.objects.get_for_model(team_group), entity_id=team_group.id)
+        # Verify that the team has an active relationship with its super entity
+        EntityRelationship.objects.get(sub_entity=team_entity, super_entity=team_group_entity, is_active=True)
 
     def test_post_update_filter_super_entities(self):
         """
