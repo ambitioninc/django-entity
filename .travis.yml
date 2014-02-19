@@ -4,8 +4,8 @@ python:
 env:
   - DJANGO=1.6.1 DB=postgres
 install:
-  - pip install -q Django==$DJANGO --use-mirrors
-  - pip install -r requirements.txt --use-mirrors
+  - pip install -q Django==$DJANGO
+  - pip install -r requirements.txt
 before_script:
   - find . | grep .py$ | xargs pep8 --max-line-length=120
   - find . | grep .py$ | grep -v __init__.py | xargs pyflakes
