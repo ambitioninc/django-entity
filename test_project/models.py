@@ -1,16 +1,17 @@
 from django.db import models
 
-from entity import EntityModelMixin, Entity
+from entity import BaseEntityModel, Entity
+from entity.models import EntityModelManager
 
 
-class TeamGroup(models.Model, EntityModelMixin):
+class TeamGroup(BaseEntityModel):
     """
     A grouping of teams.
     """
     name = models.CharField(max_length=256)
 
 
-class Team(models.Model, EntityModelMixin):
+class Team(BaseEntityModel):
     """
     A team entity model. Encapsulates accounts.
     """
@@ -27,7 +28,7 @@ class Team(models.Model, EntityModelMixin):
         return [self.team_group] if self.team_group is not None else []
 
 
-class Account(models.Model, EntityModelMixin):
+class Account(BaseEntityModel):
     """
     An account entity model
     """
@@ -82,8 +83,10 @@ class DummyModel(models.Model):
     """
     dummy_data = models.CharField(max_length=64)
 
+    objects = EntityModelManager()
 
-class BaseEntityClass(models.Model, EntityModelMixin):
+
+class BaseEntityClass(BaseEntityModel):
     """
     A base class that inherits EntityModelMixin. Helps ensure that mutliple-inherited
     entities are still synced properly.

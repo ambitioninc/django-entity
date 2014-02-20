@@ -1,9 +1,14 @@
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models.query import QuerySet
 from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
+from django.dispatch import receiver, Signal
 from jsonfield import JSONField
+
+
+# Create a signal that is emitted after bulk operations occur
+post_bulk_operation = Signal()
 
 
 class Entity(models.Model):
@@ -177,6 +182,41 @@ class EntityModelMixin(object):
         return True
 
 
+class EntityQuerySet(QuerySet):
+    """
+    Overrides bulk operations on a queryset to emit a signal when they occur.
+    """
+    def update(self, **kwargs):
+        ret_val = super(EntityQuerySet, self).update(**kwargs)
+        post_bulk_operation.send(sender=self)
+        return ret_val
+
+
+class EntityModelManager(models.Manager):
+    """
+    Defines a model manager for Entity models. This model manager provides additional
+    functionality on top of the regular managers, such as emitting signals when bulk
+    updates and creates are issued.
+    """
+    def get_queryset(self):
+        return EntityQuerySet(self.model)
+
+    def bulk_create(self, objs, batch_size=None):
+        ret_val = super(EntityModelManager, self).bulk_create(objs, batch_size=batch_size)
+        post_bulk_operation.send(sender=self)
+        return ret_val
+
+
+class BaseEntityModel(models.Model, EntityModelMixin):
+    """
+    Defines base properties for an Entity model defined by a third-party application.
+    """
+    class Meta:
+        abstract = True
+
+    objects = EntityModelManager()
+
+
 def sync_entity_signal_handler(sender, model_obj, is_deleted):
     """
     Filters post save/delete signals for entities by checking if they
@@ -187,6 +227,16 @@ def sync_entity_signal_handler(sender, model_obj, is_deleted):
         # Include the function here to avoid circular dependencies
         from .sync import sync_entity
         sync_entity(model_obj, is_deleted)
+
+
+def sync_entities_signal_handler(sender):
+    """
+    When a bulk operation occurs on a model manager, sync all the entities
+    if the model of the manager is an entity class.
+    """
+    if issubclass(sender.model, EntityModelMixin):
+        from .sync import sync_entities
+        sync_entities()
 
 
 @receiver(post_delete)
@@ -205,3 +255,11 @@ def save_entity_signal_handler(sender, *args, **kwargs):
     the entity mirror table.
     """
     sync_entity_signal_handler(sender, kwargs['instance'], False)
+
+
+@receiver(post_bulk_operation)
+def bulk_operation_signal_handler(sender, *args, **kwargs):
+    """
+    When a bulk operation has happened on a model, sync all the entities again.
+    """
+    sync_entities_signal_handler(sender)

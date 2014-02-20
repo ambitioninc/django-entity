@@ -107,6 +107,47 @@ class TestEntitySignalSync(EntityTestCase):
     Tests that entities (from the test models) are properly synced upon post_save and
     post_delete calls.
     """
+    def test_post_bulk_create(self):
+        """
+        Tests that entities can have bulk creates applied to them and still be synced.
+        """
+        # Bulk create five accounts
+        accounts = [Account() for i in range(5)]
+        Account.objects.bulk_create(accounts)
+        # Verify that there are 5 entities
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+    def test_post_bulk_update(self):
+        """
+        Calls a bulk update on a list of entities. Verifies that the models are appropriately
+        synced.
+        """
+        # Create five accounts
+        for i in range(5):
+            Account.objects.create(email='test1@test.com')
+        # Verify that there are five entities all with the 'test1@test.com' email
+        for entity in Entity.objects.all():
+            self.assertEquals(entity.entity_meta['email'], 'test1@test.com')
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+        # Bulk update the account emails to a different one
+        Account.objects.all().update(email='test2@test.com')
+
+        # Verify that the email was updated properly in all entities
+        for entity in Entity.objects.all():
+            self.assertEquals(entity.entity_meta['email'], 'test2@test.com')
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+    def test_post_bulk_update_dummy(self):
+        """
+        Tests that even if the dummy model is using the special model manager for bulk
+        updates, it still does not get synced since it doesn't inherit EntityModelMixin.
+        """
+        # Create five dummy models with a bulk update
+        DummyModel.objects.bulk_create([DummyModel() for i in range(5)])
+        # There should be no synced entities
+        self.assertEquals(Entity.objects.all().count(), 0)
+
     def test_post_save_dummy_data(self):
         """
         Tests that dummy data that does not inherit from EntityModelMixin is not synced
