@@ -20,12 +20,11 @@ class Entity(models.Model):
     # True if this entity is active
     is_active = models.BooleanField(default=True)
 
-    def passes_is_active(self, filtered_relationship, filtered_entity, is_active):
+    def _passes_is_active_filter(self, filtered_relationship, filtered_entity, is_active):
         """
-        Returns True if the relationship and its relating sub entity is active based on the
-        is_active flag. If is_active is True, both the relationship and the relating entity
-        have to be active. If is_active is False, the relationship or relating entity
-        has to be inactive in order to pass the filter.
+        Given an is_active filter on the get_sub or get_super_entities functions, determine
+        if the relationship and entity passes if it is active or not (depending on the
+        value of is_active)
 
         Args:
             is_active: Specifies the active flag upon which to filter. If None, this function
@@ -40,10 +39,10 @@ class Entity(models.Model):
         """
         return is_active is None or is_active == (filtered_entity.is_active and filtered_relationship.is_active)
 
-    def passes_entity_type(self, filtered_entity, entity_type):
+    def _passes_entity_type_filter(self, filtered_entity, entity_type):
         """
-        Returns True if the filtered_entity is of type entity_type, False otherwise. If entity_type
-        is None, it always return True.
+        Given an entity_type filter on the get_sub or get_super_entities functions, determine
+        if the entity is of the entity_type given.
 
         Args:
             filtered_entity: The Entity model being filtered.
@@ -74,7 +73,8 @@ class Entity(models.Model):
         # prefetch related on the sub or super_relationships sets.
         return [
             r.sub_entity for r in self.sub_relationships.all()
-            if self.passes_is_active(r, r.sub_entity, is_active) and self.passes_entity_type(r.sub_entity, entity_type)
+            if (self._passes_is_active_filter(r, r.sub_entity, is_active) and
+                self._passes_entity_type_filter(r.sub_entity, entity_type))
         ]
 
     def get_super_entities(self, is_active=None, entity_type=None):
@@ -97,8 +97,8 @@ class Entity(models.Model):
         # prefetch related on the sub or super_relationships sets.
         return [
             r.super_entity for r in self.super_relationships.all()
-            if (self.passes_is_active(r, r.super_entity, is_active) and
-                self.passes_entity_type(r.super_entity, entity_type))
+            if (self._passes_is_active_filter(r, r.super_entity, is_active) and
+                self._passes_entity_type_filter(r.super_entity, entity_type))
         ]
 
 
