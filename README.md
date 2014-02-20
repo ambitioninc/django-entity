@@ -71,7 +71,7 @@ Let's start off with an example of two entities, an Account and a Group.
 
         def get_entity_meta(self):
             """
-            Save the email and group of the Account as additional metaata.
+            Save the email and group of the Account as additional metadata.
             """
             return {
                 'email': self.email,
@@ -139,3 +139,5 @@ One can also filter on the sub/super entities by their type. This is useful if t
 
 ## Caveats With Django Entity
 Django Entity has some current caveats worth noting. Currently, Djagno Entity links with post_save and post_delete signals so that any BaseEntityModel will be mirrored when updated. However, if the BaseEntityModel uses other models in its metadata or in defining its relationships to other models, these will not be updated when those other models are updated. For example, if there is a GroupMembership model that defines a if a User is active within a Group, changing the GroupMembership model will not remirror the Entity tables since GroupMembership does not inherit from BaseEntityModel. Future methods will be put in place to eliminate this caveat.
+
+Note that if a user wishes to use a custom model manager for a BaseEntityModel, the user will have to make their model manager inherit EntityModelManager. If the user does not do this, entity syncing upon bulk methods will not work properly.
