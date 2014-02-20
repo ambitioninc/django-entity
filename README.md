@@ -1,19 +1,19 @@
 [![Build Status](https://travis-ci.org/ambitioninc/django-entity.png)](https://travis-ci.org/ambitioninc/django-entity)
 Django Entity
 =============
-Django entity is an app that provides Django projects with the ability to mirror their entities and entity relationships in a separate, well-contained and easily-accessible table.
+Django Entity is an app that provides Django projects with the ability to mirror their entities and entity relationships in a separate, well-contained and easily-accessible table.
 
-Django entity provides large-scale projects with the ability to better segregate their apps while minimizing the application-specific code in those apps that has to deal with entities and their relationships in the main project.
+Django Entity provides large-scale projects with the ability to better segregate their apps while minimizing the application-specific code in those apps that has to deal with entities and their relationships in the main project.
 
-What is an entity? An entity is any model in your Django project. For example, an entity could be a Django User model or a Group of Users. Similarly an entity relationship defines a super and sub relationship among different types of entities. For example, a Group would be a super entity of a User. The Django entity app allows you to easily express this relationship in your model definition and sync it to a centralized place that is accessible by any other app in your project.
+What is an entity? An entity is any model in your Django project. For example, an entity could be a Django User model or a Group of Users. Similarly an entity relationship defines a super and sub relationship among different types of entities. For example, a Group would be a super entity of a User. The Django Entity app allows you to easily express this relationship in your model definition and sync it to a centralized place that is accessible by any other app in your project.
 
 ## A Use Case
 Imagine that you have a Django project that defines many types of groupings of your users. For example, let's say in your enterprise project, you allow users to define their manager, their company position, and their regional branch location. Similarly, let's say that you have an app that can email groups of users based on their manager (or anyone who is under the managers of that manager), their position, or their region. This email app would likely have to know application-specific modeling of these relationships in order to be built. Similarly, doing things like querying for all users undera manager hierachy can be an expensive lookup depending on how it is modeled.
 
-Using Django entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities(entity_type=ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
+Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities(entity_type=ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
 ## How Does It Work?
-In order to sync entities and their relationships from your project to the Django entity table, you must first create a model that inherits BaseEntityModel.
+In order to sync entities and their relationships from your project to the Django Entity table, you must first create a model that inherits BaseEntityModel.
 
     from entity import BaseEntityModel
 
@@ -39,7 +39,7 @@ After the entities have been synced, they can then be accessed in the primary En
     entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Account), entity_id=account.id)
 
 ## How Do I Specify Relationships And Additonal Metadata About My Entities?
-Django entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the BaseEntityModel that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
+Django Entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the BaseEntityModel that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
 
 - **get_entity_meta(self)**: Return a dictionary of any JSON-serializable data. This data will be serialized into JSON and stored as a string for later access by any application. This function provides your project with the ability to save application-specific data in the metadata that can later be retrieved or viewed without having to access the main project tables. Defaults to returning None.
 
