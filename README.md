@@ -13,12 +13,11 @@ Imagine that you have a Django project that defines many types of groupings of y
 Using Django entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities(entity_type=ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
 ## How Does It Work?
-In order to sync entities and their relationships from your project to the Django entity table, you must first create a model that inherits DjangoEntityMixin.
+In order to sync entities and their relationships from your project to the Django entity table, you must first create a model that inherits BaseEntityModel.
 
-    from django.db import models
-    from entity import EntityModelMixin
+    from entity import BaseEntityModel
 
-    class Account(models.Model, EntityModelMixin):
+    class Account(BaseEntityModel):
         email = models.CharField(max_length=64)
 
 When you update your models to inherit this mixin, they will automatically be synced to the Entity table when they are updated or deleted. The first time that you migrate a model in your application, you must remember to sync all of the entities so that the current ones get synced to the entity table. This can be accomplished with
@@ -40,7 +39,7 @@ After the entities have been synced, they can then be accessed in the primary En
     entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Account), entity_id=account.id)
 
 ## How Do I Specify Relationships And Additonal Metadata About My Entities?
-Django entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the EntityModelMixin that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
+Django entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the BaseEntityModel that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
 
 - **get_entity_meta(self)**: Return a dictionary of any JSON-serializable data. This data will be serialized into JSON and stored as a string for later access by any application. This function provides your project with the ability to save application-specific data in the metadata that can later be retrieved or viewed without having to access the main project tables. Defaults to returning None.
 
@@ -54,9 +53,9 @@ Django entity provides the ability to model relationships of your entities to ot
 Let's start off with an example of two entities, an Account and a Group.
 
     from django.db import models
-    from entity import EntityModelMixin
+    from entity import BaseEntityModel
 
-    class Group(models.Model, EntityModelMixin):
+    class Group(BaseEntityModel):
         name = models.CharField(max_length=64)
 
         def get_entity_meta(self):
@@ -65,7 +64,7 @@ Let's start off with an example of two entities, an Account and a Group.
             """
             return {'name': self.name}
 
-    class Account(models.Model, EntityModelMixin):
+    class Account(BaseEntityModel):
         email = models.CharField(max_length=64)
         group = models.ForeignKey(Group)
         is_active = models.BooleanField(default=True)
