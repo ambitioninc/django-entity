@@ -19,8 +19,8 @@ class TestSyncAllEntities(EntityTestCase):
     def setUp(self):
         super(TestSyncAllEntities, self).setUp()
         # Disconnect signal handlers to test syncing all entities
-        post_delete.disconnect(delete_entity_signal_handler)
-        post_save.disconnect(save_entity_signal_handler)
+        post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+        post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
 
     def test_sync_entities_management_command(self):
         """
