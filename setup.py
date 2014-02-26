@@ -34,6 +34,7 @@ setup(
         'entity',
         'entity.management',
         'entity.management.commands',
+        'entity.migrations',
     ],
     install_requires=['django>=1.6.1'],
     include_package_data=True,
