@@ -239,7 +239,7 @@ def sync_entities_signal_handler(sender):
         sync_entities()
 
 
-@receiver(post_delete, dispatch_uid='delete_entity_sianal_handler')
+@receiver(post_delete, dispatch_uid='delete_entity_signal_handler')
 def delete_entity_signal_handler(sender, *args, **kwargs):
     """
     Defines a signal handler for syncing an individual entity. Called when
