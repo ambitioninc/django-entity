@@ -239,7 +239,7 @@ def sync_entities_signal_handler(sender):
         sync_entities()
 
 
-@receiver(post_delete)
+@receiver(post_delete, dispatch_uid='delete_entity_sianal_handler')
 def delete_entity_signal_handler(sender, *args, **kwargs):
     """
     Defines a signal handler for syncing an individual entity. Called when
@@ -248,7 +248,7 @@ def delete_entity_signal_handler(sender, *args, **kwargs):
     sync_entity_signal_handler(sender, kwargs['instance'], True)
 
 
-@receiver(post_save)
+@receiver(post_save, dispatch_uid='save_entity_signal_handler')
 def save_entity_signal_handler(sender, *args, **kwargs):
     """
     Defines a signal handler for saving an entity. Syncs the entity to
@@ -257,7 +257,7 @@ def save_entity_signal_handler(sender, *args, **kwargs):
     sync_entity_signal_handler(sender, kwargs['instance'], False)
 
 
-@receiver(post_bulk_operation)
+@receiver(post_bulk_operation, dispatch_uid='post_bulk_operation_signal_handler')
 def bulk_operation_signal_handler(sender, *args, **kwargs):
     """
     When a bulk operation has happened on a model, sync all the entities again.
