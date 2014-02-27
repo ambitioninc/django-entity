@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='django-entity',
-    version='0.2.2',
+    version='0.2.3',
     description='Entity relationship management for Django',
     long_description='''
         Django entity provides methods and models to mirror entities and
@@ -38,7 +38,8 @@ setup(
     ],
     install_requires=[
         'django>=1.6.1',
-        'django-celery>=3.1.1'
+        'django-celery>=3.1.1',
+        'jsonfield>=0.9.20',
     ],
     include_package_data=True,
     zip_safe=False,
