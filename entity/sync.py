@@ -4,8 +4,28 @@ Entity and EntityRelationship tables.
 """
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models.signals import post_save, post_delete
 
-from .models import Entity, EntityRelationship, EntityModelMixin
+from .models import Entity, EntityRelationship, EntityModelMixin, delete_entity_signal_handler
+from .models import save_entity_signal_handler, bulk_operation_signal_handler, post_bulk_operation
+
+
+def turn_off_syncing():
+    """
+    Disables all of the signals for syncing entities.
+    """
+    post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+
+
+def turn_on_syncing():
+    """
+    Enables all of the signals for syncing entities.
+    """
+    post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
 
 
 def sync_entity(model_obj, is_deleted):
