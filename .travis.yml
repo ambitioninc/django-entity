@@ -10,5 +10,5 @@ before_script:
   - find . | grep .py$ | grep -v /migrations | xargs pep8 --max-line-length=120
   - find . | grep .py$ | grep -v /migrations | grep -v __init__.py | xargs pyflakes
 script:
-  - coverage run --source='entity' --branch -omit 'entity/migrations/*' manage.py test
+  - coverage run --source='entity' --branch --omit 'entity/migrations/*' manage.py test
   - coverage report --fail-under=100
