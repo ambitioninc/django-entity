@@ -257,7 +257,7 @@ def save_entity_signal_handler(sender, *args, **kwargs):
     sync_entity_signal_handler(sender, kwargs['instance'], False)
 
 
-@receiver(post_bulk_operation, dispatch_uid='post_bulk_operation_signal_handler')
+@receiver(post_bulk_operation, dispatch_uid='bulk_operation_signal_handler')
 def bulk_operation_signal_handler(sender, *args, **kwargs):
     """
     When a bulk operation has happened on a model, sync all the entities again.
