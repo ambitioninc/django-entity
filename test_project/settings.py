@@ -14,6 +14,10 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
+# Setup celery
+import djcelery
+djcelery.setup_loader()
+
 # Add 'postgresql_psycopg2', 'mysql', 'sqlite3'
 DATABASES = {
     'default': {
@@ -126,6 +130,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'entity',
     'django_nose',
+    'djcelery',
     'south',
     'test_project',
 )

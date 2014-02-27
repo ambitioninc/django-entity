@@ -1,14 +1,116 @@
 """
 Provides tests for the syncing functionalities in django entity.
 """
+from mock import patch
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.db.models.signals import post_delete, post_save
+from django.test.utils import override_settings
 from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
-from entity.sync import sync_entities
+from entity.sync import sync_entities, turn_on_syncing, turn_off_syncing
 
 from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity, TeamGroup
 from .utils import EntityTestCase
+
+
+class TestTurnOnOffSyncing(EntityTestCase):
+    """
+    Tests turning on and off entity syncing.
+    """
+    def tearDown(self):
+        super(TestTurnOnOffSyncing, self).tearDown()
+        # Make sure syncing is always on before every test
+        turn_on_syncing()
+
+    def test_post_save_turned_on_by_default(self):
+        """
+        Tests that save signals are connected by default.
+        """
+        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+            Account.objects.create()
+            self.assertTrue(mock_handler.called)
+
+    def test_post_delete_turned_on_by_default(self):
+        """
+        Tests that delete signals are connected by default.
+        """
+        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+            a = Account.objects.create()
+            self.assertEquals(mock_handler.call_count, 1)
+
+            # Delete the object. The signal should be called
+            a.delete()
+            self.assertEquals(mock_handler.call_count, 2)
+
+    def test_bulk_operation_turned_on_by_default(self):
+        """
+        Tests that bulk operations are turned on by default.
+        """
+        with patch('entity.models.sync_entities_signal_handler') as mock_handler:
+            Account.objects.bulk_create([Account() for i in range(5)])
+            self.assertTrue(mock_handler.called)
+
+    def test_turn_off_save(self):
+        """
+        Tests turning off syncing for the save signal.
+        """
+        turn_off_syncing()
+        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+            Account.objects.create()
+            self.assertFalse(mock_handler.called)
+
+    def test_turn_off_delete(self):
+        """
+        Tests turning off syncing for the delete signal.
+        """
+        turn_off_syncing()
+        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+            a = Account.objects.create()
+            self.assertFalse(mock_handler.called)
+            a.delete()
+            self.assertFalse(mock_handler.called)
+
+    def test_turn_off_bulk(self):
+        """
+        Tests turning off syncing for bulk operations.
+        """
+        turn_off_syncing()
+        with patch('entity.models.sync_entities_signal_handler') as mock_handler:
+            Account.objects.bulk_create([Account() for i in range(5)])
+            self.assertFalse(mock_handler.called)
+
+    def test_turn_on_save(self):
+        """
+        Tests turning on syncing for the save signal.
+        """
+        turn_off_syncing()
+        turn_on_syncing()
+        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+            Account.objects.create()
+            self.assertTrue(mock_handler.called)
+
+    def test_turn_on_delete(self):
+        """
+        Tests turning on syncing for the delete signal.
+        """
+        turn_off_syncing()
+        turn_on_syncing()
+        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+            a = Account.objects.create()
+            self.assertEquals(mock_handler.call_count, 1)
+            a.delete()
+            self.assertEquals(mock_handler.call_count, 2)
+
+    def test_turn_on_bulk(self):
+        """
+        Tests turning on syncing for bulk operations.
+        """
+        turn_off_syncing()
+        turn_on_syncing()
+        with patch('entity.models.sync_entities_signal_handler') as mock_handler:
+            Account.objects.bulk_create([Account() for i in range(5)])
+            self.assertTrue(mock_handler.called)
 
 
 class TestSyncAllEntities(EntityTestCase):
@@ -22,6 +124,12 @@ class TestSyncAllEntities(EntityTestCase):
         post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
         post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
 
+    def tearDown(self):
+        super(TestSyncAllEntities, self).tearDown()
+        # Reconnect signal handlers
+        post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+        post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+
     def test_sync_entities_management_command(self):
         """
         Tests that the management command for syncing entities works properly.
@@ -33,6 +141,20 @@ class TestSyncAllEntities(EntityTestCase):
         # Test that the management command syncs all five entities
         self.assertEquals(Entity.objects.all().count(), 0)
         call_command('sync_entities')
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_ALWAYS_EAGER=True, BROKER_BACKEND='memory')
+    def test_async_sync_entities_management_command(self):
+        """
+        Tests that the sync_entities command works with the asynchronous option.
+        """
+        # Create five test accounts
+        for i in range(5):
+            Account.objects.create()
+
+        # Test that the management command syncs all five entities
+        self.assertEquals(Entity.objects.all().count(), 0)
+        call_command('sync_entities', async=True)
         self.assertEquals(Entity.objects.all().count(), 5)
 
     def test_sync_dummy_data(self):
