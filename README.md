@@ -47,8 +47,6 @@ Django Entity provides the ability to model relationships of your entities to ot
 
 - **get_super_entities(self)**: Returns a list of all of the models in your project that have a "super" relationship with this entity. In other words, what models in your project enclose this entity? For example, a Django User could have a Group super entity that encapsulates the current User models and any other User models in the same Group. Defaults to returning an empty list.
 
-- **is_super_entity_relationship_active(self, super_entity_model_obj)**: Returns True if the entity has an active relationship with the given super entity model object. Similar to how entities can be active or inactive, their relationships to super entities can be active or inactive. This allows entities to still belong to a larger super entity, but be excluded from queries to the relationships of entities. For example, a User of a Group may be temporarily banned from the Group, but the User's Group relationship may still be important for other things. This function defaults to returning True.
-
 ## Now That My Entities And Relationships Are Specified, How Do I Use It?
 Let's start off with an example of two entities, an Account and a Group.
 

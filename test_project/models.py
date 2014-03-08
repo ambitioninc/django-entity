@@ -60,13 +60,6 @@ class Account(BaseEntityModel):
         """
         return [self.team] if self.team is not None else []
 
-    def is_super_entity_relationship_active(self, super_entity):
-        """
-        Make it an inactive relationship when the account is a captain
-        of a team.
-        """
-        return not self.is_captain
-
 
 class EntityPointer(models.Model):
     """

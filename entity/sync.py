@@ -66,7 +66,6 @@ def sync_entity(model_obj, is_deleted):
             entity_relationships.append(EntityRelationship(
                 super_entity=super_entity,
                 sub_entity=entity,
-                is_active=model_obj.is_super_entity_relationship_active(super_model_obj),
             ))
         EntityRelationship.objects.bulk_create(entity_relationships)
 
