@@ -21,7 +21,7 @@ class CachedEntityManager(EntityManager):
     """
     def get_queryset(self):
         return super(CachedEntityManager, self).get_queryset().prefetch_related(
-            'super_relationships', 'sub_relationships')
+            'super_relationships__super_entity', 'sub_relationships__sub_entity')
 
 
 class Entity(models.Model):

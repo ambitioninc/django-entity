@@ -7,17 +7,27 @@ from .utils import EntityTestCase
 
 class TestCachedEntityObjects(EntityTestCase):
     """
-    Tests using the cached_objects model manager of the Entity model to retrive cached
+    Tests using the cached_objects model manager of the Entity model to retrieve cached
     relationships of the entities.
     """
     def test_filter_cached_entities(self):
         """
-        Tests a filtered retrival of cached entities.
+        Tests a filtered retrival of cached entities and verifies it results in the smallest amount of
+        queries
         """
+        team = Team.objects.create()
         for i in range(5):
-            Account.objects.create()
-        entities = Entity.cached_objects.filter(id__in=(i.id for i in Entity.objects.all()))
-        self.assertEquals(entities.count(), 5)
+            Account.objects.create(team=team)
+
+        entity_ids = [i.id for i in Entity.objects.all()]
+        # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and two more
+        # for entities in those relationships
+        with self.assertNumQueries(5):
+            entities = Entity.cached_objects.filter(id__in=entity_ids)
+            for entity in entities:
+                self.assertTrue(len(entity.get_super_entities(is_active=True)) >= 0)
+                self.assertTrue(len(entity.get_sub_entities(is_active=True)) >= 0)
+        self.assertEquals(entities.count(), 6)
 
 
 class TestEntityModel(EntityTestCase):
