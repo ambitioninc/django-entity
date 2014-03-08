@@ -1,14 +1,14 @@
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models.query import QuerySet
 from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver, Signal
+from django.dispatch import receiver
 from jsonfield import JSONField
+from manager_utils import ManagerUtilsManager, post_bulk_operation
 
 
-# Create a signal that is emitted after bulk operations occur
-post_bulk_operation = Signal()
+class EntityModelManager(ManagerUtilsManager):
+    pass
 
 
 class Entity(models.Model):
@@ -163,31 +163,6 @@ class EntityModelMixin(object):
             Defaults to returning an empty list.
         """
         return []
-
-
-class EntityQuerySet(QuerySet):
-    """
-    Overrides bulk operations on a queryset to emit a signal when they occur.
-    """
-    def update(self, **kwargs):
-        ret_val = super(EntityQuerySet, self).update(**kwargs)
-        post_bulk_operation.send(sender=self)
-        return ret_val
-
-
-class EntityModelManager(models.Manager):
-    """
-    Defines a model manager for Entity models. This model manager provides additional
-    functionality on top of the regular managers, such as emitting signals when bulk
-    updates and creates are issued.
-    """
-    def get_queryset(self):
-        return EntityQuerySet(self.model)
-
-    def bulk_create(self, objs, batch_size=None):
-        ret_val = super(EntityModelManager, self).bulk_create(objs, batch_size=batch_size)
-        post_bulk_operation.send(sender=self)
-        return ret_val
 
 
 class BaseEntityModel(models.Model, EntityModelMixin):

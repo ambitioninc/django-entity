@@ -6,4 +6,6 @@ pep8
 psycopg2==2.4.5
 pyflakes
 south==0.7.6
+
+git+https://github.com/ambitioninc/django-manager-utils@0.2
 # Note that Django is a requirement, but it is installed in the .travis.yml file in order to test against different versions
