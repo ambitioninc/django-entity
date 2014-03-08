@@ -38,7 +38,7 @@ setup(
         'entity.migrations',
     ],
     dependency_links=[
-        'git+https://github.com/ambitioninc/django-manager-utils.git@0.2',
+        'https://github.com/ambitioninc/django-manager-utils/tarball/master#egg=django-manager-utils-0.2.1',
     ],
     install_requires=[
         'django>=1.6.1',
