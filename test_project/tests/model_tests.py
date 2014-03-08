@@ -80,25 +80,6 @@ class TestEntityModel(EntityTestCase):
         # Verify that the inactive sub entities of the team is nothing
         self.assertEquals(team_entity.get_sub_entities(is_active=False), [])
 
-    def test_get_inactive_sub_entities_relationships_one(self):
-        """
-        Tests retrieval of all inactive sub entities when one exists.
-        """
-        # Create a team and an account with the team as a super entity. The
-        # account is the captain, so according to our test app definition, it has
-        # an inactive relationship with the team
-        team = Team.objects.create()
-        account = Account.objects.create(team=team, is_captain=True)
-        # Get the entity of the account and the team
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
-        # Verify that the inactive sub entities of the team is the account
-        self.assertEquals(team_entity.get_sub_entities(is_active=False), [account_entity])
-        # Verify that the active sub entities of the team is none
-        self.assertEquals(team_entity.get_sub_entities(is_active=True), [])
-
     def test_get_inactive_sub_entities_one(self):
         """
         Tests retrieval of all inactive sub entities when one exists. This test tests
@@ -135,25 +116,6 @@ class TestEntityModel(EntityTestCase):
         self.assertEquals(account_entity.get_super_entities(is_active=True), [team_entity])
         # Verify that the inactive super entities of the account is nothing
         self.assertEquals(account_entity.get_super_entities(is_active=False), [])
-
-    def test_get_inactive_super_entities_relationships_one(self):
-        """
-        Tests retrieval of all inactive super entities when one exists.
-        """
-        # Create a team and an account with the team as a super entity. The
-        # account is the captain, so according to our test app definition, it has
-        # an inactive relationship with the team
-        team = Team.objects.create()
-        account = Account.objects.create(team=team, is_captain=True)
-        # Get the entity of the account and the team
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
-        # Verify that the inactive super entities of the account is the team
-        self.assertEquals(account_entity.get_super_entities(is_active=False), [team_entity])
-        # Verify that the active super entities of the account is none
-        self.assertEquals(account_entity.get_super_entities(is_active=True), [])
 
     def test_get_inactive_super_entities_one(self):
         """

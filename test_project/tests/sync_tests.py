@@ -393,7 +393,6 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
-        self.assertEquals(relationship.is_active, True)
 
     def test_post_updated_entity_no_cascade(self):
         """
@@ -484,7 +483,6 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
-        self.assertEquals(relationship.is_active, True)
 
         # Update the account to be a team captain. According to our test project, this
         # means it no longer has an active relationship to a team
@@ -496,7 +494,6 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
-        self.assertEquals(relationship.is_active, False)
 
 
 class TestEntityRelationshipFilters(EntityTestCase):
@@ -514,7 +511,7 @@ class TestEntityRelationshipFilters(EntityTestCase):
         team_group_entity = Entity.objects.get(
             entity_type=ContentType.objects.get_for_model(team_group), entity_id=team_group.id)
         # Verify that the team has an active relationship with its super entity
-        EntityRelationship.objects.get(sub_entity=team_entity, super_entity=team_group_entity, is_active=True)
+        EntityRelationship.objects.get(sub_entity=team_entity, super_entity=team_group_entity)
 
     def test_post_update_filter_super_entities(self):
         """
