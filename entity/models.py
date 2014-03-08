@@ -7,8 +7,21 @@ from jsonfield import JSONField
 from manager_utils import ManagerUtilsManager, post_bulk_operation
 
 
-class EntityModelManager(ManagerUtilsManager):
+class EntityManager(ManagerUtilsManager):
+    """
+    Provides additional entity-wide filtering abilities.
+    """
     pass
+
+
+class CachedEntityManager(EntityManager):
+    """
+    Prefetches relationship information so that filtering on entities doesn't result in additional
+    database queries.
+    """
+    def get_queryset(self):
+        return super(CachedEntityManager, self).get_queryset().prefetch_related(
+            'super_relationships', 'sub_relationships')
 
 
 class Entity(models.Model):
@@ -24,6 +37,9 @@ class Entity(models.Model):
     entity_meta = JSONField(null=True)
     # True if this entity is active
     is_active = models.BooleanField(default=True)
+
+    objects = EntityManager()
+    cached_objects = CachedEntityManager()
 
     def _passes_is_active_filter(self, filtered_entity, is_active):
         """
@@ -163,6 +179,14 @@ class EntityModelMixin(object):
             Defaults to returning an empty list.
         """
         return []
+
+
+class EntityModelManager(ManagerUtilsManager):
+    """
+    Provides the ability to prefetch entity relationships so that filtering operations happen
+    quickly on them.
+    """
+    pass
 
 
 class BaseEntityModel(models.Model, EntityModelMixin):
