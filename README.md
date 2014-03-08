@@ -135,6 +135,13 @@ One can also filter on the sub/super entities by their type. This is useful if t
     print len(group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Group)))
     0
 
+## Avoiding Large Database Queries while Accessing Entity Models
+As shown above, it is easy to quickly obtain and filter the sub and super relationships of entities. However, it should be noted that calling get_sub_entities and get_super_entities causes an addional query to happen for each function call. In order to prefetch all relationship objects ahead of time, using Entity.cached_objects. Going with the previous code example from the last section, it would have been more efficient to use:
+
+    group_entity = Entity.cached_objects.get(entity_type=ContentType.objects.get_for_model(Group), entity_id=group.id)
+
+Note that cached_objects should only be used when you plan on filtering or accessing entity relationships. Otherwise it will create more database queries because of the use of Django's prefetch_related underneath.
+
 ## Caveats With Django Entity
 Django Entity has some current caveats worth noting. Currently, Djagno Entity links with post_save and post_delete signals so that any BaseEntityModel will be mirrored when updated. However, if the BaseEntityModel uses other models in its metadata or in defining its relationships to other models, these will not be updated when those other models are updated. For example, if there is a GroupMembership model that defines a if a User is active within a Group, changing the GroupMembership model will not remirror the Entity tables since GroupMembership does not inherit from BaseEntityModel. Future methods will be put in place to eliminate this caveat.
 

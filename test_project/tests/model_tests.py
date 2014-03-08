@@ -5,6 +5,21 @@ from test_project.models import Account, Team
 from .utils import EntityTestCase
 
 
+class TestCachedEntityObjects(EntityTestCase):
+    """
+    Tests using the cached_objects model manager of the Entity model to retrive cached
+    relationships of the entities.
+    """
+    def test_filter_cached_entities(self):
+        """
+        Tests a filtered retrival of cached entities.
+        """
+        for i in range(5):
+            Account.objects.create()
+        entities = Entity.cached_objects.filter(id__in=(i.id for i in Entity.objects.all()))
+        self.assertEquals(entities.count(), 5)
+
+
 class TestEntityModel(EntityTestCase):
     """
     Tests custom functionality in the Entity model.
