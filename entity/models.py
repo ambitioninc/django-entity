@@ -18,12 +18,16 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         Given a list of super entities, return the intersection of entities with those super entitiies.
         """
-        # Get a list of entities that have super entities with all types
-        intersection = EntityRelationship.objects.filter(
+        if not super_entities:
+            # Handle the case of returning entities that have no super entities
+            return self.exclude(id__in=EntityRelationship.objects.values_list('sub_entity', flat=True).distinct())
+        else:
+            # Get a list of entities that have super entities with all types
+            intersection = EntityRelationship.objects.filter(
             super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
-            super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
+                super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
 
-        return self.filter(id__in=intersection)
+            return self.filter(id__in=intersection)
 
     def cached_relationships(self):
         """

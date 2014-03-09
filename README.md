@@ -164,6 +164,12 @@ For example, if one wishes to filter all of the Account entities by the ones tha
         # Do your thing with the results
         pass
 
+To filter for all of the entities that have no super entities, don't pass any arguments to the intersect function:
+
+    for e in Entity.objects.intersect_super_entities():
+        # Do your thing with the results
+        pass
+
 ## Caveats With Django Entity
 Django Entity has some current caveats worth noting. Currently, Djagno Entity links with post_save and post_delete signals so that any BaseEntityModel will be mirrored when updated. However, if the BaseEntityModel uses other models in its metadata or in defining its relationships to other models, these will not be updated when those other models are updated. For example, if there is a GroupMembership model that defines a if a User is active within a Group, changing the GroupMembership model will not remirror the Entity tables since GroupMembership does not inherit from BaseEntityModel. Future methods will be put in place to eliminate this caveat.
 
