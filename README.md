@@ -182,7 +182,7 @@ To filter for all of the entities that have no super entities, don't pass any ar
         # Do your thing with the results
         pass
 
-## Chaining manager functions
+## Chaining Manager Functions
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
     Entity.objects.intersect_super_entities(groupa_entity).is_active().is_type(account_type, team_type)
