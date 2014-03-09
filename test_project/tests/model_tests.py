@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from entity.models import Entity
 
-from test_project.models import Account, Team
+from test_project.models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
 
 
@@ -34,6 +34,13 @@ class TestEntityManager(EntityTestCase):
     """
     Tests custom function in the EntityManager class.
     """
+    def setUp(self):
+        super(TestEntityManager, self).setUp()
+        self.account_type = ContentType.objects.get_for_model(Account)
+        self.team_type = ContentType.objects.get_for_model(Team)
+        self.team_group_type = ContentType.objects.get_for_model(TeamGroup)
+        self.competitor_type = ContentType.objects.get_for_model(Competitor)
+
     def test_get_for_obj(self):
         """
         Test retrieving an entity associated with an object.
@@ -43,6 +50,78 @@ class TestEntityManager(EntityTestCase):
         # Get its resulting entity
         entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
         self.assertEquals(entity, Entity.objects.get_for_obj(account))
+
+    def test_intersect_super_entities_manager(self):
+        """
+        Tests the intersection of super entity types for an entity directly from the entity manager.
+        """
+        # Create test accounts that have three types of super entities
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        team2 = Team.objects.create()
+        team2_entity = Entity.objects.get_for_obj(team2)
+        team_group = TeamGroup.objects.create()
+        team_group_entity = Entity.objects.get_for_obj(team_group)
+        competitor = Competitor.objects.create()
+        competitor_entity = Entity.objects.get_for_obj(competitor)
+
+        # Create accounts that have four super entities
+        entities_4se = set(
+            Entity.objects.get_for_obj(
+                 Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group))
+            for i in range(5)
+        )
+        # Create test accounts that have two super entities
+        entities_2se1 = set(
+            Entity.objects.get_for_obj(Account.objects.create(competitor=competitor, team_group=team_group))
+            for i in range(5)
+        )
+        entities_2se2 = set(
+            Entity.objects.get_for_obj(Account.objects.create(competitor=competitor, team=team)) for i in range(5)
+        )
+        # Create test accounts that have one super entity
+        entities_1se = set(Entity.objects.get_for_obj(Account.objects.create(team=team)) for i in range(5))
+
+        # Test various intersection results
+        self.assertEquals(
+            entities_4se, set(Entity.objects.intersect_super_entities(
+                team_entity, team2_entity, team_group_entity, competitor_entity)))
+        self.assertEquals(
+            entities_1se | entities_2se2 | entities_4se, set(Entity.objects.intersect_super_entities(team_entity)))
+        self.assertEquals(
+            entities_4se | entities_2se2, set(Entity.objects.intersect_super_entities(team_entity, competitor_entity)))
+        self.assertEquals(
+            entities_4se | entities_2se1, set(Entity.objects.intersect_super_entities(team_group_entity)))
+        self.assertEquals(
+            entities_4se | entities_2se1 | entities_2se2,
+            set(Entity.objects.intersect_super_entities(competitor_entity)))
+
+    def test_intersect_super_entities_queryset(self):
+        """
+        Tests the intersection of super entity types for an entity from a queryset.
+        """
+        # Create test accounts that have three types of super entities
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        team2 = Team.objects.create()
+        team2_entity = Entity.objects.get_for_obj(team2)
+        team_group = TeamGroup.objects.create()
+        team_group_entity = Entity.objects.get_for_obj(team_group)
+        competitor = Competitor.objects.create()
+        competitor_entity = Entity.objects.get_for_obj(competitor)
+
+        # Create accounts that have four super entities
+        entities_4se = list(
+            Entity.objects.get_for_obj(
+                Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group))
+            for i in range(5)
+        )
+
+        # Test intersection results
+        self.assertEquals(
+            set(entities_4se).difference([entities_4se[0]]),
+            set(Entity.objects.exclude(id=entities_4se[0].id).intersect_super_entities(
+                team_entity, team2_entity, team_group_entity, competitor_entity)))
 
 
 class TestEntityModel(EntityTestCase):

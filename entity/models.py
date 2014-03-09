@@ -1,23 +1,49 @@
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import Count
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from jsonfield import JSONField
-from manager_utils import ManagerUtilsManager, post_bulk_operation
+from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
 
 from .entity_filter import EntityFilter
+
+
+class EntityQuerySet(ManagerUtilsQuerySet):
+    """
+    Provides additional queryset filtering abilities.
+    """
+    def intersect_super_entities(self, *super_entities):
+        """
+        Given a list of super entities, return the intersection of entities with those super entitiies.
+        """
+        # Get a list of entities that have super entities with all types
+        intersection = EntityRelationship.objects.filter(
+            super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
+            super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
+
+        return self.filter(id__in=intersection)
 
 
 class EntityManager(ManagerUtilsManager):
     """
     Provides additional entity-wide filtering abilities.
     """
+    def get_queryset(self):
+        return EntityQuerySet(self.model)
+
     def get_for_obj(self, entity_model_obj):
         """
         Given a saved entity model object, return the associated entity.
         """
         return self.get(entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id)
+
+    def intersect_super_entities(self, *super_entities):
+        """
+        Given a list of super entities, return the intersection of entities with those super entitiies.
+        """
+        return self.get_queryset().intersect_super_entities(*super_entities)
 
 
 class CachedEntityManager(EntityManager):
