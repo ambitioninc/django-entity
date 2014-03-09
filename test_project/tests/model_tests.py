@@ -251,6 +251,26 @@ class TestEntityManager(EntityTestCase):
             set(entities_0se).union([team_entity, team2_entity, team_group_entity, competitor_entity]),
             set(Entity.objects.intersect_super_entities()))
 
+    def test_intersect_super_entities_none_is_type(self):
+        """
+        Tests the base case of intersection on no super entities with a type specified.
+        """
+        # Create test accounts that have three types of super entities
+        team = Team.objects.create()
+        team2 = Team.objects.create()
+        team_group = TeamGroup.objects.create()
+        competitor = Competitor.objects.create()
+
+        # Create accounts that have four super entities
+        for i in range(5):
+            Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group)
+
+        # Create accounts that have no super entities
+        entities_0se = set(Entity.objects.get_for_obj(Account.objects.create()) for i in range(5))
+
+        self.assertEquals(
+            set(entities_0se), set(Entity.objects.intersect_super_entities().is_type(self.account_type)))
+
     def test_intersect_super_entities_manager(self):
         """
         Tests the intersection of super entity types for an entity directly from the entity manager.
