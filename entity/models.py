@@ -24,7 +24,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         else:
             # Get a list of entities that have super entities with all types
             intersection = EntityRelationship.objects.filter(
-            super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
+                super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
                 super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
 
             return self.filter(id__in=intersection)
