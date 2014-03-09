@@ -68,7 +68,7 @@ class TestEntityManager(EntityTestCase):
         # Create accounts that have four super entities
         entities_4se = set(
             Entity.objects.get_for_obj(
-                 Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group))
+                Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group))
             for i in range(5)
         )
         # Create test accounts that have two super entities
