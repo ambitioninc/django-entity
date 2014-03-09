@@ -30,6 +30,21 @@ class TestCachedEntityObjects(EntityTestCase):
         self.assertEquals(entities.count(), 6)
 
 
+class TestEntityManager(EntityTestCase):
+    """
+    Tests custom function in the EntityManager class.
+    """
+    def test_get_for_obj(self):
+        """
+        Test retrieving an entity associated with an object.
+        """
+        # Create an account with no team
+        account = Account.objects.create()
+        # Get its resulting entity
+        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        self.assertEquals(entity, Entity.objects.get_for_obj(account))
+
+
 class TestEntityModel(EntityTestCase):
     """
     Tests custom functionality in the Entity model.
@@ -42,7 +57,7 @@ class TestEntityModel(EntityTestCase):
         # Create an account with no team
         account = Account.objects.create()
         # Get its resulting entity
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         # Get its super entities. It should be an empty list
         self.assertEquals(list(entity.get_super_entities()), [])
 
@@ -54,10 +69,8 @@ class TestEntityModel(EntityTestCase):
         team = Team.objects.create()
         account = Account.objects.create(team=team)
         # Get the entity of the account and the team
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        account_entity = Entity.objects.get_for_obj(account)
+        team_entity = Entity.objects.get_for_obj(team)
         # Verify that the super entities of the account is the team
         self.assertEquals(list(account_entity.get_super_entities()), [team_entity])
 
@@ -68,8 +81,7 @@ class TestEntityModel(EntityTestCase):
         # Create a team
         team = Team.objects.create()
         # Get the entity of the team
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        team_entity = Entity.objects.get_for_obj(team)
         # Verify that the sub entities of the team is an empty list
         self.assertEquals(list(team_entity.get_super_entities()), [])
 
@@ -81,9 +93,7 @@ class TestEntityModel(EntityTestCase):
         team = Team.objects.create()
         account = Account.objects.create(team=team)
         # Get the entity of the account and the team
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        account_entity = Entity.objects.get_for_obj(account)
+        team_entity = Entity.objects.get_for_obj(team)
         # Verify that the sub entities of the team is the account
         self.assertEquals(list(team_entity.get_sub_entities()), [account_entity])

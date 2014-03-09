@@ -38,13 +38,13 @@ setup(
         'entity.migrations',
     ],
     dependency_links=[
-        'https://github.com/ambitioninc/django-manager-utils/tarball/master#egg=django-manager-utils-0.3',
+        'https://github.com/ambitioninc/django-manager-utils/tarball/master#egg=django-manager-utils-0.3.1',
     ],
     install_requires=[
         'django>=1.6.1',
         'django-celery>=3.1.1',
         'jsonfield>=0.9.20',
-        'django-manager-utils>=0.3',
+        'django-manager-utils>=0.3.1',
     ],
     include_package_data=True,
     zip_safe=False,

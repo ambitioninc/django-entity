@@ -13,7 +13,11 @@ class EntityManager(ManagerUtilsManager):
     """
     Provides additional entity-wide filtering abilities.
     """
-    pass
+    def get_for_obj(self, entity_model_obj):
+        """
+        Given a saved entity model object, return the associated entity.
+        """
+        return self.get(entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id)
 
 
 class CachedEntityManager(EntityManager):
@@ -45,35 +49,15 @@ class Entity(models.Model):
 
     def get_sub_entities(self):
         """
-        Returns all of the sub entities of this entity.
-
-        Args:
-            is_active: Specifies how to filter active vs inactive relationships. If is_active is None, return all
-                retlationships. If False, return only inactive relationships. If True, return all active
-                relationships. Defaults to None. Note that even if a relationship is active, if the entity
-                is inactive, it will not be returned when is_active=True.
-            entity_type: Only returns sub entities of the given Django ContentType. If None, no filtering
-                is done.
-
-        Returns:
-            A list of Entity models or an empty list if there are no sub entities.
+        Returns all of the sub entities of this entity. The returned entities may be filtered by chaining any
+        of the functions in EntityFilter.
         """
         return EntityFilter(r.sub_entity for r in self.sub_relationships.all())
 
     def get_super_entities(self):
         """
-        Returns all of the super entities of this entity.
-
-        Args:
-            is_active: Specifies how to filter active vs inactive relationships. If is_active is None, return all
-                retlationships. If False, return only inactive relationships. If True, return all active
-                relationships. Defaults to None. Note that even if a relationship is active, if the entity
-                is inactive, it will not be returned when is_active=True.
-            entity_type: Only returns super entities of the given Django ContentType. If None, no filtering
-                is done.
-
-        Returns:
-            A list of Entity models or an empty list if there are no super entities.
+        Returns all of the super entities of this entity. The returned super entities may be filtered by
+        chaining methods from EntityFilter.
         """
         return EntityFilter(r.super_entity for r in self.super_relationships.all())
 

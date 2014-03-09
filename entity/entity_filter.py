@@ -9,6 +9,9 @@ class EntityFilter(object):
         self.entities = entities
 
     def __iter__(self):
+        """
+        Returns an iterator so this object may be used with 'for' and 'in'.
+        """
         return iter(self.entities)
 
     def _perform_active_filter(self, is_active):

@@ -10,7 +10,7 @@ from django.test.utils import override_settings
 from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
 from entity.sync import sync_entities, turn_on_syncing, turn_off_syncing
 
-from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity, TeamGroup
+from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
 from .utils import EntityTestCase
 
 
@@ -338,7 +338,7 @@ class TestEntitySignalSync(EntityTestCase):
         account.delete()
         self.assertEquals(Entity.objects.all().count(), 1)
         self.assertEquals(EntityRelationship.objects.all().count(), 0)
-        Entity.objects.get(entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        Entity.objects.get_for_obj(team)
 
     def test_post_create_account_no_relationships_active(self):
         """
@@ -350,7 +350,7 @@ class TestEntitySignalSync(EntityTestCase):
 
         # Create an account. An entity with no relationships should be created
         account = Account.objects.create(email='test@test.com')
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         # Check that the metadata and is_active fields were set properly
         self.assertEquals(entity.entity_meta, {
             'email': 'test@test.com',
@@ -377,15 +377,13 @@ class TestEntitySignalSync(EntityTestCase):
 
         # There should be two entities. Test their existence and values
         self.assertEquals(Entity.objects.all().count(), 2)
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        account_entity = Entity.objects.get_for_obj(account)
         self.assertEquals(account_entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
         })
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(team_entity.entity_meta, None)
 
         # Check that the appropriate entity relationship was created
@@ -401,7 +399,7 @@ class TestEntitySignalSync(EntityTestCase):
         """
         # Create a test account
         account = Account.objects.create(email='test@test.com')
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
@@ -417,7 +415,7 @@ class TestEntitySignalSync(EntityTestCase):
         account.email = 'newemail@test.com'
         account.save()
         # Verify that the mirrored entity has the same ID
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'newemail@test.com',
             'is_captain': False,
@@ -435,7 +433,7 @@ class TestEntitySignalSync(EntityTestCase):
         """
         # Create an account and check it's mirrored metadata
         account = Account.objects.create(email='test@test.com')
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
@@ -445,7 +443,7 @@ class TestEntitySignalSync(EntityTestCase):
         # Update the account's metadata and check that it is mirrored
         account.email = 'newemail@test.com'
         account.save()
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'newemail@test.com',
             'is_captain': False,
@@ -467,15 +465,13 @@ class TestEntitySignalSync(EntityTestCase):
 
         # There should be two entities. Test their existence and values
         self.assertEquals(Entity.objects.all().count(), 2)
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        account_entity = Entity.objects.get_for_obj(account)
         self.assertEquals(account_entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
         })
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(team_entity.entity_meta, None)
 
         # Check that the appropriate entity relationship was created

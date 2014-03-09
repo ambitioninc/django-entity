@@ -10,7 +10,7 @@ What is an entity? An entity is any model in your Django project. For example, a
 ## A Use Case
 Imagine that you have a Django project that defines many types of groupings of your users. For example, let's say in your enterprise project, you allow users to define their manager, their company position, and their regional branch location. Similarly, let's say that you have an app that can email groups of users based on their manager (or anyone who is under the managers of that manager), their position, or their region. This email app would likely have to know application-specific modeling of these relationships in order to be built. Similarly, doing things like querying for all users under a manager hierachy can be an expensive lookup depending on how it is modeled.
 
-Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities(entity_type=ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
+Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities().is_type(ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
 ## How Does It Work?
 In order to sync entities and their relationships from your project to the Django Entity table, you must first create a model that inherits BaseEntityModel.
@@ -36,7 +36,7 @@ After the entities have been synced, they can then be accessed in the primary En
     account = Account.objects.create(email='hello@hello.com')
 
     # Get its entity object from the entity table
-    entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Account), entity_id=account.id)
+    entity = Entity.objects.get_for_obj(account)
 
 ## How Do I Specify Relationships And Additonal Metadata About My Entities?
 Django Entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the BaseEntityModel that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
@@ -92,11 +92,11 @@ The Account and Group entities have defined how they want their metadata mirrore
 
     # Entity syncing happens automatically behind the scenes. Grab the entity of the account and group.
     # Check out their metadata.
-    account_entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Account), entity_id=account.id)
+    account_entity = Entity.objects.get_for_obj(account)
     print account_entity.entity_meta
     {'email': 'hello@hello.com', 'group': 'Hello Group'}
 
-    group_entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(Group), entity_id=group.id)
+    group_entity = Entity.objects.get_for_obj(group)
     print group_entity.entity_meta
     {'name': 'Hello Group'}
 
@@ -138,7 +138,7 @@ One can also filter on the sub/super entities by their type. This is useful if t
 ## Avoiding Large Database Queries while Accessing Entity Models
 As shown above, it is easy to quickly obtain and filter the sub and super relationships of entities. However, it should be noted that calling get_sub_entities and get_super_entities causes an addional query to happen for each function call. In order to prefetch all relationship objects ahead of time, using Entity.cached_objects. Going with the previous code example from the last section, it would have been more efficient to use:
 
-    group_entity = Entity.cached_objects.get(entity_type=ContentType.objects.get_for_model(Group), entity_id=group.id)
+    group_entity = Entity.cached_objects.get_for_obj(group)
 
 Note that cached_objects should only be used when you plan on filtering or accessing entity relationships. Otherwise it will create more database queries because of the use of Django's prefetch_related underneath.
 
