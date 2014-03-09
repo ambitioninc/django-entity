@@ -29,6 +29,30 @@ class EntityQuerySet(ManagerUtilsQuerySet):
 
             return self.filter(id__in=intersection)
 
+    def active(self):
+        """
+        Returns active entities.
+        """
+        return self.filter(is_active=True)
+
+    def inactive(self):
+        """
+        Returns inactive entities.
+        """
+        return self.filter(is_active=False)
+
+    def is_type(self, *entity_types):
+        """
+        Returns entities that have any of the types listed in entity_types.
+        """
+        return self.filter(entity_type__in=entity_types)
+
+    def is_not_type(self, *entity_types):
+        """
+        Returns entities that are not any of the types listed in entity_types.
+        """
+        return self.exclude(entity_type__in=entity_types)
+
     def cached_relationships(self):
         """
         Caches the super and sub relationships by doing a prefetch_related.
@@ -54,6 +78,30 @@ class EntityManager(ManagerUtilsManager):
         Given a list of super entities, return the intersection of entities with those super entitiies.
         """
         return self.get_queryset().intersect_super_entities(*super_entities)
+
+    def active(self):
+        """
+        Returns active entities.
+        """
+        return self.get_queryset().active()
+
+    def inactive(self):
+        """
+        Returns inactive entities.
+        """
+        return self.get_queryset().inactive()
+
+    def is_type(self, *entity_types):
+        """
+        Returns entities that have any of the types listed in entity_types.
+        """
+        return self.get_queryset().is_type(*entity_types)
+
+    def is_not_type(self, *entity_types):
+        """
+        Returns entities that are not any of the types listed in entity_types.
+        """
+        return self.get_queryset().is_not_type(*entity_types)
 
     def cached_relationships(self):
         """

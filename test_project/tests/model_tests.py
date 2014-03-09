@@ -81,6 +81,151 @@ class TestEntityManager(EntityTestCase):
         entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
         self.assertEquals(entity, Entity.objects.get_for_obj(account))
 
+    def test_filter_manager_active(self):
+        """
+        Test filtering active entities directly from the manager.
+        """
+        # Create an active and inactive account
+        account = Account.objects.create()
+        Account.objects.create(is_active=False)
+        # Get its resulting entity
+        entity = Entity.objects.get_for_obj(account)
+        self.assertEquals([entity], list(Entity.objects.active()))
+
+    def test_filter_manager_inactive(self):
+        """
+        Test filtering inactive entities directly from the manager.
+        """
+        # Create an active and inactive account
+        account = Account.objects.create()
+        account = Account.objects.create(is_active=False)
+        # Get its resulting entity
+        entity = Entity.objects.get_for_obj(account)
+        self.assertEquals([entity], list(Entity.objects.inactive()))
+
+    def test_filter_queryset_active(self):
+        """
+        Test filtering active entities from a queryset.
+        """
+        # Create an active and inactive account
+        active_entity = Entity.objects.get_for_obj(Account.objects.create())
+        inactive_entity = Entity.objects.get_for_obj(Account.objects.create(is_active=False))
+        self.assertEquals(
+            [active_entity], list(Entity.objects.filter(id__in=[active_entity.id, inactive_entity.id]).active()))
+
+    def test_filter_queryset_inactive(self):
+        """
+        Test filtering inactive entities from a queryset.
+        """
+        # Create an active and inactive account
+        active_entity = Entity.objects.get_for_obj(Account.objects.create())
+        inactive_entity = Entity.objects.get_for_obj(Account.objects.create(is_active=False))
+        self.assertEquals(
+            [inactive_entity], list(Entity.objects.filter(id__in=[active_entity.id, inactive_entity.id]).inactive()))
+
+    def test_filter_manager_is_type_none(self):
+        """
+        Tests filtering by entity type when no type is given.
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+        self.assertEquals([], list(Entity.objects.is_type()))
+
+    def test_filter_manager_one_type(self):
+        """
+        Tests filtering by entity type when one type is given.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = set(
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        )
+        self.assertEquals([team_entity], list(Entity.objects.is_type(self.team_type)))
+        self.assertEquals(account_entities, set(Entity.objects.is_type(self.account_type)))
+
+    def test_filter_manager_two_types(self):
+        """
+        Tests filtering by entity type when two types are given.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = set(
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        )
+        self.assertEquals(
+            account_entities.union([team_entity]), set(Entity.objects.is_type(self.account_type, self.team_type)))
+
+    def test_filter_queryset_two_types(self):
+        """
+        Tests filtering by entity type when two types are given on a queryset.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = set(
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        )
+        self.assertEquals(
+            account_entities.union([team_entity]),
+            set(
+                Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_type(
+                    self.account_type, self.team_type)
+            ))
+
+    def test_filter_manager_is_not_type_two(self):
+        """
+        Tests filtering by entity type when two types are given.
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+        self.assertEquals([], list(Entity.objects.is_not_type(self.team_type, self.account_type)))
+
+    def test_filter_manager_is_not_type_one(self):
+        """
+        Tests filtering by entity type when one type is given.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = set(
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        )
+        self.assertEquals([team_entity], list(Entity.objects.is_not_type(self.account_type)))
+        self.assertEquals(account_entities, set(Entity.objects.is_not_type(self.team_type)))
+
+    def test_filter_manager_is_not_type_none(self):
+        """
+        Tests filtering by entity type when no types are given.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = set(
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        )
+        self.assertEquals(
+            account_entities.union([team_entity]), set(Entity.objects.is_not_type()))
+
+    def test_filter_queryset_two_is_not_types(self):
+        """
+        Tests filtering by entity type when two types are given on a queryset.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = set(
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        )
+        self.assertEquals(
+            [],
+            list(Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_not_type(
+                self.account_type, self.team_type))
+        )
+
     def test_intersect_super_entities_none(self):
         """
         Tests the base case of intersection on no super entities.
