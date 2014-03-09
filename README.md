@@ -153,6 +153,18 @@ The cached_relationships function is useful for prefetching relationship informa
         # Perform much faster filtering on super entity relationships...
         pass
 
+## active()
+Returns only active entities.
+
+## inactive()
+Returns only inactive entities.
+
+## is_type(*entity_types)
+Return all entities that have one of the entity types provided.
+
+## is_not_type(*entity_types)
+Return all entities that do not have the entity types provided.
+
 ## intersect_super_entities(*super_entities)
 Given a list of super entity arguments, filter the entities by the intersection of their super entity groups. This function can be executed on the model manager or on a queryset.
 
@@ -169,6 +181,13 @@ To filter for all of the entities that have no super entities, don't pass any ar
     for e in Entity.objects.intersect_super_entities():
         # Do your thing with the results
         pass
+
+## Chaining manager functions
+All of the manager functions listed can be chained, so it is possible to do the following combinations:
+
+    Entity.objects.intersect_super_entities(groupa_entity).is_active().is_type(account_type, team_type)
+
+    Entity.objects.inactive().intersect_super_entities(groupb_entity).cached_results()
 
 ## Caveats With Django Entity
 Django Entity has some current caveats worth noting. Currently, Djagno Entity links with post_save and post_delete signals so that any BaseEntityModel will be mirrored when updated. However, if the BaseEntityModel uses other models in its metadata or in defining its relationships to other models, these will not be updated when those other models are updated. For example, if there is a GroupMembership model that defines a if a User is active within a Group, changing the GroupMembership model will not remirror the Entity tables since GroupMembership does not inherit from BaseEntityModel. Future methods will be put in place to eliminate this caveat.
