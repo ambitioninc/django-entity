@@ -35,7 +35,7 @@ After the entities have been synced, they can then be accessed in the primary En
     # Create an Account model defined from above
     account = Account.objects.create(email='hello@hello.com')
 
-    # Get its entity object from the entity table
+    # Get its entity object from the entity table using the get_for_obj function
     entity = Entity.objects.get_for_obj(account)
 
 ## How Do I Specify Relationships And Additonal Metadata About My Entities?
@@ -119,20 +119,20 @@ Once the entities are obtained, it is also easy to query for relationships among
     account.is_active = False
     account.save()
 
-    print len(group_entity.get_sub_entities(is_active=True))
+    print len(list(group_entity.get_sub_entities().active()))
     0
     # The account still remains a sub entity, just an inactive one
-    print len(group_entity.get_sub_entities())
+    print len(list(group_entity.get_sub_entities()))
     1
 
 One can also filter on the sub/super entities by their type. This is useful if the entity has many relationships of different types.
 
-    for entity in group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Account)):
+    for entity in group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Account)):
         print entity.entity_meta
     {'email': 'hello@hello.com', 'group': 'Hello Group'}
 
     # Groups are not a sub entity of themselves, so this function returns nothing
-    print len(group_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(Group)))
+    print len(list(group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Group))))
     0
 
 ## Avoiding Large Database Queries while Accessing Entity Models
