@@ -5,31 +5,6 @@ from test_project.models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
 
 
-class TestCachedEntityObjects(EntityTestCase):
-    """
-    Tests using the cached_objects model manager of the Entity model to retrieve cached
-    relationships of the entities.
-    """
-    def test_filter_cached_entities(self):
-        """
-        Tests a filtered retrival of cached entities and verifies it results in the smallest amount of
-        queries
-        """
-        team = Team.objects.create()
-        for i in range(5):
-            Account.objects.create(team=team)
-
-        entity_ids = [i.id for i in Entity.objects.all()]
-        # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and two more
-        # for entities in those relationships
-        with self.assertNumQueries(5):
-            entities = Entity.cached_objects.filter(id__in=entity_ids)
-            for entity in entities:
-                self.assertTrue(len(list(entity.get_super_entities())) >= 0)
-                self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
-        self.assertEquals(entities.count(), 6)
-
-
 class TestEntityManager(EntityTestCase):
     """
     Tests custom function in the EntityManager class.
@@ -40,6 +15,61 @@ class TestEntityManager(EntityTestCase):
         self.team_type = ContentType.objects.get_for_model(Team)
         self.team_group_type = ContentType.objects.get_for_model(TeamGroup)
         self.competitor_type = ContentType.objects.get_for_model(Competitor)
+
+    def test_manager_cached_relationships(self):
+        """
+        Tests a retrieval of cached relationships on the manager and verifies it results in the smallest amount of
+        queries
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+
+        # Five queries should happen here - one for all entities, two for EntityRelationships,
+        # and two more for entities in the relationships
+        with self.assertNumQueries(5):
+            entities = Entity.objects.cached_relationships()
+            for entity in entities:
+                self.assertTrue(len(list(entity.get_super_entities())) >= 0)
+                self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
+        self.assertEquals(entities.count(), 6)
+
+    def test_queryset_cached_relationships(self):
+        """
+        Tests a retrieval of cached relationships on the queryset and verifies it results in the smallest amount of
+        queries
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+
+        entity_ids = [i.id for i in Entity.objects.all()]
+        # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and two more
+        # for entities in those relationships
+        with self.assertNumQueries(5):
+            entities = Entity.objects.filter(id__in=entity_ids).cached_relationships()
+            for entity in entities:
+                self.assertTrue(len(list(entity.get_super_entities())) >= 0)
+                self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
+        self.assertEquals(entities.count(), 6)
+
+    def test_cached_intersection(self):
+        """
+        Tests that caching still operates the same on an intersection.
+        """
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        for i in range(5):
+            Account.objects.create(team=team)
+
+        # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and one more
+        # for entities in those relationships (since no sub relationships exist)
+        with self.assertNumQueries(4):
+            entities = Entity.objects.intersect_super_entities(team_entity).cached_relationships()
+            for entity in entities:
+                self.assertTrue(len(list(entity.get_super_entities())) == 1)
+                self.assertTrue(len(list(entity.get_sub_entities())) == 0)
+            self.assertEquals(len(entities), 5)
 
     def test_get_for_obj(self):
         """
@@ -122,6 +152,34 @@ class TestEntityManager(EntityTestCase):
             set(entities_4se).difference([entities_4se[0]]),
             set(Entity.objects.exclude(id=entities_4se[0].id).intersect_super_entities(
                 team_entity, team2_entity, team_group_entity, competitor_entity)))
+
+    def test_intersect_super_entities_queryset_num_queries(self):
+        """
+        Tests that super entity intersection only results in one query.
+        """
+        # Create test accounts that have three types of super entities
+        team = Team.objects.create()
+        team_entity = Entity.objects.get_for_obj(team)
+        team2 = Team.objects.create()
+        team2_entity = Entity.objects.get_for_obj(team2)
+        team_group = TeamGroup.objects.create()
+        team_group_entity = Entity.objects.get_for_obj(team_group)
+        competitor = Competitor.objects.create()
+        competitor_entity = Entity.objects.get_for_obj(competitor)
+
+        # Create accounts that have four super entities
+        entities_4se = list(
+            Entity.objects.get_for_obj(
+                Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group))
+            for i in range(5)
+        )
+
+        with self.assertNumQueries(1):
+            entities = set(Entity.objects.exclude(id=entities_4se[0].id).intersect_super_entities(
+                team_entity, team2_entity, team_group_entity, competitor_entity))
+
+        # Test intersection results
+        self.assertEquals(set(entities_4se).difference([entities_4se[0]]), entities)
 
 
 class TestEntityModel(EntityTestCase):

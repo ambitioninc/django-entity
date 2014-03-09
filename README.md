@@ -135,12 +135,34 @@ One can also filter on the sub/super entities by their type. This is useful if t
     print len(list(group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Group))))
     0
 
-## Avoiding Large Database Queries while Accessing Entity Models
-As shown above, it is easy to quickly obtain and filter the sub and super relationships of entities. However, it should be noted that calling get_sub_entities and get_super_entities causes an addional query to happen for each function call. In order to prefetch all relationship objects ahead of time, using Entity.cached_objects. Going with the previous code example from the last section, it would have been more efficient to use:
+## Addional Entity Manager Methods
+Django entity has additional manager methods for quick global retrieval and filtering of entities and their relationships.
 
-    group_entity = Entity.cached_objects.get_for_obj(group)
+## get_for_obj(model_obj)
+The get_for_obj function takes a model object and returns the corresponding entity.
 
-Note that cached_objects should only be used when you plan on filtering or accessing entity relationships. Otherwise it will create more database queries because of the use of Django's prefetch_related underneath.
+    test_model = TestModel.objects.create()
+    # Get the resulting entity for the model object
+    entity = Entity.objects.get_for_obj(test_model)
+
+## cached_relationships()
+The cached_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cached_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cached_relationships function can be used on the model manager or a queryset.
+
+    entity = Entity.objects.cached_relationships().get_for_obj(test_model)
+    for super_entity in entity.get_super_entities().active():
+        # Perform much faster filtering on super entity relationships...
+        pass
+
+## intersect_super_entities(*super_entities)
+Given a list of super entity arguments, filter the entities by the intersection of their super entity groups. This function can be executed on the model manager or on a queryset.
+
+For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
+
+    groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
+    groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
+    for e in Entity.objects.intersect_super_entities(groupa_entity, groupb_entity):
+        # Do your thing with the results
+        pass
 
 ## Caveats With Django Entity
 Django Entity has some current caveats worth noting. Currently, Djagno Entity links with post_save and post_delete signals so that any BaseEntityModel will be mirrored when updated. However, if the BaseEntityModel uses other models in its metadata or in defining its relationships to other models, these will not be updated when those other models are updated. For example, if there is a GroupMembership model that defines a if a User is active within a Group, changing the GroupMembership model will not remirror the Entity tables since GroupMembership does not inherit from BaseEntityModel. Future methods will be put in place to eliminate this caveat.

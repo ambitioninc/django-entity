@@ -25,6 +25,12 @@ class EntityQuerySet(ManagerUtilsQuerySet):
 
         return self.filter(id__in=intersection)
 
+    def cached_relationships(self):
+        """
+        Caches the super and sub relationships by doing a prefetch_related.
+        """
+        return self.prefetch_related('super_relationships__super_entity', 'sub_relationships__sub_entity')
+
 
 class EntityManager(ManagerUtilsManager):
     """
@@ -45,15 +51,11 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get_queryset().intersect_super_entities(*super_entities)
 
-
-class CachedEntityManager(EntityManager):
-    """
-    Prefetches relationship information so that filtering on entities doesn't result in additional
-    database queries.
-    """
-    def get_queryset(self):
-        return super(CachedEntityManager, self).get_queryset().prefetch_related(
-            'super_relationships__super_entity', 'sub_relationships__sub_entity')
+    def cached_relationships(self):
+        """
+        Caches the super and sub relationships by doing a prefetch_related.
+        """
+        return self.get_queryset().cached_relationships()
 
 
 class Entity(models.Model):
@@ -69,9 +71,7 @@ class Entity(models.Model):
     entity_meta = JSONField(null=True)
     # True if this entity is active
     is_active = models.BooleanField(default=True)
-
     objects = EntityManager()
-    cached_objects = CachedEntityManager()
 
     def get_sub_entities(self):
         """
