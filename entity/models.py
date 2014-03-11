@@ -143,13 +143,13 @@ class Entity(models.Model):
         """
         Returns True if the entity is active.
         """
-        return self.is_active == True
+        return self.is_active is True
 
     def inactive(self):
         """
         Returns True if the entity is inactive.
         """
-        return self.is_active == False
+        return self.is_active is False
 
     def is_type(self, *entity_types):
         """
