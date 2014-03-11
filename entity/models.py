@@ -27,7 +27,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
                 super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
                 super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
 
-            return self.filter(id__in=intersection)
+        return self.filter(id__in=intersection)
 
     def active(self):
         """
@@ -112,8 +112,8 @@ class EntityManager(ManagerUtilsManager):
 
 class Entity(models.Model):
     """
-    Describes an entity and its relevant metadata. Also defines
-    if the entity is active.
+    Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions
+    are provided that mirror the filtering functions in the Entity model manager.
     """
     # The generic entity
     entity_id = models.IntegerField()
@@ -138,6 +138,42 @@ class Entity(models.Model):
         chaining methods from EntityFilter.
         """
         return EntityFilter(r.super_entity for r in self.super_relationships.all())
+
+    def active(self):
+        """
+        Returns True if the entity is active.
+        """
+        return self.is_active == True
+
+    def inactive(self):
+        """
+        Returns True if the entity is inactive.
+        """
+        return self.is_active == False
+
+    def is_type(self, *entity_types):
+        """
+        Returns True if the entity's type is in any of the types given. If no entity types are given,
+        returns False.
+        """
+        return self.entity_type_id in (entity_type.id for entity_type in entity_types)
+
+    def is_not_type(self, *entity_types):
+        """
+        Returns True if the entity's type is not in any of the types given. If no entity types are given,
+        returns True.
+        """
+        return self.entity_type_id not in (entity_type.id for entity_type in entity_types)
+
+    def intersect_super_entities(self, *super_entities):
+        """
+        Returns True if the entity's super entities intersect with the provided super entities.
+        If no super entities are provided, returns True only if the entity has no super entities
+        """
+        if len(super_entities):
+            return set(super_entities).issubset(self.get_super_entities())
+        else:
+            return len(list(self.get_super_entities())) == 0
 
 
 class EntityRelationship(models.Model):

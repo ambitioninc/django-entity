@@ -7,7 +7,6 @@ TEMPLATE_DEBUG = DEBUG
 # Use the nose tests runner
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 # Disable south in testing
-SOUTH_TESTS_MIGRATE = False
 
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
@@ -21,6 +20,7 @@ djcelery.setup_loader()
 
 test_db = os.environ.get('DB', None)
 if test_db is not None:
+    SOUTH_TESTS_MIGRATE = True
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -29,6 +29,7 @@ if test_db is not None:
         }
     }
 else:
+    SOUTH_TESTS_MIGRATE = False
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',

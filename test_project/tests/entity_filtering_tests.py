@@ -14,6 +14,56 @@ class TestEntityFiltering(EntityTestCase):
         self.account_type = ContentType.objects.get_for_model(Account)
         self.team_type = ContentType.objects.get_for_model(Team)
 
+    def test_intersect_super_entities_none(self):
+        """
+        Tests the intersect_super_entities function on entities that have no super entities.
+        """
+        # Create a team and an account
+        team = Team.objects.create()
+        account = Account.objects.create(team=team)
+        # Get the entity of the account and the team
+        account_entity = Entity.objects.get_for_obj(account)
+        team_entity = Entity.objects.get_for_obj(team)
+        # Test that intersecting with no super entites returns the team entity since it has no super entities
+        self.assertEquals(list(account_entity.get_super_entities().intersect_super_entities()), [team_entity])
+
+    def test_intersect_super_entities_one(self):
+        """
+        Tests the intersect_super_entities function on entities with one super entity.
+        """
+        # Create a team, team group, and an account for testing
+        team_group = TeamGroup.objects.create()
+        team = Team.objects.create(team_group=team_group)
+        account = Account.objects.create(team=team)
+        # Get the entity of the account and the team
+        account_entity = Entity.objects.get_for_obj(account)
+        team_entity = Entity.objects.get_for_obj(team)
+        team_group_entity = Entity.objects.get_for_obj(team_group)
+        # Test that intersecting with the team group entity results in the team
+        self.assertEquals(
+            list(account_entity.get_super_entities().intersect_super_entities(team_group_entity)),
+            [team_entity])
+
+    def test_intersect_super_entities_two(self):
+        """
+        Tests the intersect_super_entities function on entities with two super entities.
+        """
+        # Create a team, team group, and an account for testing
+        team_group = TeamGroup.objects.create()
+        team = Team.objects.create(team_group=team_group)
+        account = Account.objects.create(team=team, team_group=team_group)
+        # Get the entity of the account and the team
+        account_entity = Entity.objects.get_for_obj(account)
+        team_entity = Entity.objects.get_for_obj(team)
+        team_group_entity = Entity.objects.get_for_obj(team_group)
+        # Test that intersecting with the team and team group results in nothing since no objects have those
+        # super entities
+        self.assertEquals(
+            list(account_entity.get_super_entities().intersect_super_entities(team_entity, team_group_entity)),
+            [])
+        # Test that performing the same intersection on the account returns True
+        self.assertTrue(account_entity.intersect_super_entities(team_entity, team_group_entity))
+
     def test_get_active_sub_entities_relationships_one(self):
         """
         Tests retrieval of all active sub entities when one exists.
