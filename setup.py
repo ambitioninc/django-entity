@@ -1,9 +1,10 @@
+import os
 from setuptools import setup
 
 
 setup(
     name='django-entity',
-    version='0.2.3',
+    version=open(os.path.join(os.path.dirname(__file__), 'entity', 'VERSION')).read().strip(),
     description='Entity relationship management for Django',
     long_description='''
         Django entity provides methods and models to mirror entities and
@@ -36,10 +37,14 @@ setup(
         'entity.management.commands',
         'entity.migrations',
     ],
+    dependency_links=[
+        'https://github.com/ambitioninc/django-manager-utils/tarball/master#egg=django-manager-utils-0.3.1',
+    ],
     install_requires=[
         'django>=1.6.1',
         'django-celery>=3.1.1',
         'jsonfield>=0.9.20',
+        'django-manager-utils>=0.3.1',
     ],
     include_package_data=True,
     zip_safe=False,
