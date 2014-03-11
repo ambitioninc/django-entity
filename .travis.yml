@@ -10,5 +10,5 @@ before_script:
   - find . | grep .py$ | grep -v /migrations | grep -v __init__.py | xargs pyflakes
   - psql -c 'CREATE DATABASE entity;' -U postgres
 script:
-  - coverage run --source='entity' --branch setup.py test
-  - coverage report --fail-under=100
+  - coverage run --source='entity' --branch  --omit='entity/migrations/*' setup.py test
+  - coverage report --fail-under=100 --show-missing
