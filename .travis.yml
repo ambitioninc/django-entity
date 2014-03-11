@@ -4,13 +4,11 @@ python:
 env:
   - DJANGO=1.6.1 DB=postgres
 install:
-  - python setup.py install
-  - pip install -q Django==$DJANGO
-  - pip install -r requirements.txt
+  - pip install -q coverage pep8 pyflakes Django==$DJANGO
 before_script:
   - find . | grep .py$ | grep -v /migrations | xargs pep8 --max-line-length=120
   - find . | grep .py$ | grep -v /migrations | grep -v __init__.py | xargs pyflakes
   - psql -c 'CREATE DATABASE entity;' -U postgres
 script:
-  - coverage run --source='entity' --branch --omit 'entity/migrations/*' manage.py test
+  - coverage run --source='entity' --branch setup.py test
   - coverage report --fail-under=100

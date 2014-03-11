@@ -1,51 +1,52 @@
-import os
-from setuptools import setup
+# import multiprocessing to avoid this bug (http://bugs.python.org/issue15881#msg170215_
+import multiprocessing
+assert multiprocessing
+import re
+from setuptools import setup, find_packages
+
+
+def get_version():
+    """
+    Extracts the version number from the version.py file.
+    """
+    VERSION_FILE = 'entity/version.py'
+    mo = re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', open(VERSION_FILE, 'rt').read(), re.M)
+    if mo:
+        return mo.group(1)
+    else:
+        raise RuntimeError('Unable to find version string in {0}.'.format(VERSION_FILE))
 
 
 setup(
     name='django-entity',
-    version=open(os.path.join(os.path.dirname(__file__), 'entity', 'VERSION')).read().strip(),
+    version=get_version(),
     description='Entity relationship management for Django',
-    long_description='''
-        Django entity provides methods and models to mirror entities and
-        entity relationships in Django. Django entity provides quick access to the
-        entities present in your application, their subentities, and their
-        super entities.
-
-        Given this abstration, other apps can easily plug and play into your
-        hierarchical relationships in your app without the app having to
-        know about the potentially complex relationships in your models.
-    ''',
-    classifiers=[
-        'License :: OSI Approved :: MIT License',
-        'Framework :: Django',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.0',
-        'Programming Language :: Python :: 3.1',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-    ],
-    keywords='python django groups entities relationships',
-    url='https://github.com/ambitioninc/django-entity',
+    long_description=open('README.md').read(),
+    url='http://github.com/ambitioninc/django-entity/',
     author='Wes Kendall',
     author_email='wesleykendall@gmail.com',
-    license='MIT',
-    packages=[
-        'entity',
-        'entity.management',
-        'entity.management.commands',
-        'entity.migrations',
+    packages=find_packages(),
+    classifiers=[
+        'Programming Language :: Python',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: BSD License',
+        'Operating System :: OS Independent',
+        'Framework :: Django',
+    ],
+    install_requires=[
+        'django>=1.6',
+        'django-manager-utils>=0.3.1',
+        'django-celery>=3.1.1',
+        'jsonfield>=0.9.20',
+    ],
+    tests_require=[
+        'psycopg2',
+        'django-nose',
+        'south',
     ],
     dependency_links=[
         'https://github.com/ambitioninc/django-manager-utils/tarball/master#egg=django-manager-utils-0.3.1',
     ],
-    install_requires=[
-        'django>=1.6.1',
-        'django-celery>=3.1.1',
-        'jsonfield>=0.9.20',
-        'django-manager-utils>=0.3.1',
-    ],
+    test_suite='run_tests.run_tests',
     include_package_data=True,
-    zip_safe=False,
 )
