@@ -136,17 +136,17 @@ One can also filter on the sub/super entities by their type. This is useful if t
     0
 
 ## Additional Manager and Model Filtering Methods
-Django entity has additional manager methods for quick global retrieval and filtering of entities and their relationships. As shown earlier, the __active__ and __is_type__ filters can easily be applied to a list of super or sub entities. Similarly, the functions can be used at the model manager layer or the per-model level. If the functions are used at the per-model layer, they return Booleans. If used at the model manager layer, they return QuerySets. Below are the various filtering functions available in Django entity along with examples of their use in the Entity manager.
+Django entity has additional manager methods for quick global retrieval and filtering of entities and their relationships. As shown earlier, the __active__ and __is_type__ filters can easily be applied to a list of super or sub entities. Similarly, the functions can be used at the model manager layer or the per-model level. If the functions are used at the per-model layer, they return Booleans. If used at the model manager layer, they return QuerySets. Below are the various filtering functions available in Django entity along with examples of their use. Each function notes its available at a per-model layer.
 
 ### get_for_obj(model_obj)
-The get_for_obj function takes a model object and returns the corresponding entity.
+The get_for_obj function takes a model object and returns the corresponding entity. Only available in the Entity model manager.
 
     test_model = TestModel.objects.create()
     # Get the resulting entity for the model object
     entity = Entity.objects.get_for_obj(test_model)
 
 ### cached_relationships()
-The cached_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cached_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cached_relationships function can be used on the model manager or a queryset.
+The cached_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cached_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cached_relationships function can be used on the model manager or a queryset. This function is only available in the Entity model manager.
 
     entity = Entity.objects.cached_relationships().get_for_obj(test_model)
     for super_entity in entity.get_super_entities().active():
@@ -154,19 +154,19 @@ The cached_relationships function is useful for prefetching relationship informa
         pass
 
 ### active()
-Returns only active entities.
+Returns only active entities. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
 
 ### inactive()
-Returns only inactive entities.
+Returns only inactive entities. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
 
 ### is_type(*entity_types)
-Return all entities that have one of the entity types provided.
+Return all entities that have one of the entity types provided. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
 
 ### is_not_type(*entity_types)
-Return all entities that do not have the entity types provided.
+Return all entities that do not have the entity types provided. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
 
 ### intersect_super_entities(*super_entities)
-Given a list of super entity arguments, filter the entities by the intersection of their super entity groups. This function can be executed on the model manager or on a queryset.
+Given a list of super entity arguments, filter the entities by the intersection of their super entity groups. This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
 
 For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
 
@@ -182,14 +182,12 @@ To filter for all of the entities that have no super entities, don't pass any ar
         # Do your thing with the results
         pass
 
-### Chaining Manager Functions
+### Chaining Filtering Functions
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
     Entity.objects.intersect_super_entities(groupa_entity).is_active().is_type(account_type, team_type)
 
     Entity.objects.inactive().intersect_super_entities(groupb_entity).cached_results()
-
-## Using Manager Filters on Single Entities or their Relationships
 
 
 ## Caveats With Django Entity
