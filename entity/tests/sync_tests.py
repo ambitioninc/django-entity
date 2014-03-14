@@ -10,7 +10,7 @@ from django.test.utils import override_settings
 from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
 from entity.sync import sync_entities, turn_on_syncing, turn_off_syncing
 
-from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
+from .models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
 from .utils import EntityTestCase
 
 
