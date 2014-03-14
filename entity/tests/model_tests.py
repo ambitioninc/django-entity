@@ -53,9 +53,9 @@ class TestEntityManager(EntityTestCase):
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
         self.assertEquals(entities.count(), 6)
 
-    def test_cached_intersection(self):
+    def test_cached_subset(self):
         """
-        Tests that caching still operates the same on an intersection.
+        Tests that caching still operates the same on an entity subset call.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -65,7 +65,7 @@ class TestEntityManager(EntityTestCase):
         # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and one more
         # for entities in those relationships (since no sub relationships exist)
         with self.assertNumQueries(4):
-            entities = Entity.objects.intersect_super_entities(team_entity).cached_relationships()
+            entities = Entity.objects.has_super_entity_subset(team_entity).cached_relationships()
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) == 1)
                 self.assertTrue(len(list(entity.get_sub_entities())) == 0)
@@ -226,34 +226,9 @@ class TestEntityManager(EntityTestCase):
                 self.account_type, self.team_type))
         )
 
-    def test_intersect_super_entities_none(self):
+    def test_subset_super_entities_none(self):
         """
-        Tests the base case of intersection on no super entities.
-        """
-        # Create test accounts that have three types of super entities
-        team = Team.objects.create()
-        team_entity = Entity.objects.get_for_obj(team)
-        team2 = Team.objects.create()
-        team2_entity = Entity.objects.get_for_obj(team2)
-        team_group = TeamGroup.objects.create()
-        team_group_entity = Entity.objects.get_for_obj(team_group)
-        competitor = Competitor.objects.create()
-        competitor_entity = Entity.objects.get_for_obj(competitor)
-
-        # Create accounts that have four super entities
-        for i in range(5):
-            Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group)
-
-        # Create accounts that have no super entities
-        entities_0se = set(Entity.objects.get_for_obj(Account.objects.create()) for i in range(5))
-
-        self.assertEquals(
-            set(entities_0se).union([team_entity, team2_entity, team_group_entity, competitor_entity]),
-            set(Entity.objects.intersect_super_entities()))
-
-    def test_intersect_super_entities_none_is_type(self):
-        """
-        Tests the base case of intersection on no super entities with a type specified.
+        Tests the base case of super entity subsets on no super entities.
         """
         # Create test accounts that have three types of super entities
         team = Team.objects.create()
@@ -266,14 +241,37 @@ class TestEntityManager(EntityTestCase):
             Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group)
 
         # Create accounts that have no super entities
-        entities_0se = set(Entity.objects.get_for_obj(Account.objects.create()) for i in range(5))
+        for i in range(5):
+            Entity.objects.get_for_obj(Account.objects.create())
 
         self.assertEquals(
-            set(entities_0se), set(Entity.objects.intersect_super_entities().is_type(self.account_type)))
+            set(Entity.objects.all()), set(Entity.objects.has_super_entity_subset()))
 
-    def test_intersect_super_entities_manager(self):
+    def test_subset_super_entities_none_is_type(self):
         """
-        Tests the intersection of super entity types for an entity directly from the entity manager.
+        Tests the base case of super entity subset on no super entities with a type specified.
+        """
+        # Create test accounts that have three types of super entities
+        team = Team.objects.create()
+        team2 = Team.objects.create()
+        team_group = TeamGroup.objects.create()
+        competitor = Competitor.objects.create()
+
+        # Create accounts that have four super entities
+        for i in range(5):
+            Account.objects.create(competitor=competitor, team=team, team2=team2, team_group=team_group)
+
+        # Create accounts that have no super entities
+        for i in range(5):
+            Entity.objects.get_for_obj(Account.objects.create())
+
+        self.assertEquals(
+            set(Entity.objects.filter(entity_type=self.account_type)),
+            set(Entity.objects.has_super_entity_subset().is_type(self.account_type)))
+
+    def test_subset_super_entities_manager(self):
+        """
+        Tests the subset of super entity types for an entity directly from the entity manager.
         """
         # Create test accounts that have three types of super entities
         team = Team.objects.create()
@@ -302,23 +300,23 @@ class TestEntityManager(EntityTestCase):
         # Create test accounts that have one super entity
         entities_1se = set(Entity.objects.get_for_obj(Account.objects.create(team=team)) for i in range(5))
 
-        # Test various intersection results
+        # Test various subset results
         self.assertEquals(
-            entities_4se, set(Entity.objects.intersect_super_entities(
+            entities_4se, set(Entity.objects.has_super_entity_subset(
                 team_entity, team2_entity, team_group_entity, competitor_entity)))
         self.assertEquals(
-            entities_1se | entities_2se2 | entities_4se, set(Entity.objects.intersect_super_entities(team_entity)))
+            entities_1se | entities_2se2 | entities_4se, set(Entity.objects.has_super_entity_subset(team_entity)))
         self.assertEquals(
-            entities_4se | entities_2se2, set(Entity.objects.intersect_super_entities(team_entity, competitor_entity)))
+            entities_4se | entities_2se2, set(Entity.objects.has_super_entity_subset(team_entity, competitor_entity)))
         self.assertEquals(
-            entities_4se | entities_2se1, set(Entity.objects.intersect_super_entities(team_group_entity)))
+            entities_4se | entities_2se1, set(Entity.objects.has_super_entity_subset(team_group_entity)))
         self.assertEquals(
             entities_4se | entities_2se1 | entities_2se2,
-            set(Entity.objects.intersect_super_entities(competitor_entity)))
+            set(Entity.objects.has_super_entity_subset(competitor_entity)))
 
-    def test_intersect_super_entities_queryset(self):
+    def test_has_super_entity_subset_queryset(self):
         """
-        Tests the intersection of super entity types for an entity from a queryset.
+        Tests the subset of super entity types for an entity from a queryset.
         """
         # Create test accounts that have three types of super entities
         team = Team.objects.create()
@@ -337,15 +335,15 @@ class TestEntityManager(EntityTestCase):
             for i in range(5)
         )
 
-        # Test intersection results
+        # Test subset results
         self.assertEquals(
             set(entities_4se).difference([entities_4se[0]]),
-            set(Entity.objects.exclude(id=entities_4se[0].id).intersect_super_entities(
+            set(Entity.objects.exclude(id=entities_4se[0].id).has_super_entity_subset(
                 team_entity, team2_entity, team_group_entity, competitor_entity)))
 
-    def test_intersect_super_entities_queryset_num_queries(self):
+    def test_has_super_entity_subset_queryset_num_queries(self):
         """
-        Tests that super entity intersection only results in one query.
+        Tests that super entity subset only results in one query.
         """
         # Create test accounts that have three types of super entities
         team = Team.objects.create()
@@ -365,10 +363,10 @@ class TestEntityManager(EntityTestCase):
         )
 
         with self.assertNumQueries(1):
-            entities = set(Entity.objects.exclude(id=entities_4se[0].id).intersect_super_entities(
+            entities = set(Entity.objects.exclude(id=entities_4se[0].id).has_super_entity_subset(
                 team_entity, team2_entity, team_group_entity, competitor_entity))
 
-        # Test intersection results
+        # Test subset results
         self.assertEquals(set(entities_4se).difference([entities_4se[0]]), entities)
 
 

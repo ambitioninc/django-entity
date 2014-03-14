@@ -42,10 +42,9 @@ class EntityFilter(object):
         self.entities = ifilter(lambda e: e.is_not_type(*entity_types), self.entities)
         return self
 
-    def intersect_super_entities(self, *super_entity_types):
+    def has_super_entity_subset(self, *super_entities):
         """
-        Returns an iterator of entities that have super entities that intersect with the given
-        super entity types.
+        Returns an iterator of entities that have a set of super entities that have a subset of the given super entities.
         """
-        self.entities = ifilter(lambda e: e.intersect_super_entities(*super_entity_types), self.entities)
+        self.entities = ifilter(lambda e: e.has_super_entity_subset(*super_entities), self.entities)
         return self
