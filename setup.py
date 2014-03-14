@@ -40,6 +40,7 @@ setup(
         'jsonfield>=0.9.20',
     ],
     tests_require=[
+        'mock',
         'psycopg2',
         'django-nose',
         'south',
