@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from entity.models import Entity, EntityRelationship
 
-from test_project.models import Account, Team, TeamGroup
+from .models import Account, Team, TeamGroup
 from .utils import EntityTestCase
 
 
@@ -14,22 +14,26 @@ class TestEntityFiltering(EntityTestCase):
         self.account_type = ContentType.objects.get_for_model(Account)
         self.team_type = ContentType.objects.get_for_model(Team)
 
-    def test_intersect_super_entities_none(self):
+    def test_has_super_entity_subset_none(self):
         """
-        Tests the intersect_super_entities function on entities that have no super entities.
+        Tests the has_super_entity_subset function on entities that have no super entities.
         """
         # Create a team and an account
-        team = Team.objects.create()
-        account = Account.objects.create(team=team)
+        team_group = TeamGroup.objects.create()
+        team_group_entity = Entity.objects.get_for_obj(team_group)
+        team = Team.objects.create(team_group=team_group)
+        account = Account.objects.create(team=team, team_group=team_group)
         # Get the entity of the account and the team
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
-        # Test that intersecting with no super entites returns the team entity since it has no super entities
-        self.assertEquals(list(account_entity.get_super_entities().intersect_super_entities()), [team_entity])
+        # Test that subset with no super entites returns the team and team group
+        self.assertEquals(
+            list(account_entity.get_super_entities().has_super_entity_subset()),
+            [team_entity, team_group_entity])
 
-    def test_intersect_super_entities_one(self):
+    def test_has_super_entity_subset_one(self):
         """
-        Tests the intersect_super_entities function on entities with one super entity.
+        Tests the has_super_entity_subset function on entities with one super entity.
         """
         # Create a team, team group, and an account for testing
         team_group = TeamGroup.objects.create()
@@ -39,14 +43,14 @@ class TestEntityFiltering(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         team_group_entity = Entity.objects.get_for_obj(team_group)
-        # Test that intersecting with the team group entity results in the team
+        # Test that subset with the team group entity results in the team
         self.assertEquals(
-            list(account_entity.get_super_entities().intersect_super_entities(team_group_entity)),
+            list(account_entity.get_super_entities().has_super_entity_subset(team_group_entity)),
             [team_entity])
 
-    def test_intersect_super_entities_two(self):
+    def test_has_super_entity_subset_two(self):
         """
-        Tests the intersect_super_entities function on entities with two super entities.
+        Tests the has_super_entity_subset function on entities with two super entities.
         """
         # Create a team, team group, and an account for testing
         team_group = TeamGroup.objects.create()
@@ -56,13 +60,13 @@ class TestEntityFiltering(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         team_group_entity = Entity.objects.get_for_obj(team_group)
-        # Test that intersecting with the team and team group results in nothing since no objects have those
+        # Test that subset with the team and team group results in nothing since no objects have those
         # super entities
         self.assertEquals(
-            list(account_entity.get_super_entities().intersect_super_entities(team_entity, team_group_entity)),
+            list(account_entity.get_super_entities().has_super_entity_subset(team_entity, team_group_entity)),
             [])
-        # Test that performing the same intersection on the account returns True
-        self.assertTrue(account_entity.intersect_super_entities(team_entity, team_group_entity))
+        # Test that performing the same subset on the account returns True
+        self.assertTrue(account_entity.has_super_entity_subset(team_entity, team_group_entity))
 
     def test_get_active_sub_entities_relationships_one(self):
         """
@@ -207,7 +211,7 @@ class TestEntityFiltering(EntityTestCase):
         self.assertEquals(list(team_entity.get_sub_entities().is_not_type(self.account_type)), [])
         self.assertEquals(list(team_entity.get_sub_entities().is_not_type(self.team_type, self.account_type)), [])
 
-    def return_chained_active_is_type(self):
+    def test_return_chained_active_is_type(self):
         """
         Tests chaining active and is_type together.
         """

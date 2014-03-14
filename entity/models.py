@@ -14,20 +14,19 @@ class EntityQuerySet(ManagerUtilsQuerySet):
     """
     Provides additional queryset filtering abilities.
     """
-    def intersect_super_entities(self, *super_entities):
+    def has_super_entity_subset(self, *super_entities):
         """
-        Given a list of super entities, return the intersection of entities with those super entitiies.
+        Given a list of super entities, return the entities that have those as a subset of their super entities.
         """
-        if not super_entities:
-            # Handle the case of returning entities that have no super entities
-            return self.exclude(id__in=EntityRelationship.objects.values_list('sub_entity', flat=True).distinct())
-        else:
+        if super_entities:
             # Get a list of entities that have super entities with all types
-            intersection = EntityRelationship.objects.filter(
+            has_subset = EntityRelationship.objects.filter(
                 super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
                 super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
 
-        return self.filter(id__in=intersection)
+            return self.filter(id__in=has_subset)
+        else:
+            return self
 
     def active(self):
         """
@@ -73,11 +72,11 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get(entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id)
 
-    def intersect_super_entities(self, *super_entities):
+    def has_super_entity_subset(self, *super_entities):
         """
-        Given a list of super entities, return the intersection of entities with those super entitiies.
+        Given a list of super entities, return the entities that have those super entities as a subset of theirs.
         """
-        return self.get_queryset().intersect_super_entities(*super_entities)
+        return self.get_queryset().has_super_entity_subset(*super_entities)
 
     def active(self):
         """
@@ -165,15 +164,11 @@ class Entity(models.Model):
         """
         return self.entity_type_id not in (entity_type.id for entity_type in entity_types)
 
-    def intersect_super_entities(self, *super_entities):
+    def has_super_entity_subset(self, *super_entities):
         """
-        Returns True if the entity's super entities intersect with the provided super entities.
-        If no super entities are provided, returns True only if the entity has no super entities
+        Returns True if the super entities are a subset of the entity's super entities.
         """
-        if len(super_entities):
-            return set(super_entities).issubset(self.get_super_entities())
-        else:
-            return len(list(self.get_super_entities())) == 0
+        return set(super_entities).issubset(self.get_super_entities())
 
 
 class EntityRelationship(models.Model):

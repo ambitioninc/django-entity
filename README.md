@@ -165,27 +165,21 @@ Return all entities that have one of the entity types provided. This function is
 ### is_not_type(*entity_types)
 Return all entities that do not have the entity types provided. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
 
-### intersect_super_entities(*super_entities)
-Given a list of super entity arguments, filter the entities by the intersection of their super entity groups. This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
+### has_super_entity_subset(*super_entities)
+Return entities that have a subset of the given super entities. This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
 
 For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
 
     groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
     groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
-    for e in Entity.objects.intersect_super_entities(groupa_entity, groupb_entity):
-        # Do your thing with the results
-        pass
-
-To filter for all of the entities that have no super entities, don't pass any arguments to the intersect function:
-
-    for e in Entity.objects.intersect_super_entities():
+    for e in Entity.objects.has_super_entity_subset(groupa_entity, groupb_entity):
         # Do your thing with the results
         pass
 
 ### Chaining Filtering Functions
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
-    Entity.objects.intersect_super_entities(groupa_entity).is_active().is_type(account_type, team_type)
+    Entity.objects.has_super_entity_subset(groupa_entity).is_active().is_type(account_type, team_type)
 
     Entity.objects.inactive().intersect_super_entities(groupb_entity).cached_results()
 
