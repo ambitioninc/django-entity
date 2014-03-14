@@ -11,6 +11,13 @@ class TeamGroup(BaseEntityModel):
     name = models.CharField(max_length=256)
 
 
+class Competitor(BaseEntityModel):
+    """
+    An enclosing group for competitors
+    """
+    pass
+
+
 class Team(BaseEntityModel):
     """
     A team entity model. Encapsulates accounts.
@@ -39,6 +46,12 @@ class Account(BaseEntityModel):
     team = models.ForeignKey(Team, null=True)
     # True if the account is a captain of its team
     is_captain = models.BooleanField(default=False)
+    # The second team that the account is on
+    team2 = models.ForeignKey(Team, null=True, related_name='+')
+    # The team group
+    team_group = models.ForeignKey(TeamGroup, null=True)
+    # The comptetitor group
+    competitor = models.ForeignKey(Competitor, null=True)
 
     def is_entity_active(self):
         return self.is_active
@@ -58,14 +71,16 @@ class Account(BaseEntityModel):
         """
         Gets the super entities this entity belongs to.
         """
-        return [self.team] if self.team is not None else []
-
-    def is_super_entity_relationship_active(self, super_entity):
-        """
-        Make it an inactive relationship when the account is a captain
-        of a team.
-        """
-        return not self.is_captain
+        super_entities = []
+        if self.team is not None:
+            super_entities.append(self.team)
+        if self.team2 is not None:
+            super_entities.append(self.team2)
+        if self.team_group is not None:
+            super_entities.append(self.team_group)
+        if self.competitor is not None:
+            super_entities.append(self.competitor)
+        return super_entities
 
 
 class EntityPointer(models.Model):

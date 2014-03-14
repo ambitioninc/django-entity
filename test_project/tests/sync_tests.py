@@ -10,7 +10,7 @@ from django.test.utils import override_settings
 from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
 from entity.sync import sync_entities, turn_on_syncing, turn_off_syncing
 
-from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity, TeamGroup
+from test_project.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
 from .utils import EntityTestCase
 
 
@@ -338,7 +338,7 @@ class TestEntitySignalSync(EntityTestCase):
         account.delete()
         self.assertEquals(Entity.objects.all().count(), 1)
         self.assertEquals(EntityRelationship.objects.all().count(), 0)
-        Entity.objects.get(entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        Entity.objects.get_for_obj(team)
 
     def test_post_create_account_no_relationships_active(self):
         """
@@ -350,7 +350,7 @@ class TestEntitySignalSync(EntityTestCase):
 
         # Create an account. An entity with no relationships should be created
         account = Account.objects.create(email='test@test.com')
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         # Check that the metadata and is_active fields were set properly
         self.assertEquals(entity.entity_meta, {
             'email': 'test@test.com',
@@ -377,15 +377,13 @@ class TestEntitySignalSync(EntityTestCase):
 
         # There should be two entities. Test their existence and values
         self.assertEquals(Entity.objects.all().count(), 2)
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        account_entity = Entity.objects.get_for_obj(account)
         self.assertEquals(account_entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
         })
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(team_entity.entity_meta, None)
 
         # Check that the appropriate entity relationship was created
@@ -393,7 +391,6 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
-        self.assertEquals(relationship.is_active, True)
 
     def test_post_updated_entity_no_cascade(self):
         """
@@ -402,7 +399,7 @@ class TestEntitySignalSync(EntityTestCase):
         """
         # Create a test account
         account = Account.objects.create(email='test@test.com')
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
@@ -418,7 +415,7 @@ class TestEntitySignalSync(EntityTestCase):
         account.email = 'newemail@test.com'
         account.save()
         # Verify that the mirrored entity has the same ID
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'newemail@test.com',
             'is_captain': False,
@@ -436,7 +433,7 @@ class TestEntitySignalSync(EntityTestCase):
         """
         # Create an account and check it's mirrored metadata
         account = Account.objects.create(email='test@test.com')
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
@@ -446,7 +443,7 @@ class TestEntitySignalSync(EntityTestCase):
         # Update the account's metadata and check that it is mirrored
         account.email = 'newemail@test.com'
         account.save()
-        entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        entity = Entity.objects.get_for_obj(account)
         self.assertEquals(entity.entity_meta, {
             'email': 'newemail@test.com',
             'is_captain': False,
@@ -468,15 +465,13 @@ class TestEntitySignalSync(EntityTestCase):
 
         # There should be two entities. Test their existence and values
         self.assertEquals(Entity.objects.all().count(), 2)
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
+        account_entity = Entity.objects.get_for_obj(account)
         self.assertEquals(account_entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
         })
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
+        team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(team_entity.entity_meta, None)
 
         # Check that the appropriate entity relationship was created
@@ -484,7 +479,6 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
-        self.assertEquals(relationship.is_active, True)
 
         # Update the account to be a team captain. According to our test project, this
         # means it no longer has an active relationship to a team
@@ -496,64 +490,3 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
-        self.assertEquals(relationship.is_active, False)
-
-
-class TestEntityRelationshipFilters(EntityTestCase):
-    """
-    Tests various filtering on entities and their relationsips.
-    """
-    def test_default_entity_relationship_is_active(self):
-        """
-        Tests that the default entity relationships are set to active by using
-        an Team entity that does not define the is_super_entity_relationship_active function.
-        """
-        team_group = TeamGroup.objects.create(name='Group')
-        team = Team.objects.create(name='Team', team_group=team_group)
-        team_entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
-        team_group_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team_group), entity_id=team_group.id)
-        # Verify that the team has an active relationship with its super entity
-        EntityRelationship.objects.get(sub_entity=team_entity, super_entity=team_group_entity, is_active=True)
-
-    def test_post_update_filter_super_entities(self):
-        """
-        Tests that accounts can filter their super entities based on a given entity type.
-        """
-        # Create an account that belongs to a team
-        team = Team.objects.create(name='Team')
-        account = Account.objects.create(email='test@test.com', team=team)
-
-        # Get the entity related to the account
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
-        # Check the filter of the super entity type
-        self.assertEquals(
-            account_entity.get_super_entities(entity_type=ContentType.objects.get_for_model(team)),
-            [team_entity])
-        # Check that the filter returns nothing for a different entity type
-        self.assertEquals(
-            account_entity.get_super_entities(entity_type=ContentType.objects.get_for_model(account)), [])
-
-    def test_post_update_filter_sub_entities(self):
-        """
-        Tests that teams can filter their sub entities based on a given entity type.
-        """
-        # Create an account that belongs to a team
-        team = Team.objects.create(name='Team')
-        account = Account.objects.create(email='test@test.com', team=team)
-
-        # Get the entity related to the account
-        account_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        team_entity = Entity.objects.get(
-            entity_type=ContentType.objects.get_for_model(team), entity_id=team.id)
-        # Check the filter of the sub entity type
-        self.assertEquals(
-            team_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(account)),
-            [account_entity])
-        # Check that the filter returns nothing for a different entity type
-        self.assertEquals(
-            team_entity.get_sub_entities(entity_type=ContentType.objects.get_for_model(team)), [])

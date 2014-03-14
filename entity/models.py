@@ -1,20 +1,119 @@
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models.query import QuerySet
+from django.db.models import Count
 from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver, Signal
+from django.dispatch import receiver
 from jsonfield import JSONField
+from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
+
+from .entity_filter import EntityFilter
 
 
-# Create a signal that is emitted after bulk operations occur
-post_bulk_operation = Signal()
+class EntityQuerySet(ManagerUtilsQuerySet):
+    """
+    Provides additional queryset filtering abilities.
+    """
+    def intersect_super_entities(self, *super_entities):
+        """
+        Given a list of super entities, return the intersection of entities with those super entitiies.
+        """
+        if not super_entities:
+            # Handle the case of returning entities that have no super entities
+            return self.exclude(id__in=EntityRelationship.objects.values_list('sub_entity', flat=True).distinct())
+        else:
+            # Get a list of entities that have super entities with all types
+            intersection = EntityRelationship.objects.filter(
+                super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
+                super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
+
+        return self.filter(id__in=intersection)
+
+    def active(self):
+        """
+        Returns active entities.
+        """
+        return self.filter(is_active=True)
+
+    def inactive(self):
+        """
+        Returns inactive entities.
+        """
+        return self.filter(is_active=False)
+
+    def is_type(self, *entity_types):
+        """
+        Returns entities that have any of the types listed in entity_types.
+        """
+        return self.filter(entity_type__in=entity_types)
+
+    def is_not_type(self, *entity_types):
+        """
+        Returns entities that are not any of the types listed in entity_types.
+        """
+        return self.exclude(entity_type__in=entity_types)
+
+    def cached_relationships(self):
+        """
+        Caches the super and sub relationships by doing a prefetch_related.
+        """
+        return self.prefetch_related('super_relationships__super_entity', 'sub_relationships__sub_entity')
+
+
+class EntityManager(ManagerUtilsManager):
+    """
+    Provides additional entity-wide filtering abilities.
+    """
+    def get_queryset(self):
+        return EntityQuerySet(self.model)
+
+    def get_for_obj(self, entity_model_obj):
+        """
+        Given a saved entity model object, return the associated entity.
+        """
+        return self.get(entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id)
+
+    def intersect_super_entities(self, *super_entities):
+        """
+        Given a list of super entities, return the intersection of entities with those super entitiies.
+        """
+        return self.get_queryset().intersect_super_entities(*super_entities)
+
+    def active(self):
+        """
+        Returns active entities.
+        """
+        return self.get_queryset().active()
+
+    def inactive(self):
+        """
+        Returns inactive entities.
+        """
+        return self.get_queryset().inactive()
+
+    def is_type(self, *entity_types):
+        """
+        Returns entities that have any of the types listed in entity_types.
+        """
+        return self.get_queryset().is_type(*entity_types)
+
+    def is_not_type(self, *entity_types):
+        """
+        Returns entities that are not any of the types listed in entity_types.
+        """
+        return self.get_queryset().is_not_type(*entity_types)
+
+    def cached_relationships(self):
+        """
+        Caches the super and sub relationships by doing a prefetch_related.
+        """
+        return self.get_queryset().cached_relationships()
 
 
 class Entity(models.Model):
     """
-    Describes an entity and its relevant metadata. Also defines
-    if the entity is active.
+    Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions
+    are provided that mirror the filtering functions in the Entity model manager.
     """
     # The generic entity
     entity_id = models.IntegerField()
@@ -24,87 +123,57 @@ class Entity(models.Model):
     entity_meta = JSONField(null=True)
     # True if this entity is active
     is_active = models.BooleanField(default=True)
+    objects = EntityManager()
 
-    def _passes_is_active_filter(self, filtered_relationship, filtered_entity, is_active):
+    def get_sub_entities(self):
         """
-        Given an is_active filter on the get_sub or get_super_entities functions, determine
-        if the relationship and entity passes if it is active or not (depending on the
-        value of is_active)
-
-        Args:
-            is_active: Specifies the active flag upon which to filter. If None, this function
-                always passes (i.e returns True). If True, both the relationship and relating
-                entity have to be active. If False, either the relationship or the relating
-                entity has to be False to pass.
-            filtered_relationship: An EntityRelationship model.
-            filtered_entity: The relating entity to filter based on activity.
-
-        Returns:
-            True if the is_active filter passes, False otherwise.
+        Returns all of the sub entities of this entity. The returned entities may be filtered by chaining any
+        of the functions in EntityFilter.
         """
-        return is_active is None or is_active == (filtered_entity.is_active and filtered_relationship.is_active)
+        return EntityFilter(r.sub_entity for r in self.sub_relationships.all())
 
-    def _passes_entity_type_filter(self, filtered_entity, entity_type):
+    def get_super_entities(self):
         """
-        Given an entity_type filter on the get_sub or get_super_entities functions, determine
-        if the entity is of the entity_type given.
-
-        Args:
-            filtered_entity: The Entity model being filtered.
-            entity_type: A Django ContentType or None if there is no filter.
-
-        Returns:
-            True if the filtered_entity is of type entity_type or entity_type is None, False otherwise.
+        Returns all of the super entities of this entity. The returned super entities may be filtered by
+        chaining methods from EntityFilter.
         """
-        return entity_type is None or filtered_entity.entity_type == entity_type
+        return EntityFilter(r.super_entity for r in self.super_relationships.all())
 
-    def get_sub_entities(self, is_active=None, entity_type=None):
+    def active(self):
         """
-        Returns all of the sub entities of this entity.
-
-        Args:
-            is_active: Specifies how to filter active vs inactive relationships. If is_active is None, return all
-                retlationships. If False, return only inactive relationships. If True, return all active
-                relationships. Defaults to None. Note that even if a relationship is active, if the entity
-                is inactive, it will not be returned when is_active=True.
-            entity_type: Only returns sub entities of the given Django ContentType. If None, no filtering
-                is done.
-
-        Returns:
-            A list of Entity models or an empty list if there are no sub entities.
+        Returns True if the entity is active.
         """
-        # Note - do a naive filtering on the entire sub_relationships set.
-        # This provides any other code with the ability to use django's
-        # prefetch related on the sub or super_relationships sets.
-        return [
-            r.sub_entity for r in self.sub_relationships.all()
-            if (self._passes_is_active_filter(r, r.sub_entity, is_active) and
-                self._passes_entity_type_filter(r.sub_entity, entity_type))
-        ]
+        return self.is_active is True
 
-    def get_super_entities(self, is_active=None, entity_type=None):
+    def inactive(self):
         """
-        Returns all of the super entities of this entity.
-
-        Args:
-            is_active: Specifies how to filter active vs inactive relationships. If is_active is None, return all
-                retlationships. If False, return only inactive relationships. If True, return all active
-                relationships. Defaults to None. Note that even if a relationship is active, if the entity
-                is inactive, it will not be returned when is_active=True.
-            entity_type: Only returns super entities of the given Django ContentType. If None, no filtering
-                is done.
-
-        Returns:
-            A list of Entity models or an empty list if there are no super entities.
+        Returns True if the entity is inactive.
         """
-        # Note - do a naive filtering on the entire super_relationships set.
-        # This provides any other code with the ability to use django's
-        # prefetch related on the sub or super_relationships sets.
-        return [
-            r.super_entity for r in self.super_relationships.all()
-            if (self._passes_is_active_filter(r, r.super_entity, is_active) and
-                self._passes_entity_type_filter(r.super_entity, entity_type))
-        ]
+        return self.is_active is False
+
+    def is_type(self, *entity_types):
+        """
+        Returns True if the entity's type is in any of the types given. If no entity types are given,
+        returns False.
+        """
+        return self.entity_type_id in (entity_type.id for entity_type in entity_types)
+
+    def is_not_type(self, *entity_types):
+        """
+        Returns True if the entity's type is not in any of the types given. If no entity types are given,
+        returns True.
+        """
+        return self.entity_type_id not in (entity_type.id for entity_type in entity_types)
+
+    def intersect_super_entities(self, *super_entities):
+        """
+        Returns True if the entity's super entities intersect with the provided super entities.
+        If no super entities are provided, returns True only if the entity has no super entities
+        """
+        if len(super_entities):
+            return set(super_entities).issubset(self.get_super_entities())
+        else:
+            return len(list(self.get_super_entities())) == 0
 
 
 class EntityRelationship(models.Model):
@@ -121,8 +190,6 @@ class EntityRelationship(models.Model):
     # querying this reverse relationships returns all of the relationships
     # sub to an entity
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
-    # True if the relationship is active
-    is_active = models.BooleanField(default=True)
 
 
 class EntityModelMixin(object):
@@ -167,44 +234,13 @@ class EntityModelMixin(object):
         """
         return []
 
-    def is_super_entity_relationship_active(self, model_obj):
-        """
-        Given a model object, return True if the entity has an active relationship
-        with that super entity model object.
 
-        Args:
-            model_obj - An model object that is a super entity of the entity.
-
-        Returns:
-            A Boolean describing if the activity of the relationship with model_obj.
-            Defaults to returning True.
-        """
-        return True
-
-
-class EntityQuerySet(QuerySet):
+class EntityModelManager(ManagerUtilsManager):
     """
-    Overrides bulk operations on a queryset to emit a signal when they occur.
+    Provides the ability to prefetch entity relationships so that filtering operations happen
+    quickly on them.
     """
-    def update(self, **kwargs):
-        ret_val = super(EntityQuerySet, self).update(**kwargs)
-        post_bulk_operation.send(sender=self)
-        return ret_val
-
-
-class EntityModelManager(models.Manager):
-    """
-    Defines a model manager for Entity models. This model manager provides additional
-    functionality on top of the regular managers, such as emitting signals when bulk
-    updates and creates are issued.
-    """
-    def get_queryset(self):
-        return EntityQuerySet(self.model)
-
-    def bulk_create(self, objs, batch_size=None):
-        ret_val = super(EntityModelManager, self).bulk_create(objs, batch_size=batch_size)
-        post_bulk_operation.send(sender=self)
-        return ret_val
+    pass
 
 
 class BaseEntityModel(models.Model, EntityModelMixin):
