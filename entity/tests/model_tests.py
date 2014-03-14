@@ -16,9 +16,9 @@ class TestEntityManager(EntityTestCase):
         self.team_group_type = ContentType.objects.get_for_model(TeamGroup)
         self.competitor_type = ContentType.objects.get_for_model(Competitor)
 
-    def test_manager_cached_relationships(self):
+    def test_manager_cache_relationships(self):
         """
-        Tests a retrieval of cached relationships on the manager and verifies it results in the smallest amount of
+        Tests a retrieval of cache relationships on the manager and verifies it results in the smallest amount of
         queries
         """
         team = Team.objects.create()
@@ -28,15 +28,15 @@ class TestEntityManager(EntityTestCase):
         # Five queries should happen here - one for all entities, two for EntityRelationships,
         # and two more for entities in the relationships
         with self.assertNumQueries(5):
-            entities = Entity.objects.cached_relationships()
+            entities = Entity.objects.cache_relationships()
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) >= 0)
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
         self.assertEquals(entities.count(), 6)
 
-    def test_queryset_cached_relationships(self):
+    def test_queryset_cache_relationships(self):
         """
-        Tests a retrieval of cached relationships on the queryset and verifies it results in the smallest amount of
+        Tests a retrieval of cache relationships on the queryset and verifies it results in the smallest amount of
         queries
         """
         team = Team.objects.create()
@@ -47,13 +47,13 @@ class TestEntityManager(EntityTestCase):
         # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and two more
         # for entities in those relationships
         with self.assertNumQueries(5):
-            entities = Entity.objects.filter(id__in=entity_ids).cached_relationships()
+            entities = Entity.objects.filter(id__in=entity_ids).cache_relationships()
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) >= 0)
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
         self.assertEquals(entities.count(), 6)
 
-    def test_cached_subset(self):
+    def test_cache_subset(self):
         """
         Tests that caching still operates the same on an entity subset call.
         """
@@ -65,7 +65,7 @@ class TestEntityManager(EntityTestCase):
         # Five queries should happen here - 1 for the Entity filter, two for EntityRelationships, and one more
         # for entities in those relationships (since no sub relationships exist)
         with self.assertNumQueries(4):
-            entities = Entity.objects.has_super_entity_subset(team_entity).cached_relationships()
+            entities = Entity.objects.has_super_entity_subset(team_entity).cache_relationships()
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) == 1)
                 self.assertTrue(len(list(entity.get_sub_entities())) == 0)

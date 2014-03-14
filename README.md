@@ -145,10 +145,10 @@ The get_for_obj function takes a model object and returns the corresponding enti
     # Get the resulting entity for the model object
     entity = Entity.objects.get_for_obj(test_model)
 
-### cached_relationships()
-The cached_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cached_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cached_relationships function can be used on the model manager or a queryset. This function is only available in the Entity model manager.
+### cache_relationships()
+The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset. This function is only available in the Entity model manager.
 
-    entity = Entity.objects.cached_relationships().get_for_obj(test_model)
+    entity = Entity.objects.cache_relationships().get_for_obj(test_model)
     for super_entity in entity.get_super_entities().active():
         # Perform much faster filtering on super entity relationships...
         pass
@@ -181,7 +181,7 @@ All of the manager functions listed can be chained, so it is possible to do the 
 
     Entity.objects.has_super_entity_subset(groupa_entity).is_active().is_type(account_type, team_type)
 
-    Entity.objects.inactive().intersect_super_entities(groupb_entity).cached_results()
+    Entity.objects.inactive().has_super_entity_subset(groupb_entity).cache_relationships()
 
 
 ## Caveats With Django Entity

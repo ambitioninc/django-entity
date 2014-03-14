@@ -52,7 +52,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         return self.exclude(entity_type__in=entity_types)
 
-    def cached_relationships(self):
+    def cache_relationships(self):
         """
         Caches the super and sub relationships by doing a prefetch_related.
         """
@@ -102,11 +102,11 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get_queryset().is_not_type(*entity_types)
 
-    def cached_relationships(self):
+    def cache_relationships(self):
         """
         Caches the super and sub relationships by doing a prefetch_related.
         """
-        return self.get_queryset().cached_relationships()
+        return self.get_queryset().cache_relationships()
 
 
 class Entity(models.Model):
