@@ -44,7 +44,8 @@ class EntityFilter(object):
 
     def has_super_entity_subset(self, *super_entities):
         """
-        Returns an iterator of entities that have a set of super entities that have a subset of the given super entities.
+        Returns an iterator of entities that have a set of super entities that have a subset of the
+        given super entities.
         """
         self.entities = ifilter(lambda e: e.has_super_entity_subset(*super_entities), self.entities)
         return self
