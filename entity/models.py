@@ -44,13 +44,13 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         Returns entities that have any of the types listed in entity_types.
         """
-        return self.filter(entity_type__in=entity_types)
+        return self.filter(entity_type__in=entity_types) if entity_types else self
 
     def is_not_type(self, *entity_types):
         """
         Returns entities that are not any of the types listed in entity_types.
         """
-        return self.exclude(entity_type__in=entity_types)
+        return self.exclude(entity_type__in=entity_types) if entity_types else self
 
     def cache_relationships(self):
         """
@@ -153,9 +153,9 @@ class Entity(models.Model):
     def is_type(self, *entity_types):
         """
         Returns True if the entity's type is in any of the types given. If no entity types are given,
-        returns False.
+        returns True.
         """
-        return self.entity_type_id in (entity_type.id for entity_type in entity_types)
+        return self.entity_type_id in (entity_type.id for entity_type in entity_types) if entity_types else True
 
     def is_not_type(self, *entity_types):
         """
