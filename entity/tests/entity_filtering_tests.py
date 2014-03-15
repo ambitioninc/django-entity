@@ -160,6 +160,20 @@ class TestEntityFiltering(EntityTestCase):
         self.assertEquals(
             list(account_entity.get_super_entities().is_type(self.team_type, self.account_type)), [team_entity])
 
+    def test_is_type_none(self):
+        """
+        Tests the is_type method using no arguments
+        """
+        # Create an account that belongs to a team
+        team = Team.objects.create(name='Team')
+        account = Account.objects.create(email='test@test.com', team=team)
+
+        # Get the entity related to the account
+        account_entity = Entity.objects.get_for_obj(account)
+        team_entity = Entity.objects.get_for_obj(team)
+        self.assertEquals(
+            set(account_entity.get_super_entities().is_type()), set([team_entity]))
+
     def test_is_type_sub_entities(self):
         """
         Tests the is_type method on sub entities.

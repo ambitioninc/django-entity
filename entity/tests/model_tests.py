@@ -128,9 +128,12 @@ class TestEntityManager(EntityTestCase):
         Tests filtering by entity type when no type is given.
         """
         team = Team.objects.create()
-        for i in range(5):
-            Account.objects.create(team=team)
-        self.assertEquals([], list(Entity.objects.is_type()))
+        team_entity = Entity.objects.get_for_obj(team)
+        account_entities = [
+            Entity.objects.get_for_obj(Account.objects.create(team=team))
+            for i in range(5)
+        ]
+        self.assertEquals(set([team_entity] + account_entities), set(Entity.objects.is_type()))
 
     def test_filter_manager_one_type(self):
         """
