@@ -35,7 +35,7 @@ setup(
     ],
     install_requires=[
         'django>=1.6',
-        'django-manager-utils>=0.3.2',
+        'django-manager-utils>=0.3.3',
         'django-celery==3.1.1',
         'jsonfield>=0.9.20',
     ],
@@ -44,9 +44,6 @@ setup(
         'psycopg2',
         'django-nose',
         'south',
-    ],
-    dependency_links=[
-        'https://github.com/ambitioninc/django-manager-utils/tarball/master#egg=django-manager-utils-0.3.2',
     ],
     test_suite='run_tests.run_tests',
     include_package_data=True,
