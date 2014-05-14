@@ -97,10 +97,10 @@ class Account(BaseEntityModel):
 
 The Account and Group entities have defined how they want their metadata mirrored along with how their relationship is set up. In this case, Accounts belong to Groups. We can create an example Account and Group and then access their mirrored metadata in the following way.
 
+```python
 group = Group.objects.create(name='Hello Group')
 account = Account.objects.create(email='hello@hello.com', group=group)
 
-```python
 # Entity syncing happens automatically behind the scenes. Grab the entity of the account and group.
 # Check out their metadata.
 account_entity = Entity.objects.get_for_obj(account)
