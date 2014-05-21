@@ -15,28 +15,36 @@ Using Django Entity, the email app could be written to take an Entity model rath
 ## How Does It Work?
 In order to sync entities and their relationships from your project to the Django Entity table, you must first create a model that inherits BaseEntityModel.
 
-    from entity import BaseEntityModel
+```python
+from entity import BaseEntityModel
 
-    class Account(BaseEntityModel):
-        email = models.CharField(max_length=64)
+class Account(BaseEntityModel):
+    email = models.CharField(max_length=64)
+```
 
 When you update your models to inherit this mixin, they will automatically be synced to the Entity table when they are updated or deleted. The first time that you migrate a model in your application, you must remember to sync all of the entities so that the current ones get synced to the entity table. This can be accomplished with
 
-    python manage.py sync_entities
+```python
+python manage.py sync_entities
+```
 
 Similarly, you can directly call the function to sync entities in a celery processing job or in your own application code.
 
-    from entity import sync_entities
+```python
+from entity import sync_entities
 
-    sync_entities()
+sync_entities()
+```
 
 After the entities have been synced, they can then be accessed in the primary Entity table.
 
-    # Create an Account model defined from above
-    account = Account.objects.create(email='hello@hello.com')
+```python
+# Create an Account model defined from above
+account = Account.objects.create(email='hello@hello.com')
 
-    # Get its entity object from the entity table using the get_for_obj function
-    entity = Entity.objects.get_for_obj(account)
+# Get its entity object from the entity table using the get_for_obj function
+entity = Entity.objects.get_for_obj(account)
+```
 
 ## How Do I Specify Relationships And Additonal Metadata About My Entities?
 Django Entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the BaseEntityModel that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
@@ -50,90 +58,98 @@ Django Entity provides the ability to model relationships of your entities to ot
 ## Now That My Entities And Relationships Are Specified, How Do I Use It?
 Let's start off with an example of two entities, an Account and a Group.
 
-    from django.db import models
-    from entity import BaseEntityModel
+```python
+from django.db import models
+from entity import BaseEntityModel
 
-    class Group(BaseEntityModel):
-        name = models.CharField(max_length=64)
+class Group(BaseEntityModel):
+    name = models.CharField(max_length=64)
 
-        def get_entity_meta(self):
-            """
-            Save the name as metadata about the entity.
-            """
-            return {'name': self.name}
+    def get_entity_meta(self):
+        """
+        Save the name as metadata about the entity.
+        """
+        return {'name': self.name}
 
-    class Account(BaseEntityModel):
-        email = models.CharField(max_length=64)
-        group = models.ForeignKey(Group)
-        is_active = models.BooleanField(default=True)
+class Account(BaseEntityModel):
+    email = models.CharField(max_length=64)
+    group = models.ForeignKey(Group)
+    is_active = models.BooleanField(default=True)
 
-        def get_entity_meta(self):
-            """
-            Save the email and group of the Account as additional metadata.
-            """
-            return {
-                'email': self.email,
-                'group': self.group.name,
-            }
+    def get_entity_meta(self):
+        """
+        Save the email and group of the Account as additional metadata.
+        """
+        return {
+            'email': self.email,
+            'group': self.group.name,
+        }
 
-        def get_super_entities(self):
-            """
-            The group is a super entity of the Account.
-            """
-            return [self.group]
+    def get_super_entities(self):
+        """
+        The group is a super entity of the Account.
+        """
+        return [self.group]
 
-        def is_entity_active(self):
-            return self.is_active
+    def is_entity_active(self):
+        return self.is_active
+```
 
 The Account and Group entities have defined how they want their metadata mirrored along with how their relationship is set up. In this case, Accounts belong to Groups. We can create an example Account and Group and then access their mirrored metadata in the following way.
 
-    group = Group.objects.create(name='Hello Group')
-    account = Account.objects.create(email='hello@hello.com', group=group)
+```python
+group = Group.objects.create(name='Hello Group')
+account = Account.objects.create(email='hello@hello.com', group=group)
 
-    # Entity syncing happens automatically behind the scenes. Grab the entity of the account and group.
-    # Check out their metadata.
-    account_entity = Entity.objects.get_for_obj(account)
-    print account_entity.entity_meta
-    {'email': 'hello@hello.com', 'group': 'Hello Group'}
+# Entity syncing happens automatically behind the scenes. Grab the entity of the account and group.
+# Check out their metadata.
+account_entity = Entity.objects.get_for_obj(account)
+print account_entity.entity_meta
+{'email': 'hello@hello.com', 'group': 'Hello Group'}
 
-    group_entity = Entity.objects.get_for_obj(group)
-    print group_entity.entity_meta
-    {'name': 'Hello Group'}
+group_entity = Entity.objects.get_for_obj(group)
+print group_entity.entity_meta
+{'name': 'Hello Group'}
+```
 
 The entity metadata can be very powerful for REST APIs and other components that wish to return data about entities within the application without actually having to query the project's tables.
 
 Once the entities are obtained, it is also easy to query for relationships among the entities.
 
-    # Print off the sub entity metadata of the group
-    for entity in group_entity.get_sub_entities():
-        print entity.entity_meta
-    {'email': 'hello@hello.com', 'group': 'Hello Group'}
+```python
+# Print off the sub entity metadata of the group
+for entity in group_entity.get_sub_entities():
+    print entity.entity_meta
+{'email': 'hello@hello.com', 'group': 'Hello Group'}
 
-    # Similarly, print off the super entities of the account
-    for entity in account_entity.get_super_entities():
-        print entity.entity_meta
-    {'name': 'Hello Group'}
+# Similarly, print off the super entities of the account
+for entity in account_entity.get_super_entities():
+    print entity.entity_meta
+{'name': 'Hello Group'}
 
-    # Make the account inactive and query for active sub entities from the Group.
-    # It should not return anything since the account is inactive
-    account.is_active = False
-    account.save()
+# Make the account inactive and query for active sub entities from the Group.
+# It should not return anything since the account is inactive
+account.is_active = False
+account.save()
 
-    print len(list(group_entity.get_sub_entities().active()))
-    0
-    # The account still remains a sub entity, just an inactive one
-    print len(list(group_entity.get_sub_entities()))
-    1
+print len(list(group_entity.get_sub_entities().active()))
+0
+# The account still remains a sub entity, just an inactive one
+print len(list(group_entity.get_sub_entities()))
+1
+```
 
 One can also filter on the sub/super entities by their type. This is useful if the entity has many relationships of different types.
 
-    for entity in group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Account)):
-        print entity.entity_meta
-    {'email': 'hello@hello.com', 'group': 'Hello Group'}
+```python
+for entity in group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Account)):
+    print entity.entity_meta
+{'email': 'hello@hello.com', 'group': 'Hello Group'}
 
-    # Groups are not a sub entity of themselves, so this function returns nothing
-    print len(list(group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Group))))
-    0
+# Groups are not a sub entity of themselves, so this function returns nothing
+print len(list(group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Group))))
+0
+```
 
 ## Additional Manager and Model Filtering Methods
 Django entity has additional manager methods for quick global retrieval and filtering of entities and their relationships. As shown earlier, the __active__ and __is_type__ filters can easily be applied to a list of super or sub entities. Similarly, the functions can be used at the model manager layer or the per-model level. If the functions are used at the per-model layer, they return Booleans. If used at the model manager layer, they return QuerySets. Below are the various filtering functions available in Django entity along with examples of their use. Each function notes its available at a per-model layer.
@@ -141,17 +157,21 @@ Django entity has additional manager methods for quick global retrieval and filt
 ### get_for_obj(model_obj)
 The get_for_obj function takes a model object and returns the corresponding entity. Only available in the Entity model manager.
 
-    test_model = TestModel.objects.create()
-    # Get the resulting entity for the model object
-    entity = Entity.objects.get_for_obj(test_model)
+```python
+test_model = TestModel.objects.create()
+# Get the resulting entity for the model object
+entity = Entity.objects.get_for_obj(test_model)
+```
 
 ### cache_relationships()
 The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset. This function is only available in the Entity model manager.
 
-    entity = Entity.objects.cache_relationships().get_for_obj(test_model)
-    for super_entity in entity.get_super_entities().active():
-        # Perform much faster filtering on super entity relationships...
-        pass
+```python
+entity = Entity.objects.cache_relationships().get_for_obj(test_model)
+for super_entity in entity.get_super_entities().active():
+    # Perform much faster filtering on super entity relationships...
+    pass
+```
 
 ### active()
 Returns only active entities. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
@@ -170,18 +190,22 @@ Return entities that have a subset of the given super entities. This function ca
 
 For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
 
-    groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
-    groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
-    for e in Entity.objects.has_super_entity_subset(groupa_entity, groupb_entity):
-        # Do your thing with the results
-        pass
+```python
+groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
+groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
+for e in Entity.objects.has_super_entity_subset(groupa_entity, groupb_entity):
+    # Do your thing with the results
+    pass
+```
 
 ### Chaining Filtering Functions
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
-    Entity.objects.has_super_entity_subset(groupa_entity).is_active().is_type(account_type, team_type)
+```python
+Entity.objects.has_super_entity_subset(groupa_entity).is_active().is_type(account_type, team_type)
 
-    Entity.objects.inactive().has_super_entity_subset(groupb_entity).cache_relationships()
+Entity.objects.inactive().has_super_entity_subset(groupb_entity).cache_relationships()
+```
 
 
 ## Caveats With Django Entity

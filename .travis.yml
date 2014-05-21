@@ -4,7 +4,7 @@ python:
 env:
   - DJANGO=1.6.1 DB=postgres
 install:
-  - pip install -q coverage pep8 pyflakes Django==$DJANGO
+  - pip install -q coverage pep8 pyflakes psycopg2 Django==$DJANGO
 before_script:
   - find . | grep .py$ | grep -v /migrations | xargs pep8 --max-line-length=120
   - find . | grep .py$ | grep -v /migrations | grep -v __init__.py | xargs pyflakes
