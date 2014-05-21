@@ -46,4 +46,5 @@ setup(
     ],
     test_suite='run_tests.run_tests',
     include_package_data=True,
+    zip_safe=False,
 )
