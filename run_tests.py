@@ -28,6 +28,11 @@ if not settings.configured:
             'USER': 'postgres',
             'NAME': 'entity',
         }
+    elif test_db == 'sqlite':
+        db_config = {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': 'entity',
+        }
     else:
         raise RuntimeError('Unsupported test DB {0}'.format(test_db))
 

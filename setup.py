@@ -36,12 +36,11 @@ setup(
     install_requires=[
         'django>=1.6',
         'django-manager-utils>=0.3.4',
-        'django-celery==3.1.1',
+        'django-celery>=3.1.1',
         'jsonfield>=0.9.20',
     ],
     tests_require=[
         'mock',
-        'psycopg2',
         'django-nose',
         'south',
     ],
