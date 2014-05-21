@@ -5,6 +5,9 @@
 *.swp
 *.swo
 
+# Virtual Environment
+/env/
+
 # Coverage files
 .coverage
 
