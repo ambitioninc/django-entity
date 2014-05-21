@@ -3,14 +3,17 @@ Provides the ability to run test on a standalone Django app.
 """
 import os
 import sys
+from celery import Celery
 from django.conf import settings
-import djcelery
 from optparse import OptionParser
 
 
 if not settings.configured:
     # Set up celery
-    djcelery.setup_loader()
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
+    app = Celery('entity')
+    app.config_from_object('django.conf:settings')
+    app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
     # Determine the database settings depending on if a test_db var is set in CI mode or not
     test_db = os.environ.get('DB', None)
@@ -45,7 +48,7 @@ if not settings.configured:
             'django.contrib.contenttypes',
             'django.contrib.sessions',
             'django.contrib.admin',
-            'djcelery',
+            'celery',
             'south',
             'entity',
             'entity.tests',
