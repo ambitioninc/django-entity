@@ -223,6 +223,26 @@ class TestSyncAllEntities(EntityTestCase):
         # There should be four entity relationships since four accounts have teams
         self.assertEquals(EntityRelationship.objects.all().count(), 4)
 
+    def test_sync_optimal_queries(self):
+        """
+        Tests optimal queries of syncing.
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        with self.assertNumQueries(56):
+            sync_entities()
+
 
 class TestEntitySignalSync(EntityTestCase):
     """
