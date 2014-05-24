@@ -2,6 +2,7 @@ from django.db import models
 
 from entity import BaseEntityModel, Entity
 from entity.models import EntityModelManager
+from manager_utils import ManagerUtilsManager
 
 
 class TeamGroup(BaseEntityModel):
@@ -18,6 +19,11 @@ class Competitor(BaseEntityModel):
     pass
 
 
+class TeamManager(ManagerUtilsManager):
+    def get_queryset(self):
+        return super(TeamManager, self).get_queryset().select_related('team_group')
+
+
 class Team(BaseEntityModel):
     """
     A team entity model. Encapsulates accounts.
@@ -28,11 +34,18 @@ class Team(BaseEntityModel):
     # Used for additional super entity tests
     team_group = models.ForeignKey(TeamGroup, null=True)
 
+    objects = TeamManager()
+
     def is_entity_active(self):
         return self.is_active
 
     def get_super_entities(self):
         return [self.team_group] if self.team_group is not None else []
+
+
+class AccountManager(ManagerUtilsManager):
+    def get_queryset(self):
+        return super(AccountManager, self).get_queryset().select_related('team', 'team2', 'team_group', 'competitor')
 
 
 class Account(BaseEntityModel):
@@ -52,6 +65,8 @@ class Account(BaseEntityModel):
     team_group = models.ForeignKey(TeamGroup, null=True)
     # The comptetitor group
     competitor = models.ForeignKey(Competitor, null=True)
+
+    objects = AccountManager()
 
     def is_entity_active(self):
         return self.is_active

@@ -5,6 +5,7 @@ Entity and EntityRelationship tables.
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.signals import post_save, post_delete
+from manager_utils import sync
 
 from .models import Entity, EntityRelationship, EntityModelMixin, delete_entity_signal_handler
 from .models import save_entity_signal_handler, bulk_operation_signal_handler, post_bulk_operation
@@ -28,7 +29,7 @@ def turn_on_syncing():
     post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
 
 
-def sync_entity(model_obj, is_deleted):
+def sync_entity(model_obj, is_deleted, entity_cache=None):
     """
     Given a model object, either delete it from the entity table (if
     is_deleted=False) or update its entity values and relationships.
@@ -40,50 +41,44 @@ def sync_entity(model_obj, is_deleted):
         # before hand
         Entity.objects.filter(entity_type=entity_type, entity_id=model_obj.id).delete()
     else:
-        # Create or update the entity
-        entity_meta = model_obj.get_entity_meta()
-        is_active = model_obj.is_entity_active()
-        entity, is_created = Entity.objects.get_or_create(
-            entity_type=entity_type, entity_id=model_obj.id, defaults={
-                'entity_meta': entity_meta,
-                'is_active': is_active,
-            })
-        if not is_created:
-            # Update the entity attributes here if it wasn't created
-            entity.entity_meta = entity_meta
-            entity.is_active = is_active
-            entity.save()
+        entity_cache = entity_cache if entity_cache is not None else {}
 
-        # Delete all of the existing relationships super to this entity
-        entity.super_relationships.all().delete()
+        if not entity_cache.get((entity_type, model_obj.id)):
+            # Create or update the entity
+            entity = Entity.objects.upsert(
+                entity_type=entity_type, entity_id=model_obj.id, updates={
+                    'entity_meta': model_obj.get_entity_meta(),
+                    'is_active': model_obj.is_entity_active(),
+                })[0]
 
-        # For every super entity, create an entity relationship
-        entity_relationships = []
-        for super_model_obj in model_obj.get_super_entities():
-            # Sync the super entity
-            super_entity = sync_entity(super_model_obj, False)
-            # Make a relationship with the super entity
-            entity_relationships.append(EntityRelationship(
-                super_entity=super_entity,
-                sub_entity=entity,
-            ))
-        EntityRelationship.objects.bulk_create(entity_relationships)
+            # Delete all of the existing relationships super to this entity
+            sync(entity.super_relationships.all(), [
+                EntityRelationship(
+                    super_entity=sync_entity(super_model_obj, False, entity_cache),
+                    sub_entity=entity,
+                )
+                for super_model_obj in model_obj.get_super_entities()
+            ], ['super_entity_id', 'sub_entity_id'])
 
-        return entity
+            entity_cache[(entity_type, model_obj.id)] = entity
+
+        return entity_cache[(entity_type, model_obj.id)]
 
 
 def sync_entities():
     """
     Sync all entities in a project.
     """
+    # Instantiate a cache that will be used by all calls to sync_entity
+    entity_cache = {}
+
     # Loop through all entities that inherit EntityModelMixin and sync the entity.
     entity_models = [model_class for model_class in models.get_models() if issubclass(model_class, EntityModelMixin)]
     for entity_model in entity_models:
-        model_obj_ids = []
-        for model_obj in entity_model.objects.all():
-            sync_entity(model_obj, False)
-            model_obj_ids.append(model_obj.id)
+        model_objs = list(entity_model.objects.all())
+        for model_obj in model_objs:
+            sync_entity(model_obj, False, entity_cache)
 
         # Delete any existing entities that are not in the model obj table
         Entity.objects.filter(entity_type=ContentType.objects.get_for_model(entity_model)).exclude(
-            entity_id__in=model_obj_ids).delete()
+            entity_id__in=(model_obj.id for model_obj in model_objs)).delete()
