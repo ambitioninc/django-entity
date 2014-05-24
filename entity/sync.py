@@ -5,6 +5,7 @@ Entity and EntityRelationship tables.
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.signals import post_save, post_delete
+from manager_utils import sync
 
 from .models import Entity, EntityRelationship, EntityModelMixin, delete_entity_signal_handler
 from .models import save_entity_signal_handler, bulk_operation_signal_handler, post_bulk_operation
@@ -43,31 +44,20 @@ def sync_entity(model_obj, is_deleted):
         # Create or update the entity
         entity_meta = model_obj.get_entity_meta()
         is_active = model_obj.is_entity_active()
-        entity, is_created = Entity.objects.get_or_create(
-            entity_type=entity_type, entity_id=model_obj.id, defaults={
+        entity = Entity.objects.upsert(
+            entity_type=entity_type, entity_id=model_obj.id, updates={
                 'entity_meta': entity_meta,
                 'is_active': is_active,
-            })
-        if not is_created:
-            # Update the entity attributes here if it wasn't created
-            entity.entity_meta = entity_meta
-            entity.is_active = is_active
-            entity.save()
+            })[0]
 
         # Delete all of the existing relationships super to this entity
-        entity.super_relationships.all().delete()
-
-        # For every super entity, create an entity relationship
-        entity_relationships = []
-        for super_model_obj in model_obj.get_super_entities():
-            # Sync the super entity
-            super_entity = sync_entity(super_model_obj, False)
-            # Make a relationship with the super entity
-            entity_relationships.append(EntityRelationship(
-                super_entity=super_entity,
+        sync(entity.super_relationships.all(), [
+            EntityRelationship(
+                super_entity=sync_entity(super_model_obj, False),
                 sub_entity=entity,
-            ))
-        EntityRelationship.objects.bulk_create(entity_relationships)
+            )
+            for super_model_obj in model_obj.get_super_entities()
+        ], ['super_entity_id', 'sub_entity_id'])
 
         return entity
 
