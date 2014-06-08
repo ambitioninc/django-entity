@@ -57,6 +57,7 @@ def register(model_or_qset):
     registry.register(model_or_qset, entity_config)
     """
     def _entity_config_wrapper(entity_config_class):
-        registry.register(model_or_qset, entity_config_class)
+        registry.register(model_or_qset, entity_config=entity_config_class)
+        return entity_config_class
 
     return _entity_config_wrapper

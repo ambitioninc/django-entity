@@ -1,8 +1,9 @@
 from django.db.models import Model, Manager
 from django.test import TestCase
+from mock import patch
 
 from entity.config import EntityConfig
-from entity.registry import registry, EntityRegistry
+from entity.registry import registry, EntityRegistry, register
 
 
 class EntityRegistryTest(TestCase):
@@ -106,3 +107,33 @@ class EntityRegistryTest(TestCase):
         registry_info = registry._registry[ValidRegistryModel]
         self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
         self.assertTrue(isinstance(registry_info['entity_config'], ValidEntityConfig))
+
+    @patch.object(EntityRegistry, 'register', spec_set=True)
+    def test_decorator(self, register_mock):
+        """
+        Tests the decorator calls appropriate functions.
+        """
+        class ValidRegistryModel(Model):
+            pass
+
+        @register(ValidRegistryModel)
+        class ValidEntityConfig(EntityConfig):
+            pass
+
+        register_mock.assert_called_once_with(ValidRegistryModel, entity_config=ValidEntityConfig)
+
+    @patch.object(EntityRegistry, 'register', spec_set=True)
+    def test_decorator_qset(self, register_mock):
+        """
+        Tests the decorator calls appropriate functions.
+        """
+        class ValidRegistryModel(Model):
+            pass
+
+        qset = ValidRegistryModel.objects.filter()
+
+        @register(qset)
+        class ValidEntityConfig(EntityConfig):
+            pass
+
+        register_mock.assert_called_once_with(qset, entity_config=ValidEntityConfig)
