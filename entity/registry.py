@@ -14,6 +14,9 @@ class EntityRegistry(object):
         # The registry of all models to their querysets and EntityConfigs
         self._registry = {}
 
+    def __contains__(self, obj):
+        return obj in self._registry
+
     def register(self, model_or_qset, entity_config=None):
         """
         Registers a model or queryset with an entity config. If the entity config is None, it defaults

@@ -10,6 +10,21 @@ class EntityRegistryTest(TestCase):
     """
     Tests the EntityRegistry class.
     """
+    def test_contains_false(self):
+        """
+        Tests __contains__ when it returns False
+        """
+        r = EntityRegistry()
+        self.assertFalse('invalid' in r)
+
+    def test_contains_true(self):
+        """
+        Tests __contains__ when it returns True
+        """
+        r = EntityRegistry()
+        r._registry['valid'] = True
+        self.assertTrue('valid' in r)
+
     def test_registry_is_entity_registry(self):
         """
         Tests the registry global variable is an instance of EntityRegistry.

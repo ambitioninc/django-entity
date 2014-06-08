@@ -5,9 +5,10 @@ from django.db.models import Count
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from jsonfield import JSONField
-from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
+from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet
 
-from .entity_filter import EntityFilter
+from entity.entity_filter import EntityFilter
+from entity.registry import registry
 
 
 class EntityQuerySet(ManagerUtilsQuerySet):
@@ -254,7 +255,7 @@ def sync_entity_signal_handler(sender, model_obj, is_deleted):
     inherit EntityModelMixin. If so, the model is synced to the entity
     table.
     """
-    if issubclass(sender, EntityModelMixin):
+    if sender in registry:
         # Include the function here to avoid circular dependencies
         from .sync import sync_entity
         sync_entity(model_obj, is_deleted)
@@ -265,7 +266,7 @@ def sync_entities_signal_handler(sender):
     When a bulk operation occurs on a model manager, sync all the entities
     if the model of the manager is an entity class.
     """
-    if issubclass(sender.model, EntityModelMixin):
+    if sender in registry:
         from .sync import sync_entities
         sync_entities()
 
@@ -288,9 +289,12 @@ def save_entity_signal_handler(sender, *args, **kwargs):
     sync_entity_signal_handler(sender, kwargs['instance'], False)
 
 
-@receiver(post_bulk_operation, dispatch_uid='bulk_operation_signal_handler')
 def bulk_operation_signal_handler(sender, *args, **kwargs):
     """
     When a bulk operation has happened on a model, sync all the entities again.
+    NOTE - bulk syncing isn't turned on by default because of the consequences of it.
+    For example, a user may issue a simple update to a single model, which would trigger
+    syncing of all entities. It is up to the user to explicitly enable syncing on bulk
+    operations with turn_on_syncing(bulk=True)
     """
     sync_entities_signal_handler(sender)

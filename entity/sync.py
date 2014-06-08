@@ -5,28 +5,30 @@ Entity and EntityRelationship tables.
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.signals import post_save, post_delete
-from manager_utils import sync
+from manager_utils import sync, post_bulk_operation
 
-from .models import Entity, EntityRelationship, EntityModelMixin, delete_entity_signal_handler
-from .models import save_entity_signal_handler, bulk_operation_signal_handler, post_bulk_operation
+from entity.models import Entity, EntityRelationship, EntityModelMixin, delete_entity_signal_handler
+from entity.models import save_entity_signal_handler, bulk_operation_signal_handler
 
 
-def turn_off_syncing():
+def turn_off_syncing(bulk=False):
     """
-    Disables all of the signals for syncing entities.
+    Disables all of the signals for syncing entities. If bulk is True, disable syncing on bulk operations.
     """
     post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
     post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-    post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+    if bulk:
+        post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
 
 
-def turn_on_syncing():
+def turn_on_syncing(bulk=False):
     """
-    Enables all of the signals for syncing entities.
+    Enables all of the signals for syncing entities. If bulk is True, enable syncing on bulk operations.
     """
     post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
     post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-    post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+    if bulk:
+        post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
 
 
 def sync_entity(model_obj, is_deleted, entity_cache=None):
