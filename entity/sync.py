@@ -35,9 +35,6 @@ def sync_entity(model_obj, is_deleted, entity_cache=None):
     Given a model object, either delete it from the entity table (if
     is_deleted=False) or update its entity values and relationships.
     """
-    if model_obj.__class__ not in entity_registry.entity_registry:
-        raise ValueError('model_obj {0} not a registered entity'.format(model_obj))
-
     entity_qset, entity_config = entity_registry.entity_registry.get(model_obj.__class__)
     entity_type = ContentType.objects.get_for_model(model_obj)
 

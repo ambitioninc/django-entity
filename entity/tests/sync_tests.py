@@ -281,6 +281,13 @@ class TestEntityBulkSignalSync(EntityTestCase):
             self.assertEquals(entity.entity_meta['email'], 'test2@test.com')
         self.assertEquals(Entity.objects.all().count(), 5)
 
+    def test_invalid_entity_model(self):
+        """
+        Tests that an invalid entity model is not synced on bulk update.
+        """
+        DummyModel.objects.bulk_create([DummyModel()])
+        self.assertFalse(Entity.objects.exists())
+
 
 class TestEntitySignalSync(EntityTestCase):
     """

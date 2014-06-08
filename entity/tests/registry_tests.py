@@ -9,7 +9,7 @@ class EntityRegistryTest(TestCase):
     """
     Tests the EntityRegistry class.
     """
-    def test_entity_registry_is_entity_entity_registry(self):
+    def test_entity_registry_is_instance_entity_registry(self):
         """
         Tests the entity_registry global variable is an instance of EntityRegistry.
         """
@@ -106,6 +106,20 @@ class EntityRegistryTest(TestCase):
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
         self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
         self.assertTrue(isinstance(entity_registry_info[1], ValidEntityConfig))
+
+    def test_register_invalid_entity_config(self):
+        """
+        Tests registering an invalid entity config with a model.
+        """
+        class ValidRegistryModel(Model):
+            pass
+
+        class InvalidEntityConfig(object):
+            pass
+
+        entity_registry = EntityRegistry()
+        with self.assertRaises(ValueError):
+            entity_registry.register_entity(ValidRegistryModel, InvalidEntityConfig)
 
     @patch.object(EntityRegistry, 'register_entity', spec_set=True)
     def test_decorator(self, register_mock):

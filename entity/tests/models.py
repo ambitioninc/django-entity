@@ -70,6 +70,8 @@ class DummyModel(models.Model):
     """
     dummy_data = models.CharField(max_length=64)
 
+    objects = ManagerUtilsManager()
+
 
 class BaseEntityClass(BaseEntityModel):
     """
