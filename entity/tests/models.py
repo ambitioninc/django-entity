@@ -1,8 +1,14 @@
 from django.db import models
 
-from entity import BaseEntityModel, Entity
-from entity.models import EntityModelManager
+from entity import Entity, EntityConfig, entity_registry, register_entity
 from manager_utils import ManagerUtilsManager
+
+
+class BaseEntityModel(models.Model):
+    class Meta:
+        abstract = True
+
+    objects = ManagerUtilsManager()
 
 
 class TeamGroup(BaseEntityModel):
@@ -19,11 +25,6 @@ class Competitor(BaseEntityModel):
     pass
 
 
-class TeamManager(ManagerUtilsManager):
-    def get_queryset(self):
-        return super(TeamManager, self).get_queryset().select_related('team_group')
-
-
 class Team(BaseEntityModel):
     """
     A team entity model. Encapsulates accounts.
@@ -33,19 +34,6 @@ class Team(BaseEntityModel):
     is_active = models.BooleanField(default=True)
     # Used for additional super entity tests
     team_group = models.ForeignKey(TeamGroup, null=True)
-
-    objects = TeamManager()
-
-    def is_entity_active(self):
-        return self.is_active
-
-    def get_super_entities(self):
-        return [self.team_group] if self.team_group is not None else []
-
-
-class AccountManager(ManagerUtilsManager):
-    def get_queryset(self):
-        return super(AccountManager, self).get_queryset().select_related('team', 'team2', 'team_group', 'competitor')
 
 
 class Account(BaseEntityModel):
@@ -66,37 +54,6 @@ class Account(BaseEntityModel):
     # The comptetitor group
     competitor = models.ForeignKey(Competitor, null=True)
 
-    objects = AccountManager()
-
-    def is_entity_active(self):
-        return self.is_active
-
-    def get_entity_meta(self):
-        """
-        Returns metadata about the account that will be serialized
-        in the mirrored entity tables.
-        """
-        return {
-            'email': self.email,
-            'team': self.team.name if self.team else None,
-            'is_captain': self.is_captain,
-        }
-
-    def get_super_entities(self):
-        """
-        Gets the super entities this entity belongs to.
-        """
-        super_entities = []
-        if self.team is not None:
-            super_entities.append(self.team)
-        if self.team2 is not None:
-            super_entities.append(self.team2)
-        if self.team_group is not None:
-            super_entities.append(self.team_group)
-        if self.competitor is not None:
-            super_entities.append(self.competitor)
-        return super_entities
-
 
 class EntityPointer(models.Model):
     """
@@ -109,11 +66,9 @@ class EntityPointer(models.Model):
 
 class DummyModel(models.Model):
     """
-    Used to ensure that models that don't inherit from EntityModelMixin aren't syned.
+    Used to ensure that models that don't register for entity syncing aren't synced.
     """
     dummy_data = models.CharField(max_length=64)
-
-    objects = EntityModelManager()
 
 
 class BaseEntityClass(BaseEntityModel):
@@ -131,3 +86,54 @@ class MultiInheritEntity(BaseEntityClass):
     still synced properly.
     """
     data = models.CharField(max_length=64)
+
+
+@register_entity(Account)
+class AccountConfig(EntityConfig):
+    """
+    Entity configuration for the account model
+    """
+    def is_entity_active(self, model_obj):
+        return model_obj.is_active
+
+    def get_entity_meta(self, model_obj):
+        """
+        Returns metadata about the account that will be serialized
+        in the mirrored entity tables.
+        """
+        return {
+            'email': model_obj.email,
+            'team': model_obj.team.name if model_obj.team else None,
+            'is_captain': model_obj.is_captain,
+        }
+
+    def get_super_entities(self, model_obj):
+        """
+        Gets the super entities this entity belongs to.
+        """
+        super_entities = []
+        if model_obj.team is not None:
+            super_entities.append(model_obj.team)
+        if model_obj.team2 is not None:
+            super_entities.append(model_obj.team2)
+        if model_obj.team_group is not None:
+            super_entities.append(model_obj.team_group)
+        if model_obj.competitor is not None:
+            super_entities.append(model_obj.competitor)
+        return super_entities
+
+
+@register_entity(Team)
+class TeamConfig(EntityConfig):
+    def is_entity_active(self, model_obj):
+        return model_obj.is_active
+
+    def get_super_entities(self, model_obj):
+        return [model_obj.team_group] if model_obj.team_group is not None else []
+
+
+# Register the test models here. TODO - figure out why django does not like having these functions in
+# the tests/models.py file
+entity_registry.register_entity(TeamGroup)
+entity_registry.register_entity(Competitor)
+entity_registry.register_entity(MultiInheritEntity)

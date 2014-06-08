@@ -5,12 +5,12 @@ from .models import Account, Team, TeamGroup
 from .utils import EntityTestCase
 
 
-class TestEntityFiltering(EntityTestCase):
+class EntityFilteringTest(EntityTestCase):
     """
     Tests the EntityFilter class for filtering entities.
     """
     def setUp(self):
-        super(EntityTestCase, self).setUp()
+        super(EntityFilteringTest, self).setUp()
         self.account_type = ContentType.objects.get_for_model(Account)
         self.team_type = ContentType.objects.get_for_model(Team)
 

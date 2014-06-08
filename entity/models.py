@@ -8,7 +8,7 @@ from jsonfield import JSONField
 from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet
 
 from entity.entity_filter import EntityFilter
-from entity.registry import registry
+from entity import entity_registry
 
 
 class EntityQuerySet(ManagerUtilsQuerySet):
@@ -188,74 +188,13 @@ class EntityRelationship(models.Model):
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
-class EntityModelMixin(object):
-    """
-    Provides functionality needed for apps that wish to mirror entities.
-    Any app that wishes to mirror an entity must make the model inherit
-    this mixin class. It is up to the user to override the necessary
-    function in this model (or leave them as defaults).
-
-    Similarly, this class provides additional functions that Entity models
-    will receive, such as the ability to quickly retrieve super and
-    subentities.
-    """
-    def get_entity_meta(self):
-        """
-        Retrieves metadata about an entity.
-
-        Returns:
-            A dictionary of metadata about an entity or None if there is no
-            metadata. Defaults to returning None
-        """
-        return None
-
-    def is_entity_active(self):
-        """
-        Describes if the entity is currently active.
-
-        Returns:
-            A Boolean specifying if the entity is active. Defaults to
-            returning True.
-        """
-        return True
-
-    def get_super_entities(self):
-        """
-        Retrieves a list of all entities that have a "super" relationship with the
-        entity.
-
-        Returns:
-            A list of models. If there are no super entities, return a empty list.
-            Defaults to returning an empty list.
-        """
-        return []
-
-
-class EntityModelManager(ManagerUtilsManager):
-    """
-    Provides the ability to prefetch entity relationships so that filtering operations happen
-    quickly on them.
-    """
-    pass
-
-
-class BaseEntityModel(models.Model, EntityModelMixin):
-    """
-    Defines base properties for an Entity model defined by a third-party application.
-    """
-    class Meta:
-        abstract = True
-
-    objects = EntityModelManager()
-
-
 def sync_entity_signal_handler(sender, model_obj, is_deleted):
     """
     Filters post save/delete signals for entities by checking if they
     inherit EntityModelMixin. If so, the model is synced to the entity
     table.
     """
-    if sender in registry:
+    if sender in entity_registry.entity_registry:
         # Include the function here to avoid circular dependencies
         from .sync import sync_entity
         sync_entity(model_obj, is_deleted)
@@ -266,7 +205,7 @@ def sync_entities_signal_handler(sender):
     When a bulk operation occurs on a model manager, sync all the entities
     if the model of the manager is an entity class.
     """
-    if sender in registry:
+    if sender.model in entity_registry.entity_registry:
         from .sync import sync_entities
         sync_entities()
 

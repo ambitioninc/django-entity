@@ -5,24 +5,18 @@ from mock import patch
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
-from django.db.models.signals import post_delete, post_save
 from django.test.utils import override_settings
-from entity.models import Entity, EntityRelationship, delete_entity_signal_handler, save_entity_signal_handler
+from entity.models import Entity, EntityRelationship
 from entity.sync import sync_entities, turn_on_syncing, turn_off_syncing
 
-from .models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
-from .utils import EntityTestCase
+from entity.tests.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
+from entity.tests.utils import EntityTestCase
 
 
 class TestTurnOnOffSyncing(EntityTestCase):
     """
     Tests turning on and off entity syncing.
     """
-    def tearDown(self):
-        super(TestTurnOnOffSyncing, self).tearDown()
-        # Make sure syncing is always on before every test
-        turn_on_syncing()
-
     def test_post_save_turned_on_by_default(self):
         """
         Tests that save signals are connected by default.
@@ -43,13 +37,13 @@ class TestTurnOnOffSyncing(EntityTestCase):
             a.delete()
             self.assertEquals(mock_handler.call_count, 2)
 
-    def test_bulk_operation_turned_on_by_default(self):
+    def test_bulk_operation_turned_off_by_default(self):
         """
-        Tests that bulk operations are turned on by default.
+        Tests that bulk operations are turned off by default.
         """
         with patch('entity.models.sync_entities_signal_handler') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
-            self.assertTrue(mock_handler.called)
+            self.assertFalse(mock_handler.called)
 
     def test_turn_off_save(self):
         """
@@ -107,7 +101,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning on syncing for bulk operations.
         """
         turn_off_syncing()
-        turn_on_syncing()
+        turn_on_syncing(bulk=True)
         with patch('entity.models.sync_entities_signal_handler') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertTrue(mock_handler.called)
@@ -118,25 +112,15 @@ class TestSyncAllEntities(EntityTestCase):
     Tests that all entities can be synced at once and tests the management command to
     sync all entities.
     """
-    def setUp(self):
-        super(TestSyncAllEntities, self).setUp()
-        # Disconnect signal handlers to test syncing all entities
-        post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
-        post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-
-    def tearDown(self):
-        super(TestSyncAllEntities, self).tearDown()
-        # Reconnect signal handlers
-        post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
-        post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-
     def test_sync_entities_management_command(self):
         """
         Tests that the management command for syncing entities works properly.
         """
         # Create five test accounts
+        turn_off_syncing()
         for i in range(5):
             Account.objects.create()
+        turn_on_syncing()
 
         # Test that the management command syncs all five entities
         self.assertEquals(Entity.objects.all().count(), 0)
@@ -148,9 +132,11 @@ class TestSyncAllEntities(EntityTestCase):
         """
         Tests that the sync_entities command works with the asynchronous option.
         """
-        # Create five test accounts
+        # Create five test accounts without syncing on
+        turn_off_syncing()
         for i in range(5):
             Account.objects.create()
+        turn_on_syncing()
 
         # Test that the management command syncs all five entities
         self.assertEquals(Entity.objects.all().count(), 0)
@@ -182,8 +168,10 @@ class TestSyncAllEntities(EntityTestCase):
         """
         Tests syncing all accounts with no super entities.
         """
+        turn_off_syncing()
         # Create five test accounts
         accounts = [Account.objects.create() for i in range(5)]
+        turn_on_syncing()
 
         # Sync all of the entities and verify that five Entity models were created for the Account model
         self.assertEquals(Entity.objects.all().count(), 0)
@@ -192,7 +180,10 @@ class TestSyncAllEntities(EntityTestCase):
 
         # Delete an account. When all entities are synced again,
         # there should only be four accounts
+        turn_off_syncing()
         accounts[0].delete()
+        turn_on_syncing()
+
         self.assertEquals(Entity.objects.all().count(), 5)
         sync_entities()
         self.assertEquals(Entity.objects.all().count(), 4)
@@ -240,15 +231,25 @@ class TestSyncAllEntities(EntityTestCase):
         accounts[3].team = teams[1]
         accounts[3].save()
 
-        with self.assertNumQueries(56):
+        with self.assertNumQueries(35):
             sync_entities()
 
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 7)
 
-class TestEntitySignalSync(EntityTestCase):
+        # There should be four entity relationships since four accounts have teams
+        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+
+
+class TestEntityBulkSignalSync(EntityTestCase):
     """
-    Tests that entities (from the test models) are properly synced upon post_save and
-    post_delete calls.
+    Tests syncing when bulk operations happen.
     """
+    def setUp(self):
+        super(TestEntityBulkSignalSync, self).setUp()
+        turn_on_syncing(bulk=True)
+
     def test_post_bulk_create(self):
         """
         Tests that entities can have bulk creates applied to them and still be synced.
@@ -280,6 +281,12 @@ class TestEntitySignalSync(EntityTestCase):
             self.assertEquals(entity.entity_meta['email'], 'test2@test.com')
         self.assertEquals(Entity.objects.all().count(), 5)
 
+
+class TestEntitySignalSync(EntityTestCase):
+    """
+    Tests that entities (from the test models) are properly synced upon post_save and
+    post_delete calls.
+    """
     def test_post_bulk_update_dummy(self):
         """
         Tests that even if the dummy model is using the special model manager for bulk
