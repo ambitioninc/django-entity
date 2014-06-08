@@ -1,15 +1,15 @@
 """
 Provides tests for the syncing functionalities in django entity.
 """
-from mock import patch
-
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.test.utils import override_settings
+from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship
-from entity.sync import sync_entities, turn_on_syncing, turn_off_syncing
+from entity import sync_entities, turn_on_syncing, turn_off_syncing
+from mock import patch
 
-from entity.tests.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity
+from entity.tests.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig
 from entity.tests.utils import EntityTestCase
 
 
@@ -21,7 +21,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that save signals are connected by default.
         """
-        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertTrue(mock_handler.called)
 
@@ -29,19 +29,17 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that delete signals are connected by default.
         """
-        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
-            a = Account.objects.create()
-            self.assertEquals(mock_handler.call_count, 1)
-
+        a = Account.objects.create()
+        with patch('entity.models.Entity.objects.delete_for_obj') as mock_handler:
             # Delete the object. The signal should be called
             a.delete()
-            self.assertEquals(mock_handler.call_count, 2)
+            self.assertEquals(mock_handler.call_count, 1)
 
     def test_bulk_operation_turned_off_by_default(self):
         """
         Tests that bulk operations are turned off by default.
         """
-        with patch('entity.models.sync_entities_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -50,7 +48,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the save signal.
         """
         turn_off_syncing()
-        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertFalse(mock_handler.called)
 
@@ -59,7 +57,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the delete signal.
         """
         turn_off_syncing()
-        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             a = Account.objects.create()
             self.assertFalse(mock_handler.called)
             a.delete()
@@ -70,7 +68,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for bulk operations.
         """
         turn_off_syncing()
-        with patch('entity.models.sync_entities_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -80,7 +78,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing()
-        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertTrue(mock_handler.called)
 
@@ -90,11 +88,10 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing()
-        with patch('entity.models.sync_entity_signal_handler') as mock_handler:
+        with patch('entity.models.Entity.objects.delete_for_obj') as mock_handler:
             a = Account.objects.create()
-            self.assertEquals(mock_handler.call_count, 1)
             a.delete()
-            self.assertEquals(mock_handler.call_count, 2)
+            self.assertEquals(mock_handler.call_count, 1)
 
     def test_turn_on_bulk(self):
         """
@@ -102,12 +99,12 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing(bulk=True)
-        with patch('entity.models.sync_entities_signal_handler') as mock_handler:
+        with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertTrue(mock_handler.called)
 
 
-class TestSyncAllEntities(EntityTestCase):
+class SyncAllEntitiesTest(EntityTestCase):
     """
     Tests that all entities can be synced at once and tests the management command to
     sync all entities.
@@ -231,8 +228,19 @@ class TestSyncAllEntities(EntityTestCase):
         accounts[3].team = teams[1]
         accounts[3].save()
 
-        with self.assertNumQueries(31):
-            sync_entities()
+        # Use an entity registry that only has accounts and teams. This ensures that other registered
+        # entity models dont pollute the test case
+        new_registry = EntityRegistry()
+        new_registry.register_entity(
+            Account.objects.select_related('team', 'team2', 'team_group', 'competitor'), AccountConfig)
+        new_registry.register_entity(
+            Team.objects.select_related('team_group'), TeamConfig)
+
+        with patch('entity.sync.entity_registry') as mock_entity_registry:
+            mock_entity_registry.entity_registry = new_registry.entity_registry
+            ContentType.objects.clear_cache()
+            with self.assertNumQueries(14):
+                sync_entities()
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)

@@ -3,9 +3,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count
 from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
 from jsonfield import JSONField
-from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet
+from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
 
 from entity.entity_filter import EntityFilter
 from entity import entity_registry
@@ -72,6 +71,13 @@ class EntityManager(ManagerUtilsManager):
         Given a saved entity model object, return the associated entity.
         """
         return self.get(entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id)
+
+    def delete_for_obj(self, entity_model_obj):
+        """
+        Delete the entity associated with a model object.
+        """
+        return self.filter(
+            entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id).delete()
 
     def has_super_entity_subset(self, *super_entities):
         """
@@ -188,44 +194,23 @@ class EntityRelationship(models.Model):
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
-def sync_entity_signal_handler(sender, model_obj, is_deleted):
-    """
-    Filters post save/delete signals for entities by checking if they
-    inherit EntityModelMixin. If so, the model is synced to the entity
-    table.
-    """
-    if sender in entity_registry.entity_registry:
-        # Include the function here to avoid circular dependencies
-        from entity.sync import EntitySyncer
-        EntitySyncer().sync_entity(model_obj, is_deleted)
-
-
-def sync_entities_signal_handler(sender):
-    """
-    When a bulk operation occurs on a model manager, sync all the entities
-    if the model of the manager is an entity class.
-    """
-    if sender.model in entity_registry.entity_registry:
-        from entity.sync import sync_entities
-        sync_entities()
-
-
-@receiver(post_delete, dispatch_uid='delete_entity_signal_handler')
 def delete_entity_signal_handler(sender, *args, **kwargs):
     """
     Defines a signal handler for syncing an individual entity. Called when
     an entity is saved or deleted.
     """
-    sync_entity_signal_handler(sender, kwargs['instance'], True)
+    if sender in entity_registry.entity_registry:
+        Entity.objects.delete_for_obj(kwargs['instance'])
 
 
-@receiver(post_save, dispatch_uid='save_entity_signal_handler')
 def save_entity_signal_handler(sender, *args, **kwargs):
     """
     Defines a signal handler for saving an entity. Syncs the entity to
     the entity mirror table.
     """
-    sync_entity_signal_handler(sender, kwargs['instance'], False)
+    if sender in entity_registry.entity_registry:
+        from entity.sync import sync_entities
+        sync_entities(kwargs['instance'])
 
 
 def bulk_operation_signal_handler(sender, *args, **kwargs):
@@ -236,4 +221,29 @@ def bulk_operation_signal_handler(sender, *args, **kwargs):
     syncing of all entities. It is up to the user to explicitly enable syncing on bulk
     operations with turn_on_syncing(bulk=True)
     """
-    sync_entities_signal_handler(sender)
+    if sender.model in entity_registry.entity_registry:
+        from entity.sync import sync_entities
+        sync_entities()
+
+
+def turn_off_syncing():
+    """
+    Disables all of the signals for syncing entities. If bulk is True, disable syncing on bulk operations.
+    """
+    post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+
+
+def turn_on_syncing(bulk=False):
+    """
+    Enables all of the signals for syncing entities. If bulk is True, enable syncing on bulk operations.
+    """
+    post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    if bulk:
+        post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+
+
+# Connect all default signal handlers
+turn_on_syncing()
