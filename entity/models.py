@@ -196,8 +196,8 @@ def sync_entity_signal_handler(sender, model_obj, is_deleted):
     """
     if sender in entity_registry.entity_registry:
         # Include the function here to avoid circular dependencies
-        from .sync import sync_entity
-        sync_entity(model_obj, is_deleted)
+        from entity.sync import EntitySyncer
+        EntitySyncer().sync_entity(model_obj, is_deleted)
 
 
 def sync_entities_signal_handler(sender):
@@ -206,7 +206,7 @@ def sync_entities_signal_handler(sender):
     if the model of the manager is an entity class.
     """
     if sender.model in entity_registry.entity_registry:
-        from .sync import sync_entities
+        from entity.sync import sync_entities
         sync_entities()
 
 
