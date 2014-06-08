@@ -231,7 +231,7 @@ class TestSyncAllEntities(EntityTestCase):
         accounts[3].team = teams[1]
         accounts[3].save()
 
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(31):
             sync_entities()
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)

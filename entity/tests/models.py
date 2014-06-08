@@ -88,7 +88,7 @@ class MultiInheritEntity(BaseEntityClass):
     data = models.CharField(max_length=64)
 
 
-@register_entity(Account)
+@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor'))
 class AccountConfig(EntityConfig):
     """
     Entity configuration for the account model
@@ -123,7 +123,7 @@ class AccountConfig(EntityConfig):
         return super_entities
 
 
-@register_entity(Team)
+@register_entity(Team.objects.select_related('team_group'))
 class TeamConfig(EntityConfig):
     def is_entity_active(self, model_obj):
         return model_obj.is_active

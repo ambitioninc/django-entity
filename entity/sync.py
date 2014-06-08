@@ -78,8 +78,8 @@ def sync_entities():
     entity_cache = {}
 
     # Loop through all entities that inherit EntityModelMixin and sync the entity.
-    for entity_model in entity_registry.entity_registry:
-        model_objs = list(entity_model.objects.all())
+    for entity_model, (entity_qset, entity_config) in entity_registry.entity_registry.iteritems():
+        model_objs = list(entity_qset.all())
         for model_obj in model_objs:
             sync_entity(model_obj, False, entity_cache)
 
