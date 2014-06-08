@@ -1,5 +1,4 @@
 from django.db.models import Model, Manager
-from django.db.models.query import QuerySet
 from django.test import TestCase
 
 from entity.config import EntityConfig
@@ -92,18 +91,18 @@ class EntityRegistryTest(TestCase):
         self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
         self.assertTrue(isinstance(registry_info['entity_config'], EntityConfig))
 
-    def test_register_queryset(self):
+    def test_register_valid_entity_config(self):
         """
-        Tests registering a queryset
+        Tests registering an entity config with a model.
         """
-        class ValidRegistryManager(Manager):
+        class ValidRegistryModel(Model):
             pass
 
-        class ValidRegistryModel(Model):
-            objects = ValidRegistryManager()
+        class ValidEntityConfig(EntityConfig):
+            pass
 
         registry = EntityRegistry()
-        registry.register(ValidRegistryModel.objects.filter())
+        registry.register(ValidRegistryModel, ValidEntityConfig)
         registry_info = registry._registry[ValidRegistryModel]
-        self.assertTrue(issubclass(registry_info['qset'].__class__, QuerySet))
-        self.assertTrue(isinstance(registry_info['entity_config'], EntityConfig))
+        self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(registry_info['entity_config'], ValidEntityConfig))
