@@ -38,7 +38,7 @@ def sync_entity(model_obj, is_deleted, entity_cache=None):
     if model_obj.__class__ not in entity_registry.entity_registry:
         raise ValueError('model_obj {0} not a registered entity'.format(model_obj))
 
-    entity_config = entity_registry.entity_registry.get(model_obj.__class__)['entity_config']
+    entity_qset, entity_config = entity_registry.entity_registry.get(model_obj.__class__)
     entity_type = ContentType.objects.get_for_model(model_obj)
 
     if is_deleted:

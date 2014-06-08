@@ -69,10 +69,7 @@ class EntityRegistry(object):
         if not issubclass(entity_config, EntityConfig):
             raise ValueError('Must register entity config class of subclass EntityConfig')
 
-        self._entity_registry[model_or_qset.model] = {
-            'qset': model_or_qset,
-            'entity_config': entity_config(),
-        }
+        self._entity_registry[model_or_qset.model] = (model_or_qset, entity_config())
 
 
 # Define the global registry variable

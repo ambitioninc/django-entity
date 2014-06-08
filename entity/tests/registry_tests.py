@@ -2,19 +2,18 @@ from django.db.models import Model, Manager
 from django.test import TestCase
 from mock import patch
 
-from entity.config import EntityConfig
-from entity.registry import registry, EntityRegistry, register
+from entity.config import EntityConfig, entity_registry, EntityRegistry, register_entity
 
 
 class EntityRegistryTest(TestCase):
     """
     Tests the EntityRegistry class.
     """
-    def test_registry_is_entity_registry(self):
+    def test_entity_registry_is_entity_entity_registry(self):
         """
-        Tests the registry global variable is an instance of EntityRegistry.
+        Tests the entity_registry global variable is an instance of EntityRegistry.
         """
-        self.assertTrue(isinstance(registry, EntityRegistry))
+        self.assertTrue(isinstance(entity_registry, EntityRegistry))
 
     def test_register_non_model_or_qset(self):
         """
@@ -25,7 +24,7 @@ class EntityRegistryTest(TestCase):
             pass
 
         with self.assertRaises(ValueError):
-            EntityRegistry().register(InvalidEntityObject)
+            EntityRegistry().register_entity(InvalidEntityObject)
 
     def test_register_model(self):
         """
@@ -34,11 +33,11 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             pass
 
-        registry = EntityRegistry()
-        registry.register(ValidRegistryModel)
-        registry_info = registry._registry[ValidRegistryModel]
-        self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
-        self.assertTrue(isinstance(registry_info['entity_config'], EntityConfig))
+        entity_registry = EntityRegistry()
+        entity_registry.register_entity(ValidRegistryModel)
+        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
+        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_inherited_model(self):
         """
@@ -51,11 +50,11 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(BaseModel):
             pass
 
-        registry = EntityRegistry()
-        registry.register(ValidRegistryModel)
-        registry_info = registry._registry[ValidRegistryModel]
-        self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
-        self.assertTrue(isinstance(registry_info['entity_config'], EntityConfig))
+        entity_registry = EntityRegistry()
+        entity_registry.register_entity(ValidRegistryModel)
+        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
+        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_manager(self):
         """
@@ -67,11 +66,11 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             objects = ValidRegistryManager()
 
-        registry = EntityRegistry()
-        registry.register(ValidRegistryModel.objects)
-        registry_info = registry._registry[ValidRegistryModel]
-        self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
-        self.assertTrue(isinstance(registry_info['entity_config'], EntityConfig))
+        entity_registry = EntityRegistry()
+        entity_registry.register_entity(ValidRegistryModel.objects)
+        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
+        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_inherited_manager(self):
         """
@@ -86,11 +85,11 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             objects = ValidRegistryManager()
 
-        registry = EntityRegistry()
-        registry.register(ValidRegistryModel)
-        registry_info = registry._registry[ValidRegistryModel]
-        self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
-        self.assertTrue(isinstance(registry_info['entity_config'], EntityConfig))
+        entity_registry = EntityRegistry()
+        entity_registry.register_entity(ValidRegistryModel)
+        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
+        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_valid_entity_config(self):
         """
@@ -102,13 +101,13 @@ class EntityRegistryTest(TestCase):
         class ValidEntityConfig(EntityConfig):
             pass
 
-        registry = EntityRegistry()
-        registry.register(ValidRegistryModel, ValidEntityConfig)
-        registry_info = registry._registry[ValidRegistryModel]
-        self.assertEquals(registry_info['qset'], ValidRegistryModel.objects)
-        self.assertTrue(isinstance(registry_info['entity_config'], ValidEntityConfig))
+        entity_registry = EntityRegistry()
+        entity_registry.register_entity(ValidRegistryModel, ValidEntityConfig)
+        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
+        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[1], ValidEntityConfig))
 
-    @patch.object(EntityRegistry, 'register', spec_set=True)
+    @patch.object(EntityRegistry, 'register_entity', spec_set=True)
     def test_decorator(self, register_mock):
         """
         Tests the decorator calls appropriate functions.
@@ -116,13 +115,13 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             pass
 
-        @register(ValidRegistryModel)
+        @register_entity(ValidRegistryModel)
         class ValidEntityConfig(EntityConfig):
             pass
 
         register_mock.assert_called_once_with(ValidRegistryModel, entity_config=ValidEntityConfig)
 
-    @patch.object(EntityRegistry, 'register', spec_set=True)
+    @patch.object(EntityRegistry, 'register_entity', spec_set=True)
     def test_decorator_qset(self, register_mock):
         """
         Tests the decorator calls appropriate functions.
@@ -132,7 +131,7 @@ class EntityRegistryTest(TestCase):
 
         qset = ValidRegistryModel.objects.filter()
 
-        @register(qset)
+        @register_entity(qset)
         class ValidEntityConfig(EntityConfig):
             pass
 
