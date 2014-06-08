@@ -1,4 +1,5 @@
-from django.db.models import Model, Manager
+from django.db.models.base import ModelBase
+from django.db.models import Manager
 from django.db.models.query import QuerySet
 
 from entity.config import EntityConfig
@@ -17,16 +18,17 @@ class EntityRegistry(object):
         Registers a model or queryset with an entity config. If the entity config is None, it defaults
         to registering the mdoel/qset to EntityConfig.
         """
-        if issubclass(model_or_qset, Model):
+        if issubclass(model_or_qset.__class__, ModelBase):
+            print 'convert'
             # If the provided parameter is a model, convert it to a queryset
-            model_or_qset = model_or_qset.__class__.objects
+            model_or_qset = model_or_qset.objects
 
-        if not issubclass(model_or_qset, (Manager, QuerySet)):
+        if not issubclass(model_or_qset.__class__, (Manager, QuerySet)):
             raise ValueError('Must register a model or queryset with an entity config')
 
         entity_config = entity_config if entity_config is not None else EntityConfig()
 
-        if not issubclass(entity_config, EntityConfig):
+        if not issubclass(entity_config.__class__, EntityConfig):
             raise ValueError('Must register entity config of subclass EntityConfig')
 
         self._registry[model_or_qset.model] = {
