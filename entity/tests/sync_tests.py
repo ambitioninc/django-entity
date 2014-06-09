@@ -22,6 +22,56 @@ class TestTurnOnOffSyncing(EntityTestCase):
     """
     Tests turning on and off entity syncing.
     """
+    @patch('entity.models.post_save', spec_set=True)
+    @patch('entity.models.post_delete', spec_set=True)
+    @patch('entity.models.m2m_changed', spec_set=True)
+    @patch('entity.models.post_bulk_operation', spec_set=True)
+    def test_turn_on_syncing_all_handlers_true(
+            self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
+        turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True)
+        self.assertTrue(post_save_mock.connect.called)
+        self.assertTrue(post_delete_mock.connect.called)
+        self.assertTrue(m2m_changed_mock.connect.called)
+        self.assertTrue(post_bulk_operation_mock.connect.called)
+
+    @patch('entity.models.post_save', spec_set=True)
+    @patch('entity.models.post_delete', spec_set=True)
+    @patch('entity.models.m2m_changed', spec_set=True)
+    @patch('entity.models.post_bulk_operation', spec_set=True)
+    def test_turn_on_syncing_all_handlers_false(
+            self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
+        turn_on_syncing(
+            for_post_save=False, for_post_delete=False, for_m2m_changed=False, for_post_bulk_operation=False)
+        self.assertFalse(post_save_mock.connect.called)
+        self.assertFalse(post_delete_mock.connect.called)
+        self.assertFalse(m2m_changed_mock.connect.called)
+        self.assertFalse(post_bulk_operation_mock.connect.called)
+
+    @patch('entity.models.post_save', spec_set=True)
+    @patch('entity.models.post_delete', spec_set=True)
+    @patch('entity.models.m2m_changed', spec_set=True)
+    @patch('entity.models.post_bulk_operation', spec_set=True)
+    def test_turn_off_syncing_all_handlers_true(
+            self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
+        turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True)
+        self.assertTrue(post_save_mock.disconnect.called)
+        self.assertTrue(post_delete_mock.disconnect.called)
+        self.assertTrue(m2m_changed_mock.disconnect.called)
+        self.assertTrue(post_bulk_operation_mock.disconnect.called)
+
+    @patch('entity.models.post_save', spec_set=True)
+    @patch('entity.models.post_delete', spec_set=True)
+    @patch('entity.models.m2m_changed', spec_set=True)
+    @patch('entity.models.post_bulk_operation', spec_set=True)
+    def test_turn_off_syncing_all_handlers_false(
+            self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
+        turn_off_syncing(
+            for_post_save=False, for_post_delete=False, for_m2m_changed=False, for_post_bulk_operation=False)
+        self.assertFalse(post_save_mock.disconnect.called)
+        self.assertFalse(post_delete_mock.disconnect.called)
+        self.assertFalse(m2m_changed_mock.disconnect.called)
+        self.assertFalse(post_bulk_operation_mock.disconnect.called)
+
     def test_post_save_turned_on_by_default(self):
         """
         Tests that save signals are connected by default.

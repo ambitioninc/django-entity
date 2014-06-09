@@ -256,7 +256,7 @@ def turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=T
 
 def turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=False):
     """
-    Enables all of the signals for syncing entities. If bulk is True, enable syncing on bulk operations.
+    Enables all of the signals for syncing entities. Post bulk operation syncing is disabled by default.
     """
     if for_post_save:
         post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
