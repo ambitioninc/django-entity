@@ -13,7 +13,7 @@ from mock import patch
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
-    M2mEntity
+    M2mEntity, PointsToM2mEntity
 )
 from entity.tests.utils import EntityTestCase
 
@@ -322,6 +322,30 @@ class TestEntityBulkSignalSync(EntityTestCase):
         DummyModel.objects.bulk_create([DummyModel() for i in range(5)])
         # There should be no synced entities
         self.assertEquals(Entity.objects.all().count(), 0)
+
+
+class TestWatching(EntityTestCase):
+    """
+    Tests when an entity is watching another model for changes.
+    """
+    def test_m2m_changed_of_another_model(self):
+        """
+        Tests when an entity model is listening for a change of an m2m of another model.
+        """
+        m2m_entity = G(M2mEntity)
+        team = G(Team)
+        points_to_m2m_entity = G(PointsToM2mEntity, m2m_entity=m2m_entity)
+        # Three entities should be synced and there should not yet be any relationships
+        self.assertEquals(Entity.objects.count(), 3)
+        self.assertFalse(EntityRelationship.objects.exists())
+
+        # When a team is added to the m2m entity, it should be a super entity to the points_to_m2m_entity and
+        # of m2m_entity
+        m2m_entity.teams.add(team)
+        self.assertEquals(Entity.objects.count(), 3)
+        self.assertEquals(EntityRelationship.objects.count(), 2)
+        self.assertTrue(EntityRelationship.objects.filter(sub_entity=points_to_m2m_entity, super_entity=team).exists())
+        self.assertTrue(EntityRelationship.objects.filter(sub_entity=m2m_entity, super_entity=team).exists())
 
 
 class TestEntityM2mChangedSignalSync(EntityTestCase):

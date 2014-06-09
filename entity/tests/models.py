@@ -62,6 +62,14 @@ class M2mEntity(models.Model):
     teams = models.ManyToManyField(Team)
 
 
+class PointsToM2mEntity(models.Model):
+    """
+    A model that points to an m2mentity. Used to recreate the scenario when an account
+    points to a user that is included in a group.
+    """
+    m2m_entity = models.OneToOneField(M2mEntity)
+
+
 class EntityPointer(models.Model):
     """
     Describes a test model that points to an entity. Used for ensuring
@@ -146,6 +154,12 @@ class TeamConfig(EntityConfig):
 class M2mEntityConfig(EntityConfig):
     def get_super_entities(self, model_obj):
         return model_obj.teams.all()
+
+
+@register_entity(PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams'))
+class PointsToM2mEntityConfig(EntityConfig):
+    def get_super_entities(self, model_obj):
+        return model_obj.m2m_entity.teams.all()
 
 
 # Register the test models here. TODO - figure out why django does not like having these functions in
