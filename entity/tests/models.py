@@ -122,6 +122,7 @@ class AccountConfig(EntityConfig):
             super_entities.append(model_obj.team_group)
         if model_obj.competitor is not None:
             super_entities.append(model_obj.competitor)
+
         return super_entities
 
 

@@ -4,12 +4,16 @@ Provides tests for the syncing functionalities in django entity.
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.test.utils import override_settings
+from django_dynamic_fixture import G, F
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship
+from entity.sync import EntitySyncer
 from entity import sync_entities, turn_on_syncing, turn_off_syncing
 from mock import patch
 
-from entity.tests.models import Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig
+from entity.tests.models import (
+    Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup
+)
 from entity.tests.utils import EntityTestCase
 
 
@@ -211,44 +215,6 @@ class SyncAllEntitiesTest(EntityTestCase):
         # There should be four entity relationships since four accounts have teams
         self.assertEquals(EntityRelationship.objects.all().count(), 4)
 
-    def test_sync_optimal_queries(self):
-        """
-        Tests optimal queries of syncing.
-        """
-        # Create five test accounts
-        accounts = [Account.objects.create() for i in range(5)]
-        # Create two teams to assign to some of the accounts
-        teams = [Team.objects.create() for i in range(2)]
-        accounts[0].team = teams[0]
-        accounts[0].save()
-        accounts[1].team = teams[0]
-        accounts[1].save()
-        accounts[2].team = teams[1]
-        accounts[2].save()
-        accounts[3].team = teams[1]
-        accounts[3].save()
-
-        # Use an entity registry that only has accounts and teams. This ensures that other registered
-        # entity models dont pollute the test case
-        new_registry = EntityRegistry()
-        new_registry.register_entity(
-            Account.objects.select_related('team', 'team2', 'team_group', 'competitor'), AccountConfig)
-        new_registry.register_entity(
-            Team.objects.select_related('team_group'), TeamConfig)
-
-        with patch('entity.sync.entity_registry') as mock_entity_registry:
-            mock_entity_registry.entity_registry = new_registry.entity_registry
-            ContentType.objects.clear_cache()
-            with self.assertNumQueries(14):
-                sync_entities()
-
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
-        self.assertEquals(Entity.objects.all().count(), 7)
-
-        # There should be four entity relationships since four accounts have teams
-        self.assertEquals(EntityRelationship.objects.all().count(), 4)
-
 
 class TestEntityBulkSignalSync(EntityTestCase):
     """
@@ -296,12 +262,6 @@ class TestEntityBulkSignalSync(EntityTestCase):
         DummyModel.objects.bulk_create([DummyModel()])
         self.assertFalse(Entity.objects.exists())
 
-
-class TestEntitySignalSync(EntityTestCase):
-    """
-    Tests that entities (from the test models) are properly synced upon post_save and
-    post_delete calls.
-    """
     def test_post_bulk_update_dummy(self):
         """
         Tests that even if the dummy model is using the special model manager for bulk
@@ -312,6 +272,12 @@ class TestEntitySignalSync(EntityTestCase):
         # There should be no synced entities
         self.assertEquals(Entity.objects.all().count(), 0)
 
+
+class TestEntityNonBulkSignalSync(EntityTestCase):
+    """
+    Tests that entities (from the test models) are properly synced upon post_save
+    and post_delete signals.
+    """
     def test_post_save_dummy_data(self):
         """
         Tests that dummy data that does not inherit from EntityModelMixin is not synced
@@ -532,3 +498,123 @@ class TestEntitySignalSync(EntityTestCase):
         relationship = EntityRelationship.objects.first()
         self.assertEquals(relationship.sub_entity, account_entity)
         self.assertEquals(relationship.super_entity, team_entity)
+
+
+class TestSyncingMultipleEntities(EntityTestCase):
+    """
+    Tests syncing multiple entities at once of different types.
+    """
+    def test_sync_two_accounts(self):
+        turn_off_syncing()
+        team = G(Team)
+        account1 = G(Account, team=team)
+        account2 = G(Account, team=team)
+        G(TeamGroup)
+        sync_entities(account1, account2)
+
+        self.assertEquals(Entity.objects.count(), 3)
+        self.assertEquals(EntityRelationship.objects.count(), 2)
+
+    def test_sync_two_accounts_one_team_group(self):
+        turn_off_syncing()
+        team = G(Team)
+        account1 = G(Account, team=team)
+        account2 = G(Account, team=team)
+        team_group = G(TeamGroup)
+        sync_entities(account1, account2, team_group)
+
+        self.assertEquals(Entity.objects.count(), 4)
+        self.assertEquals(EntityRelationship.objects.count(), 2)
+
+
+class TestCachingAndCascading(EntityTestCase):
+    """
+    Tests caching, cascade syncing, and optimal queries when syncing single, multiple, or all entities.
+    """
+    def test_cascade_sync_super_entities(self):
+        """
+        Tests that super entities will be synced when a sub entity is synced (even if the super entities
+        werent synced before)
+        """
+        turn_off_syncing()
+        team = G(Team)
+        turn_on_syncing()
+
+        self.assertFalse(Entity.objects.exists())
+        G(Account, team=team)
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 1)
+
+    def test_no_cascade_if_super_entity_exists(self):
+        """
+        Tests that super entities arent synced again if they have already been synced.
+        """
+        account = G(Account, team=F(team_group=F()))
+        self.assertTrue(Account.objects.exists())
+        self.assertTrue(Team.objects.exists())
+        self.assertTrue(TeamGroup.objects.exists())
+
+        entity_syncer = EntitySyncer()
+        entity_syncer.sync_entities_and_relationships(account)
+        # Verify that only the account and team reside in the entity syncer cache. This means that
+        # the syncing didnt percolate all the way to the team group
+        self.assertEquals(len(entity_syncer._synced_entity_cache), 2)
+
+    def test_optimal_queries_registered_entity_with_no_qset(self):
+        """
+        Tests that the optimal number of queries are performed when syncing a single entity that
+        did not register a queryset.
+        """
+        team_group = G(TeamGroup)
+
+        ContentType.objects.clear_cache()
+        with self.assertNumQueries(4):
+            team_group.save()
+
+    def test_optimal_queries_registered_entity_w_qset(self):
+        """
+        Tests that the entity is refetch with its queryset when syncing an individual entity.
+        """
+        account = G(Account)
+
+        ContentType.objects.clear_cache()
+        with self.assertNumQueries(5):
+            account.save()
+
+    def test_sync_all_optimal_queries(self):
+        """
+        Tests optimal queries of syncing all entities.
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        # Use an entity registry that only has accounts and teams. This ensures that other registered
+        # entity models dont pollute the test case
+        new_registry = EntityRegistry()
+        new_registry.register_entity(
+            Account.objects.select_related('team', 'team2', 'team_group', 'competitor'), AccountConfig)
+        new_registry.register_entity(
+            Team.objects.select_related('team_group'), TeamConfig)
+
+        with patch('entity.sync.entity_registry') as mock_entity_registry:
+            mock_entity_registry.entity_registry = new_registry.entity_registry
+            ContentType.objects.clear_cache()
+            with self.assertNumQueries(14):
+                sync_entities()
+
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 7)
+
+        # There should be four entity relationships since four accounts have teams
+        self.assertEquals(EntityRelationship.objects.all().count(), 4)

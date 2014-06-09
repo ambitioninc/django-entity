@@ -59,17 +59,19 @@ class EntityRegistry(object):
         """
         if inspect.isclass(model_or_qset) and issubclass(model_or_qset, Model):
             # If the provided parameter is a model, convert it to a queryset
-            model_or_qset = model_or_qset.objects
-
-        if not issubclass(model_or_qset.__class__, (Manager, QuerySet)):
+            model = model_or_qset
+            qset = None
+        elif issubclass(model_or_qset.__class__, (Manager, QuerySet)):
+            model = model_or_qset.model
+            qset = model_or_qset.all()
+        else:
             raise ValueError('Must register a model class or queryset instance with an entity config')
 
         entity_config = entity_config if entity_config is not None else EntityConfig
-
         if not issubclass(entity_config, EntityConfig):
             raise ValueError('Must register entity config class of subclass EntityConfig')
 
-        self._entity_registry[model_or_qset.model] = (model_or_qset, entity_config())
+        self._entity_registry[model] = (qset, entity_config())
 
 
 # Define the global registry variable

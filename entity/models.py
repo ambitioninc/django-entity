@@ -125,10 +125,13 @@ class Entity(models.Model):
     entity_id = models.IntegerField()
     entity_type = models.ForeignKey(ContentType)
     entity = generic.GenericForeignKey('entity_type', 'entity_id')
+
     # Metadata about the entity, stored as JSON
     entity_meta = JSONField(null=True)
+
     # True if this entity is active
     is_active = models.BooleanField(default=True)
+
     objects = EntityManager()
 
     def get_sub_entities(self):
@@ -188,6 +191,7 @@ class EntityRelationship(models.Model):
     # querying this reverse relationship returns all of the relationships
     # super to an entity
     sub_entity = models.ForeignKey(Entity, related_name='super_relationships')
+
     # The super entity. The related name is called sub_relationships since
     # querying this reverse relationships returns all of the relationships
     # sub to an entity

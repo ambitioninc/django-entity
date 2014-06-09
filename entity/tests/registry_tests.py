@@ -1,4 +1,5 @@
 from django.db.models import Model, Manager
+from django.db.models.query import QuerySet
 from django.test import TestCase
 from mock import patch
 
@@ -36,7 +37,7 @@ class EntityRegistryTest(TestCase):
         entity_registry = EntityRegistry()
         entity_registry.register_entity(ValidRegistryModel)
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertEquals(entity_registry_info[0], None)
         self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_inherited_model(self):
@@ -53,7 +54,7 @@ class EntityRegistryTest(TestCase):
         entity_registry = EntityRegistry()
         entity_registry.register_entity(ValidRegistryModel)
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertEquals(entity_registry_info[0], None)
         self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_manager(self):
@@ -69,7 +70,8 @@ class EntityRegistryTest(TestCase):
         entity_registry = EntityRegistry()
         entity_registry.register_entity(ValidRegistryModel.objects)
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[0], QuerySet))
+        self.assertEquals(entity_registry_info[0].model, ValidRegistryModel)
         self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_inherited_manager(self):
@@ -86,9 +88,9 @@ class EntityRegistryTest(TestCase):
             objects = ValidRegistryManager()
 
         entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel)
+        entity_registry.register_entity(ValidRegistryModel.objects)
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertTrue(isinstance(entity_registry_info[0], QuerySet))
         self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
     def test_register_valid_entity_config(self):
@@ -104,7 +106,7 @@ class EntityRegistryTest(TestCase):
         entity_registry = EntityRegistry()
         entity_registry.register_entity(ValidRegistryModel, ValidEntityConfig)
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], ValidRegistryModel.objects)
+        self.assertEquals(entity_registry_info[0], None)
         self.assertTrue(isinstance(entity_registry_info[1], ValidEntityConfig))
 
     def test_register_invalid_entity_config(self):
