@@ -55,6 +55,13 @@ class Account(BaseEntityModel):
     competitor = models.ForeignKey(Competitor, null=True)
 
 
+class M2mEntity(models.Model):
+    """
+    Used for testing syncing of a model with a M2M.
+    """
+    teams = models.ManyToManyField(Team)
+
+
 class EntityPointer(models.Model):
     """
     Describes a test model that points to an entity. Used for ensuring
@@ -133,6 +140,12 @@ class TeamConfig(EntityConfig):
 
     def get_super_entities(self, model_obj):
         return [model_obj.team_group] if model_obj.team_group is not None else []
+
+
+@register_entity(M2mEntity.objects.prefetch_related('teams'))
+class M2mEntityConfig(EntityConfig):
+    def get_super_entities(self, model_obj):
+        return model_obj.teams.all()
 
 
 # Register the test models here. TODO - figure out why django does not like having these functions in

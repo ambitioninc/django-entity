@@ -12,7 +12,8 @@ from entity import sync_entities, turn_on_syncing, turn_off_syncing
 from mock import patch
 
 from entity.tests.models import (
-    Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup
+    Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
+    M2mEntity
 )
 from entity.tests.utils import EntityTestCase
 
@@ -102,7 +103,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning on syncing for bulk operations.
         """
         turn_off_syncing()
-        turn_on_syncing(bulk=True)
+        turn_on_syncing(for_post_bulk_operation=True)
         with patch('entity.sync.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertTrue(mock_handler.called)
@@ -222,7 +223,7 @@ class TestEntityBulkSignalSync(EntityTestCase):
     """
     def setUp(self):
         super(TestEntityBulkSignalSync, self).setUp()
-        turn_on_syncing(bulk=True)
+        turn_on_syncing(for_post_bulk_operation=True)
 
     def test_post_bulk_create(self):
         """
@@ -273,7 +274,62 @@ class TestEntityBulkSignalSync(EntityTestCase):
         self.assertEquals(Entity.objects.all().count(), 0)
 
 
-class TestEntityNonBulkSignalSync(EntityTestCase):
+class TestEntityM2mChangedSignalSync(EntityTestCase):
+    """
+    Tests when an m2m changes on a synced entity.
+    """
+    def test_save_model_with_m2m(self):
+        """
+        Verifies that the m2m test entity is synced properly upon save.
+        """
+        turn_off_syncing()
+        m = G(M2mEntity)
+        m.teams.add(G(Team))
+        turn_on_syncing()
+
+        m.save()
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 1)
+
+    def test_sync_when_m2m_add(self):
+        """
+        Verifies an entity is synced properly when and m2m field is added.
+        """
+        m = G(M2mEntity)
+        self.assertEquals(Entity.objects.count(), 1)
+        self.assertEquals(EntityRelationship.objects.count(), 0)
+        m.teams.add(G(Team))
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 1)
+
+    def test_sync_when_m2m_delete(self):
+        """
+        Verifies an entity is synced properly when and m2m field is deleted.
+        """
+        m = G(M2mEntity)
+        team = G(Team)
+        m.teams.add(team)
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 1)
+        m.teams.remove(team)
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 0)
+
+    def test_sync_when_m2m_clear(self):
+        """
+        Verifies an entity is synced properly when and m2m field is cleared.
+        """
+        m = G(M2mEntity)
+        team = G(Team)
+        m.teams.add(team)
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 1)
+        m.teams.clear()
+        self.assertEquals(Entity.objects.count(), 2)
+        self.assertEquals(EntityRelationship.objects.count(), 0)
+
+
+class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
     """
     Tests that entities (from the test models) are properly synced upon post_save
     and post_delete signals.

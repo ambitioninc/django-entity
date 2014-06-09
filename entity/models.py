@@ -2,7 +2,7 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, m2m_changed
 from jsonfield import JSONField
 from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
 
@@ -198,23 +198,33 @@ class EntityRelationship(models.Model):
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
-def delete_entity_signal_handler(sender, *args, **kwargs):
+def delete_entity_signal_handler(sender, instance, **kwargs):
     """
     Defines a signal handler for syncing an individual entity. Called when
     an entity is saved or deleted.
     """
-    if sender in entity_registry.entity_registry:
-        Entity.objects.delete_for_obj(kwargs['instance'])
+    if instance.__class__ in entity_registry.entity_registry:
+        Entity.objects.delete_for_obj(instance)
 
 
-def save_entity_signal_handler(sender, *args, **kwargs):
+def save_entity_signal_handler(sender, instance, **kwargs):
     """
     Defines a signal handler for saving an entity. Syncs the entity to
     the entity mirror table.
     """
-    if sender in entity_registry.entity_registry:
+    if instance.__class__ in entity_registry.entity_registry:
         from entity.sync import sync_entities
-        sync_entities(kwargs['instance'])
+        sync_entities(instance)
+
+
+def m2m_changed_entity_signal_handler(sender, instance, action, **kwargs):
+    """
+    Defines a signal handler for a manytomany changed signal. Only listens for the
+    post actions so that entities are synced once (rather than twice for a pre and post action).
+    """
+    print 'm2m', sender, instance
+    if action == 'post_add' or action == 'post_remove' or action == 'post_clear':
+        save_entity_signal_handler(sender, instance, **kwargs)
 
 
 def bulk_operation_signal_handler(sender, *args, **kwargs):
@@ -230,22 +240,31 @@ def bulk_operation_signal_handler(sender, *args, **kwargs):
         sync_entities()
 
 
-def turn_off_syncing():
+def turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True):
     """
     Disables all of the signals for syncing entities. If bulk is True, disable syncing on bulk operations.
     """
-    post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
-    post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-    post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+    if for_post_save:
+        post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    if for_post_delete:
+        post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    if for_m2m_changed:
+        m2m_changed.disconnect(m2m_changed_entity_signal_handler, dispatch_uid='m2m_changed_entity_signal_handler')
+    if for_post_bulk_operation:
+        post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
 
 
-def turn_on_syncing(bulk=False):
+def turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=False):
     """
     Enables all of the signals for syncing entities. If bulk is True, enable syncing on bulk operations.
     """
-    post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
-    post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-    if bulk:
+    if for_post_save:
+        post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    if for_post_delete:
+        post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    if for_m2m_changed:
+        m2m_changed.connect(m2m_changed_entity_signal_handler, dispatch_uid='m2m_changed_entity_signal_handler')
+    if for_post_bulk_operation:
         post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
 
 
