@@ -216,13 +216,25 @@ def save_entity_signal_handler(sender, instance, **kwargs):
         from entity.sync import sync_entities
         sync_entities(instance)
 
+    if instance.__class__ in entity_registry.entity_watching:
+        print 'watching'
+        for entity_model, entity_model_qset_arg in entity_registry.entity_watching[instance.__class__]:
+            entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
+            if entity_model_qset is None:
+                entity_model_qset = entity_model.objects.all()
+            print entity_model_qset, 'filter', entity_model_qset_arg, instance
+            model_objs = list(entity_model_qset.filter(**{entity_model_qset_arg: instance}))
+            print 'model objs', model_objs
+            if model_objs:
+                print 'syncing', model_objs
+                sync_entities(*model_objs)
+
 
 def m2m_changed_entity_signal_handler(sender, instance, action, **kwargs):
     """
     Defines a signal handler for a manytomany changed signal. Only listens for the
     post actions so that entities are synced once (rather than twice for a pre and post action).
     """
-    print 'm2m', sender, instance
     if action == 'post_add' or action == 'post_remove' or action == 'post_clear':
         save_entity_signal_handler(sender, instance, **kwargs)
 

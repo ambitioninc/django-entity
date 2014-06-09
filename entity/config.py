@@ -1,3 +1,4 @@
+from collections import defaultdict
 import inspect
 
 from django.db.models import Manager, Model
@@ -8,6 +9,22 @@ class EntityConfig(object):
     """
     Defines the configuration for a mirrored entity.
     """
+    # The "watching" variable is a list of tuples that specify what models this entity
+    # config watches and the queryset parameters used to obtain the entity.
+    # For example, assume we have an Account model that has a foreign key to a User
+    # model. Also, the User model has a M2M to Groups. If Groups are a super entity
+    # of an Account, the user must set up a watching variable so that the account
+    # is synced when the M2M on the user object is changed. This is because the
+    # M2M is not directly on the Account model and does not trigger Account syncing
+    # by default when changed. The watching variable would look like the following:
+    #
+    #     watching = [(User, 'user')]
+    #
+    # The watching tuples mean the following:
+    #   If any User object is changed (i.e. the M2M to Groups on the User model is changed),
+    #   sync all accounts in Account.objects.filter(user=user_id_changed)
+    watching = []
+
     def get_entity_meta(self, model_obj):
         """
         Retrieves metadata about an entity.
@@ -47,10 +64,15 @@ class EntityRegistry(object):
     def __init__(self):
         # The registry of all models to their querysets and EntityConfigs
         self._entity_registry = {}
+        self._entity_watching = defaultdict(list)
 
     @property
     def entity_registry(self):
         return self._entity_registry
+
+    @property
+    def entity_watching(self):
+        return self._entity_watching
 
     def register_entity(self, model_or_qset, entity_config=None):
         """
@@ -71,7 +93,12 @@ class EntityRegistry(object):
         if not issubclass(entity_config, EntityConfig):
             raise ValueError('Must register entity config class of subclass EntityConfig')
 
-        self._entity_registry[model] = (qset, entity_config())
+        if model not in self._entity_registry:
+            self._entity_registry[model] = (qset, entity_config())
+
+            # Add watchers to the global look up table
+            for watching_model, watching_model_qset_arg in entity_config.watching:
+                self._entity_watching[watching_model].append((model, watching_model_qset_arg))
 
 
 # Define the global registry variable

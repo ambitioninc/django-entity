@@ -344,8 +344,13 @@ class TestWatching(EntityTestCase):
         m2m_entity.teams.add(team)
         self.assertEquals(Entity.objects.count(), 3)
         self.assertEquals(EntityRelationship.objects.count(), 2)
-        self.assertTrue(EntityRelationship.objects.filter(sub_entity=points_to_m2m_entity, super_entity=team).exists())
-        self.assertTrue(EntityRelationship.objects.filter(sub_entity=m2m_entity, super_entity=team).exists())
+
+        points_to_m2m_entity = Entity.objects.get_for_obj(points_to_m2m_entity)
+        team_entity = Entity.objects.get_for_obj(team)
+        m2m_entity = Entity.objects.get_for_obj(m2m_entity)
+        self.assertTrue(EntityRelationship.objects.filter(
+            sub_entity=points_to_m2m_entity, super_entity=team_entity).exists())
+        self.assertTrue(EntityRelationship.objects.filter(sub_entity=m2m_entity, super_entity=team_entity).exists())
 
 
 class TestEntityM2mChangedSignalSync(EntityTestCase):
