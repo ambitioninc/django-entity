@@ -1,6 +1,6 @@
 from celery import Task
 
-from entity.sync import sync_entities
+from entity.models import sync_entities
 
 
 class SyncEntitiesTask(Task):

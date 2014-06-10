@@ -64,6 +64,8 @@ class EntityRegistry(object):
     def __init__(self):
         # The registry of all models to their querysets and EntityConfigs
         self._entity_registry = {}
+
+        # Stores a list of (model, qset_arg) tuples for each watching model
         self._entity_watching = defaultdict(list)
 
     @property
@@ -77,7 +79,7 @@ class EntityRegistry(object):
     def register_entity(self, model_or_qset, entity_config=None):
         """
         Registers a model or queryset with an entity config. If the entity config is None, it defaults
-        to registering the mdoel/qset to EntityConfig.
+        to registering the model/qset to EntityConfig.
         """
         if inspect.isclass(model_or_qset) and issubclass(model_or_qset, Model):
             # If the provided parameter is a model, convert it to a queryset

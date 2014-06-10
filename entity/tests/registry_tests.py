@@ -40,6 +40,20 @@ class EntityRegistryTest(TestCase):
         self.assertEquals(entity_registry_info[0], None)
         self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
 
+    def test_register_twice(self):
+        """
+        Tests that registering a model twice causes no harm.
+        """
+        class ValidRegistryModel(Model):
+            pass
+
+        entity_registry = EntityRegistry()
+        entity_registry.register_entity(ValidRegistryModel)
+        entity_registry.register_entity(ValidRegistryModel)
+        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
+        self.assertEquals(entity_registry_info[0], None)
+        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
+
     def test_register_inherited_model(self):
         """
         Tests registering a model class that extends an abstract model.

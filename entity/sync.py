@@ -50,10 +50,7 @@ class EntitySyncer(object):
             # was created
             if created or deep:
                 self._entity_relationships_to_sync[entity] = [
-                    EntityRelationship(
-                        super_entity=self._sync_entity(super_model_obj, deep=False),
-                        sub_entity=entity,
-                    )
+                    EntityRelationship(sub_entity=entity, super_entity=self._sync_entity(super_model_obj, deep=False))
                     for super_model_obj in entity_config.get_super_entities(model_obj)
                 ]
 
@@ -127,11 +124,3 @@ class EntitySyncer(object):
 
         # After entities have been synced, their relationships have been cached in memory. Sync this to disk
         self._sync_entity_relationships()
-
-
-def sync_entities(*model_objs):
-    """
-    Sync the provided model objects. If there are no model objects, sync all models across the entire
-    project.
-    """
-    EntitySyncer().sync_entities_and_relationships(*model_objs)

@@ -198,6 +198,30 @@ class EntityRelationship(models.Model):
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
+def sync_entities(*model_objs):
+    """
+    Sync the provided model objects. If there are no model objects, sync all models across the entire
+    project.
+    """
+    # Import entity syncer here to avoid circular import
+    from entity.sync import EntitySyncer
+    EntitySyncer().sync_entities_and_relationships(*model_objs)
+
+
+def sync_entities_watching(instance):
+    """
+    Syncs entities watching changes of a model instance.
+    """
+    for entity_model, entity_model_qset_arg in entity_registry.entity_watching[instance.__class__]:
+        entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
+        if entity_model_qset is None:
+            entity_model_qset = entity_model.objects.all()
+
+        model_objs = list(entity_model_qset.filter(**{entity_model_qset_arg: instance}))
+        if model_objs:
+            sync_entities(*model_objs)
+
+
 def delete_entity_signal_handler(sender, instance, **kwargs):
     """
     Defines a signal handler for syncing an individual entity. Called when
@@ -213,21 +237,10 @@ def save_entity_signal_handler(sender, instance, **kwargs):
     the entity mirror table.
     """
     if instance.__class__ in entity_registry.entity_registry:
-        from entity.sync import sync_entities
         sync_entities(instance)
 
     if instance.__class__ in entity_registry.entity_watching:
-        print 'watching'
-        for entity_model, entity_model_qset_arg in entity_registry.entity_watching[instance.__class__]:
-            entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
-            if entity_model_qset is None:
-                entity_model_qset = entity_model.objects.all()
-            print entity_model_qset, 'filter', entity_model_qset_arg, instance
-            model_objs = list(entity_model_qset.filter(**{entity_model_qset_arg: instance}))
-            print 'model objs', model_objs
-            if model_objs:
-                print 'syncing', model_objs
-                sync_entities(*model_objs)
+        sync_entities_watching(instance)
 
 
 def m2m_changed_entity_signal_handler(sender, instance, action, **kwargs):
@@ -248,7 +261,6 @@ def bulk_operation_signal_handler(sender, *args, **kwargs):
     operations with turn_on_syncing(bulk=True)
     """
     if sender.model in entity_registry.entity_registry:
-        from entity.sync import sync_entities
         sync_entities()
 
 

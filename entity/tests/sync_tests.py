@@ -8,12 +8,12 @@ from django_dynamic_fixture import G, F
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship
 from entity.sync import EntitySyncer
-from entity import sync_entities, turn_on_syncing, turn_off_syncing
+from entity import turn_on_syncing, turn_off_syncing, sync_entities
 from mock import patch
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
-    M2mEntity, PointsToM2mEntity
+    M2mEntity, PointsToM2mEntity, PointsToAccount, Competitor
 )
 from entity.tests.utils import EntityTestCase
 
@@ -76,7 +76,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that save signals are connected by default.
         """
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertTrue(mock_handler.called)
 
@@ -94,7 +94,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that bulk operations are turned off by default.
         """
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -103,7 +103,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the save signal.
         """
         turn_off_syncing()
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertFalse(mock_handler.called)
 
@@ -112,7 +112,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the delete signal.
         """
         turn_off_syncing()
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             a = Account.objects.create()
             self.assertFalse(mock_handler.called)
             a.delete()
@@ -123,7 +123,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for bulk operations.
         """
         turn_off_syncing()
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -133,7 +133,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing()
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertTrue(mock_handler.called)
 
@@ -154,7 +154,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing(for_post_bulk_operation=True)
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.models.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertTrue(mock_handler.called)
 
@@ -352,6 +352,52 @@ class TestWatching(EntityTestCase):
             sub_entity=points_to_m2m_entity, super_entity=team_entity).exists())
         self.assertTrue(EntityRelationship.objects.filter(sub_entity=m2m_entity, super_entity=team_entity).exists())
 
+    def test_points_to_account_config_competitor_updated(self):
+        """
+        Tests that a PointsToAccount model is updated when the competitor of its account is updated.
+        """
+        account = G(Account)
+        pta = G(PointsToAccount, account=account)
+        pta_entity = Entity.objects.get_for_obj(pta)
+        self.assertEquals(pta_entity.entity_meta, {
+            'team_name': 'None',
+            'competitor_name': 'None',
+        })
+
+        team = G(Team, name='team1')
+        competitor = G(Competitor, name='competitor1')
+        account.team = team
+        account.competitor = competitor
+        account.save()
+
+        # Nothing should have been updated on the entity. This is because it is watching the competitor
+        # and team models for changes. Since these models were changed before they were linked to the
+        # account, the changes are not propagated.
+        pta_entity = Entity.objects.get_for_obj(pta)
+        self.assertEquals(pta_entity.entity_meta, {
+            'team_name': 'None',
+            'competitor_name': 'None',
+        })
+
+        # Now change names of the competitors and teams. Things will be propagated.
+        team.name = 'team2'
+        team.save()
+        pta_entity = Entity.objects.get_for_obj(pta)
+        self.assertEquals(pta_entity.entity_meta, {
+            'team_name': 'team2',
+            'competitor_name': 'competitor1',
+        })
+
+        competitor.name = 'competitor2'
+        competitor.save()
+        pta_entity = Entity.objects.get_for_obj(pta)
+        self.assertEquals(pta_entity.entity_meta, {
+            'team_name': 'team2',
+            'competitor_name': 'competitor2',
+        })
+
+        # The power of django entity compels you...
+
 
 class TestEntityM2mChangedSignalSync(EntityTestCase):
     """
@@ -499,6 +545,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'test@test.com',
             'is_captain': False,
             'team': None,
+            'team_is_active': None,
         })
         self.assertEquals(entity.is_active, True)
 
@@ -525,6 +572,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
+            'team_is_active': True,
         })
         team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(team_entity.entity_meta, None)
@@ -547,6 +595,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'test@test.com',
             'is_captain': False,
             'team': None,
+            'team_is_active': None,
         })
         old_entity_id = entity.id
 
@@ -563,6 +612,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'newemail@test.com',
             'is_captain': False,
             'team': None,
+            'team_is_active': None,
         })
         self.assertEquals(old_entity_id, entity.id)
 
@@ -581,6 +631,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'test@test.com',
             'is_captain': False,
             'team': None,
+            'team_is_active': None,
         })
 
         # Update the account's metadata and check that it is mirrored
@@ -591,6 +642,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'newemail@test.com',
             'is_captain': False,
             'team': None,
+            'team_is_active': None,
         })
 
     def test_post_update_account_relationship_activity(self):
@@ -613,6 +665,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
+            'team_is_active': True,
         })
         team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(team_entity.entity_meta, None)

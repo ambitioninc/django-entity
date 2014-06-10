@@ -22,7 +22,8 @@ class Competitor(BaseEntityModel):
     """
     An enclosing group for competitors
     """
-    pass
+    name = models.CharField(max_length=64)
+    is_active = models.BooleanField(default=True)
 
 
 class Team(BaseEntityModel):
@@ -68,6 +69,10 @@ class PointsToM2mEntity(models.Model):
     points to a user that is included in a group.
     """
     m2m_entity = models.OneToOneField(M2mEntity)
+
+
+class PointsToAccount(models.Model):
+    account = models.ForeignKey(Account)
 
 
 class EntityPointer(models.Model):
@@ -122,6 +127,7 @@ class AccountConfig(EntityConfig):
             'email': model_obj.email,
             'team': model_obj.team.name if model_obj.team else None,
             'is_captain': model_obj.is_captain,
+            'team_is_active': model_obj.team.is_active if model_obj.team else None,
         }
 
     def get_super_entities(self, model_obj):
@@ -135,7 +141,7 @@ class AccountConfig(EntityConfig):
             super_entities.append(model_obj.team2)
         if model_obj.team_group is not None:
             super_entities.append(model_obj.team_group)
-        if model_obj.competitor is not None:
+        if model_obj.competitor is not None and model_obj.competitor.is_active:
             super_entities.append(model_obj.competitor)
 
         return super_entities
@@ -159,11 +165,25 @@ class M2mEntityConfig(EntityConfig):
 @register_entity(PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams'))
 class PointsToM2mEntityConfig(EntityConfig):
     watching = [
-        (M2mEntity, 'm2m_entity')
+        (M2mEntity, 'm2m_entity'),
     ]
 
     def get_super_entities(self, model_obj):
         return model_obj.m2m_entity.teams.all()
+
+
+@register_entity(PointsToAccount)
+class PointsToAccountConfig(EntityConfig):
+    watching = [
+        (Competitor, 'account__competitor'),
+        (Team, 'account__team'),
+    ]
+
+    def get_entity_meta(self, model_obj):
+        return {
+            'competitor_name': model_obj.account.competitor.name if model_obj.account.competitor else 'None',
+            'team_name': model_obj.account.team.name if model_obj.account.team else 'None',
+        }
 
 
 # Register the test models here. TODO - figure out why django does not like having these functions in
