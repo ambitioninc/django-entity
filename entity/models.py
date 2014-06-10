@@ -14,7 +14,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
     """
     Provides additional queryset filtering abilities.
     """
-    def has_super_entity_subset(self, *super_entities):
+    def is_sub_to_all(self, *super_entities):
         """
         Given a list of super entities, return the entities that have those as a subset of their super entities.
         """
@@ -40,13 +40,13 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         return self.filter(is_active=False)
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns entities that have any of the types listed in entity_types.
         """
         return self.filter(entity_type__in=entity_types) if entity_types else self
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns entities that are not any of the types listed in entity_types.
         """
@@ -79,11 +79,11 @@ class EntityManager(ManagerUtilsManager):
         return self.filter(
             entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id).delete()
 
-    def has_super_entity_subset(self, *super_entities):
+    def is_sub_to_all(self, *super_entities):
         """
         Given a list of super entities, return the entities that have those super entities as a subset of theirs.
         """
-        return self.get_queryset().has_super_entity_subset(*super_entities)
+        return self.get_queryset().is_sub_to_all(*super_entities)
 
     def active(self):
         """
@@ -97,17 +97,17 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get_queryset().inactive()
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns entities that have any of the types listed in entity_types.
         """
-        return self.get_queryset().is_type(*entity_types)
+        return self.get_queryset().is_any_type(*entity_types)
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns entities that are not any of the types listed in entity_types.
         """
-        return self.get_queryset().is_not_type(*entity_types)
+        return self.get_queryset().is_not_any_type(*entity_types)
 
     def cache_relationships(self):
         """
@@ -160,21 +160,21 @@ class Entity(models.Model):
         """
         return self.is_active is False
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns True if the entity's type is in any of the types given. If no entity types are given,
         returns True.
         """
         return self.entity_type_id in (entity_type.id for entity_type in entity_types) if entity_types else True
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns True if the entity's type is not in any of the types given. If no entity types are given,
         returns True.
         """
         return self.entity_type_id not in (entity_type.id for entity_type in entity_types)
 
-    def has_super_entity_subset(self, *super_entities):
+    def is_sub_to_all(self, *super_entities):
         """
         Returns True if the super entities are a subset of the entity's super entities.
         """

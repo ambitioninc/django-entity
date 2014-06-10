@@ -10,7 +10,7 @@ What is an entity? An entity is any model in your Django project. For example, a
 ## A Use Case
 Imagine that you have a Django project that defines many types of groupings of your users. For example, let's say in your enterprise project, you allow users to define their manager, their company position, and their regional branch location. Similarly, let's say that you have an app that can email groups of users based on their manager (or anyone who is under the managers of that manager), their position, or their region. This email app would likely have to know application-specific modeling of these relationships in order to be built. Similarly, doing things like querying for all users under a manager hierachy can be an expensive lookup depending on how it is modeled.
 
-Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities().is_type(ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
+Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities().is_any_type(ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
 ## Getting Started - Configuring Entity Syncing
 ### Basic Use Case
@@ -197,27 +197,27 @@ Returns active entities when called on the ``Entity`` manager, or a boolean when
 #### inactive()
 Does the opposite of ``active()``.
 
-#### is_type(*entity_types)
+#### is_any_type(*entity_types)
 If called on the ``Entity`` manager, returns all entities that have any of the entity types provided. Returns a boolean if called on the ``Entity`` model.
 
-#### is_not_type(*entity_types)
-The opposite of ``is_type()``.
+#### is_not_any_type(*entity_types)
+The opposite of ``is_any_type()``.
 
-#### has_super_entity_subset(*super_entities)
-Return entities that have a subset of the given super entities. This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
+#### is_sub_to_all(*super_entities)
+Return entities that are sub entities of every provided super entity (or all if no super entities are provided). This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
 
 For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
 
 ```python
 groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
 groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
-for e in Entity.objects.has_super_entity_subset(groupa_entity, groupb_entity):
+for e in Entity.objects.is_sub_to_all(groupa_entity, groupb_entity):
     # Do your thing with the results
     pass
 ```
 
 #### cache_relationships()
-The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset.
+The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_any_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset.
 
 ```python
 entity = Entity.objects.cache_relationships().get_for_obj(test_model)
@@ -230,9 +230,9 @@ for super_entity in entity.get_super_entities().active():
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
 ```python
-Entity.objects.has_super_entity_subset(groupa_entity).is_active().is_type(account_type, team_type)
+Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_type(account_type, team_type)
 
-Entity.objects.inactive().has_super_entity_subset(groupb_entity).cache_relationships()
+Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
 ## A Final Word

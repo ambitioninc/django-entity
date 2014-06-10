@@ -28,7 +28,7 @@ class EntityFilteringTest(EntityTestCase):
         team_entity = Entity.objects.get_for_obj(team)
         # Test that subset with no super entites returns the team and team group
         self.assertEquals(
-            list(account_entity.get_super_entities().has_super_entity_subset()),
+            list(account_entity.get_super_entities().is_sub_to_all()),
             [team_entity, team_group_entity])
 
     def test_has_super_entity_subset_one(self):
@@ -45,7 +45,7 @@ class EntityFilteringTest(EntityTestCase):
         team_group_entity = Entity.objects.get_for_obj(team_group)
         # Test that subset with the team group entity results in the team
         self.assertEquals(
-            list(account_entity.get_super_entities().has_super_entity_subset(team_group_entity)),
+            list(account_entity.get_super_entities().is_sub_to_all(team_group_entity)),
             [team_entity])
 
     def test_has_super_entity_subset_two(self):
@@ -63,10 +63,10 @@ class EntityFilteringTest(EntityTestCase):
         # Test that subset with the team and team group results in nothing since no objects have those
         # super entities
         self.assertEquals(
-            list(account_entity.get_super_entities().has_super_entity_subset(team_entity, team_group_entity)),
+            list(account_entity.get_super_entities().is_sub_to_all(team_entity, team_group_entity)),
             [])
         # Test that performing the same subset on the account returns True
-        self.assertTrue(account_entity.has_super_entity_subset(team_entity, team_group_entity))
+        self.assertTrue(account_entity.is_sub_to_all(team_entity, team_group_entity))
 
     def test_get_active_sub_entities_relationships_one(self):
         """
@@ -153,12 +153,12 @@ class EntityFilteringTest(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Check the filter of the super entity type
-        self.assertEquals(list(account_entity.get_super_entities().is_type(self.team_type)), [team_entity])
+        self.assertEquals(list(account_entity.get_super_entities().is_any_type(self.team_type)), [team_entity])
         # Check that the filter returns nothing for a different entity type
-        self.assertEquals(list(account_entity.get_super_entities().is_type(self.account_type)), [])
+        self.assertEquals(list(account_entity.get_super_entities().is_any_type(self.account_type)), [])
         # Check that the filter returns the team entity for both types
         self.assertEquals(
-            list(account_entity.get_super_entities().is_type(self.team_type, self.account_type)), [team_entity])
+            list(account_entity.get_super_entities().is_any_type(self.team_type, self.account_type)), [team_entity])
 
     def test_is_type_none(self):
         """
@@ -172,7 +172,7 @@ class EntityFilteringTest(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         self.assertEquals(
-            set(account_entity.get_super_entities().is_type()), set([team_entity]))
+            set(account_entity.get_super_entities().is_any_type()), set([team_entity]))
 
     def test_is_type_sub_entities(self):
         """
@@ -186,12 +186,12 @@ class EntityFilteringTest(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Check the filter of the sub entity type
-        self.assertEquals(list(team_entity.get_sub_entities().is_type(self.account_type)), [account_entity])
+        self.assertEquals(list(team_entity.get_sub_entities().is_any_type(self.account_type)), [account_entity])
         # Check that the filter returns nothing for a different entity type
-        self.assertEquals(list(team_entity.get_sub_entities().is_type(self.team_type)), [])
+        self.assertEquals(list(team_entity.get_sub_entities().is_any_type(self.team_type)), [])
         # Check that the filter returns the account entity when both types are given
         self.assertEquals(
-            list(team_entity.get_sub_entities().is_type(self.team_type, self.account_type)), [account_entity])
+            list(team_entity.get_sub_entities().is_any_type(self.team_type, self.account_type)), [account_entity])
 
     def test_is_not_type_super_entities(self):
         """
@@ -205,9 +205,10 @@ class EntityFilteringTest(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Check the filter of the super entity type
-        self.assertEquals(list(account_entity.get_super_entities().is_not_type(self.account_type)), [team_entity])
-        self.assertEquals(list(account_entity.get_super_entities().is_not_type(self.team_type)), [])
-        self.assertEquals(list(account_entity.get_super_entities().is_not_type(self.team_type, self.account_type)), [])
+        self.assertEquals(list(account_entity.get_super_entities().is_not_any_type(self.account_type)), [team_entity])
+        self.assertEquals(list(account_entity.get_super_entities().is_not_any_type(self.team_type)), [])
+        self.assertEquals(
+            list(account_entity.get_super_entities().is_not_any_type(self.team_type, self.account_type)), [])
 
     def test_is_not_type_sub_entities(self):
         """
@@ -221,11 +222,11 @@ class EntityFilteringTest(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Check the filter of the sub entity type
-        self.assertEquals(list(team_entity.get_sub_entities().is_not_type(self.team_type)), [account_entity])
-        self.assertEquals(list(team_entity.get_sub_entities().is_not_type(self.account_type)), [])
-        self.assertEquals(list(team_entity.get_sub_entities().is_not_type(self.team_type, self.account_type)), [])
+        self.assertEquals(list(team_entity.get_sub_entities().is_not_any_type(self.team_type)), [account_entity])
+        self.assertEquals(list(team_entity.get_sub_entities().is_not_any_type(self.account_type)), [])
+        self.assertEquals(list(team_entity.get_sub_entities().is_not_any_type(self.team_type, self.account_type)), [])
 
-    def test_return_chained_active_is_type(self):
+    def test_return_chained_active_is_any_type(self):
         """
         Tests chaining active and is_type together.
         """
@@ -237,4 +238,5 @@ class EntityFilteringTest(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Check the filter of the sub entity type
-        self.assertEquals(list(team_entity.get_sub_entities().active().is_type(self.account_type)), [account_entity])
+        self.assertEquals(
+            list(team_entity.get_sub_entities().active().is_any_type(self.account_type)), [account_entity])
