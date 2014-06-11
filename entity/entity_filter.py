@@ -28,24 +28,24 @@ class EntityFilter(object):
         self.entities = ifilter(lambda e: e.inactive(), self.entities)
         return self
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns an iterator of entities of the given entity types.
         """
-        self.entities = ifilter(lambda e: e.is_type(*entity_types), self.entities)
+        self.entities = ifilter(lambda e: e.is_any_type(*entity_types), self.entities)
         return self
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns an iterator of entities not of the given entity types.
         """
-        self.entities = ifilter(lambda e: e.is_not_type(*entity_types), self.entities)
+        self.entities = ifilter(lambda e: e.is_not_any_type(*entity_types), self.entities)
         return self
 
-    def has_super_entity_subset(self, *super_entities):
+    def is_sub_to_all(self, *super_entities):
         """
         Returns an iterator of entities that have a set of super entities that have a subset of the
         given super entities.
         """
-        self.entities = ifilter(lambda e: e.has_super_entity_subset(*super_entities), self.entities)
+        self.entities = ifilter(lambda e: e.is_sub_to_all(*super_entities), self.entities)
         return self
