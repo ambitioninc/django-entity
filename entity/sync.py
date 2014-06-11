@@ -31,7 +31,7 @@ class EntitySyncer(object):
         Syncs a single entity represented by model_obj. Appends its super entity relationship to the synced entity
         relationship cache if necessary.
 
-        Note that this funciton operates in two models - Shallow and deep. If deep is True, this function syncs
+        Note that this function operates in two modes - Shallow and deep. If deep is True, this function syncs
         relationships and syncs super entities in those relationships. If deep is False, the function only syncs
         relationships if the entity did not previously exist.
         """
