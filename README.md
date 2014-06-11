@@ -140,7 +140,7 @@ Again, all that is happening under the hood is that when the ``Address`` model i
 Since a user may need to mirror many different super entities from many different foreign keys, it is beneficial for them to provide caching hints to Django Entity. This can be done by simply providing a Django QuerySet as an argument when registering entities rather than a model class. For example, our previous account entity config would want to do the following:
 
 ```python
-@register_entity(Account.objects.prefetch_related('user__groups')
+@register_entity(Account.objects.prefetch_related('user__groups'))
 class AccountConfig(EntityConfig):
     ...
 ```
