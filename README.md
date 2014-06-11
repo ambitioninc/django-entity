@@ -128,13 +128,13 @@ To make the Address model sync when the ``User`` model of the ``Account`` model 
 
 ```python
 @register_entity(Address):
-class AccountConfig(EntityConfig):
+class AddressConfig(EntityConfig):
     watching = [
         (User, 'account__user'),
     ]
 ```
 
-Again, all that is happening under the hood is that when the ``Address`` model is changed, all ``User`` models that match the ``User.objects.filter(account__user=user_model_changed)`` queryset are synced.
+Again, all that is happening under the hood is that when the ``Address`` model is changed, all ``User`` models that match the ``Address.objects.filter(account__user=user_model_changed)`` queryset are synced.
 
 ### Ensuring Entity Syncing Optimal Queries
 Since a user may need to mirror many different super entities from many different foreign keys, it is beneficial for them to provide caching hints to Django Entity. This can be done by simply providing a Django QuerySet as an argument when registering entities rather than a model class. For example, our previous account entity config would want to do the following:
