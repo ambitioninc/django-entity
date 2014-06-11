@@ -51,7 +51,7 @@ Note - in the above example, we also used the ``register_entity`` decorator, whi
 
 Along with the ability to mirror relationships, the entity configuration can be extended to mirror metadata about an entity. For example, using the ``Account`` model in the previous example:
 
-```pyton
+```python
 @register_entity(Account)
 class AccountConfig(EntityConfig):
     def get_super_entities(self, model_obj):
