@@ -266,7 +266,10 @@ def bulk_operation_signal_handler(sender, *args, **kwargs):
 
 def turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True):
     """
-    Disables all of the signals for syncing entities. If bulk is True, disable syncing on bulk operations.
+    Disables all of the signals for syncing entities. By default, everything is turned off. If the user wants
+    to turn off everything but one signal, for example the post_save signal, they would do:
+
+    turn_off_sync(for_post_save=False)
     """
     if for_post_save:
         post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
@@ -280,7 +283,10 @@ def turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=T
 
 def turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=False):
     """
-    Enables all of the signals for syncing entities. Post bulk operation syncing is disabled by default.
+    Enables all of the signals for syncing entities. Everything is True by default, except for the post_bulk_operation
+    signal. The reason for this is because when any bulk operation occurs on any mirrored entity model, it will
+    result in every single entity being synced again. This is not a desired behavior by the majority of users, and
+    should only be turned on explicitly.
     """
     if for_post_save:
         post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
