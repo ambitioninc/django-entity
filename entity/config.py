@@ -9,8 +9,9 @@ class EntityConfig(object):
     """
     Defines the configuration for a mirrored entity.
     """
-    # The "watching" variable is a list of tuples that specify what models this entity
-    # config watches and the queryset parameters used to obtain the entity.
+    # The "watching" class variable is a list of tuples that specify what models this entity
+    # config watches and the field of the entity model that points to the watching model.
+    #
     # For example, assume we have an Account model that has a foreign key to a User
     # model. Also, the User model has a M2M to Groups. If Groups are a super entity
     # of an Account, the user must set up a watching variable so that the account
@@ -112,7 +113,7 @@ def register_entity(model_or_qset):
     Registers the given model (or queryset) class and wrapped EntityConfig class with
     django entity:
 
-    @register(Author)
+    @register_entity(Author)
     class AuthorConfig(EntityConfig):
         pass
 
@@ -120,7 +121,7 @@ def register_entity(model_or_qset):
     The user can similarly explicitly call register with
 
     from django.registry import registry
-    registry.register(model_or_qset, entity_config)
+    registry.register_entity(model_or_qset, entity_config)
     """
     def _entity_config_wrapper(entity_config_class):
         entity_registry.register_entity(model_or_qset, entity_config=entity_config_class)
