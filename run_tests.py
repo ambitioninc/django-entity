@@ -54,6 +54,7 @@ if not settings.configured:
             'entity.tests',
         ),
         ROOT_URLCONF='entity.urls',
+        DDF_FILL_NULLABLE_FIELDS=False,
         DEBUG=False,
     )
 

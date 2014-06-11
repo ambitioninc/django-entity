@@ -5,26 +5,154 @@ Django Entity is an app that provides Django projects with the ability to mirror
 
 Django Entity provides large-scale projects with the ability to better segregate their apps while minimizing the application-specific code in those apps that has to deal with entities and their relationships in the main project.
 
-What is an entity? An entity is any model in your Django project. For example, an entity could be a Django User model or a Group of Users. Similarly an entity relationship defines a super and sub relationship among different types of entities. For example, a Group would be a super entity of a User. The Django Entity app allows you to easily express this relationship in your model definition and sync it to a centralized place that is accessible by any other app in your project.
+What is an entity? An entity is any model in your Django project. For example, an entity could be a Django User model or a Group of Users. Similarly, an entity relationship defines a super and sub relationship among different types of entities. For example, a Group would be a super entity of a User. The Django Entity app allows you to easily express this relationship in your model definition and sync it to a centralized place that is accessible by any other app in your project.
 
 ## A Use Case
 Imagine that you have a Django project that defines many types of groupings of your users. For example, let's say in your enterprise project, you allow users to define their manager, their company position, and their regional branch location. Similarly, let's say that you have an app that can email groups of users based on their manager (or anyone who is under the managers of that manager), their position, or their region. This email app would likely have to know application-specific modeling of these relationships in order to be built. Similarly, doing things like querying for all users under a manager hierachy can be an expensive lookup depending on how it is modeled.
 
-Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities().is_type(ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
+Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities().is_any_type(ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
-## How Does It Work?
-In order to sync entities and their relationships from your project to the Django Entity table, you must first create a model that inherits BaseEntityModel.
+## Getting Started - Configuring Entity Syncing
+### Basic Use Case
+Similar to Django's model admin, entities are configured by registering them with the Entity registry as follows:
 
 ```python
-from entity import BaseEntityModel
+from entity import entity_registry
 
-class Account(BaseEntityModel):
+class Account(Model):
     email = models.CharField(max_length=64)
+
+entity_registry.register_entity(Account)
 ```
 
-When you update your models to inherit this mixin, they will automatically be synced to the Entity table when they are updated or deleted. The first time that you migrate a model in your application, you must remember to sync all of the entities so that the current ones get synced to the entity table. This can be accomplished with
+And just like that, the ``Account`` model is now synced to the ``Entity`` table every time an account is saved, deleted, or has any of its M2M fields updated.
+
+### More Advanced Syncing Options
+Django Entity would not be much if it only synced objects to a single ``Entity`` table. In order to take advantage of the power of mirroring relationships, the user must define a configuration for the entity that inherits ``EntityConfig``. A small example of this is below and extends our account model to have a ``Group`` foreign key.
 
 ```python
+from entity import register_entity, EntityConfig, entity_registry
+
+class Account(Model):
+    email = models.CharField(max_length=64)
+    group = models.ForeignKey(Group)
+
+entity_registry.register_entity(Group)
+
+@register_entity(Account)
+class AccountConfig(EntityConfig):
+    def get_super_entities(self, model_obj):
+        return [model_obj.group]
+```
+
+In the above scenario, we mirrored the ``Group`` model using the default entity configuration. However, the ``Account`` model now uses a special configuration that inherits ``EntityConfig``. It overrides the ``get_super_entities`` function to return a list of all model objects that are super entities to the account. Once the account is synced, the user may then do various filtering on the relationships of accounts to groups (more on that later).
+
+Note - in the above example, we also used the ``register_entity`` decorator, which is really just short notation for doing ``entity_registry.register_entity(model_class, entity_config_class)``.
+
+Along with the ability to mirror relationships, the entity configuration can be extended to mirror metadata about an entity. For example, using the ``Account`` model in the previous example:
+
+```python
+@register_entity(Account)
+class AccountConfig(EntityConfig):
+    def get_super_entities(self, model_obj):
+        return [model_obj.group]
+
+    def get_entity_meta(self, model_obj):
+        return {
+            'email': model_obj.email
+        }
+```
+
+With the above configuration, every account entity will have an entity_meta field (a JSON field) that has the email attribute mirrored as well. The metadata mirroring can be powerful for building generic apps on top of entities that need access to concrete fields of a concrete model (without having to prefetch all of the concrete models pointed to by the entities).
+
+Entities can also be configured to be active or inactive, and this is done by adding an ``is_entity_active`` function to the config that returns ``True`` (the default value) if the entity is active and ``False`` otherwise.
+
+### Even More Advanced Syncing - Watching Other Models
+
+Underneath the hood, Django Entity is syncing up the mirrored Entity table when saves, deletes, and M2M updates are happening on the mirrored models. However, some models may actually depend on objects that are not pointed to by the immediate fields of the model. For example, assume that we have the following models:
+
+```python
+class Group(models.Model):
+    group_name = models.CharField()
+
+
+class User(models.Model):
+    email = models.CharField()
+    groups = models.ManyToManyField(Group)
+
+
+class Account(models.Model):
+    user = models.OneToOneField(User)
+```
+
+Now, assume that the ``Account`` model wants to add every ``Group`` model in the many to many of the ``User`` model as its super entity. This would be set up with the following config:
+
+```python
+entity_registry.register_entity(Group)
+
+@register_entity(Account):
+class AccountConfig(EntityConfig):
+    def get_super_entities(self, model_obj):
+        return model_obj.user.groups.all()
+```
+
+Although it would be nice if this worked out of the box, Django Entity has no way of knowing that the ``Account`` model needs to be updated when the fields in its associated ``User`` model change. In order to ensure the ``Account`` model is mirrored properly, add a ``watching`` class variable to the entity config as follows:
+
+```python
+entity_registry.register_entity(Group)
+
+@register_entity(Account):
+class AccountConfig(EntityConfig):
+    watching = [
+        (User, 'user'),
+    ]
+
+    def get_super_entities(self, model_obj):
+        return model_obj.user.groups.all()
+```
+
+The ``watching`` field defines a list of tuples. The first element in each tuple represents the model to watch. The second element in the tuple describes the field of the entity model that points to the watching model. This field name is used directly in a queryset to access all of the entity models related to a changed watching model. Using our previous examples of accounts watching users, the accounts that need to be synced would be obtained with the following queryset.
+
+```python
+accounts_to_update = Account.objects.filter(user=user_object_that_changed)
+```
+
+The second argument of the tuple can also specify fields of other models, for example, imagine you have an ``Address`` model that belongs to an account:
+
+```python
+class Address(models.Model):
+    account = models.ForeignKey(Account)
+```
+
+To make the Address model sync when the ``User`` model of the ``Account`` model is changed, define an entity configuration like so:
+
+```python
+@register_entity(Address):
+class AccountConfig(EntityConfig):
+    watching = [
+        (User, 'account__user'),
+    ]
+```
+
+Again, all that is happening under the hood is that when the ``Address`` model is changed, all ``User`` models that match the ``User.objects.filter(account__user=user_model_changed)`` queryset are synced.
+
+### Ensuring Entity Syncing Optimal Queries
+Since a user may need to mirror many different super entities from many different foreign keys, it is beneficial for them to provide caching hints to Django Entity. This can be done by simply providing a Django QuerySet as an argument when registering entities rather than a model class. For example, our previous account entity config would want to do the following:
+
+```python
+@register_entity(Account.objects.prefetch_related('user__groups')
+class AccountConfig(EntityConfig):
+    ...
+```
+
+When invididual entities or all entities are synced, the QuerySet will be used to access the ``Account`` models.
+
+
+## Syncing Entities
+Models will be synced automatically when they are configured and registered with Django entity. However, the user will need to sync all entities initially after configuring the entities (and also subsequently resync all when configuration changes occur). This can be done with the sync_entities management command:
+
+```python
+# Sync all entities
 python manage.py sync_entities
 ```
 
@@ -33,129 +161,53 @@ Similarly, you can directly call the function to sync entities in a celery proce
 ```python
 from entity import sync_entities
 
+# Sync all entities
 sync_entities()
 ```
 
-After the entities have been synced, they can then be accessed in the primary Entity table.
+Note that the ``sync_entities()`` function takes a variable length list of model objects if the user wishes to sync individual entities:
 
 ```python
-# Create an Account model defined from above
-account = Account.objects.create(email='hello@hello.com')
+from entity import sync_entities
 
-# Get its entity object from the entity table using the get_for_obj function
-entity = Entity.objects.get_for_obj(account)
+# Sync three specific models
+sync_entities(account_model_obj, group_model_obj, another_model_obj)
 ```
 
-## How Do I Specify Relationships And Additonal Metadata About My Entities?
-Django Entity provides the ability to model relationships of your entities to other entities. It also provides further capabilities for you to store additional metadata about your entities so that it can be quickly retrieved without having to access the main project tables. Here are additional functions defined in the BaseEntityModel that allow you to model your relationships and metadata. The next section describes how to query based on these relationships and retrieve the metadata in the Entity table.
-
-- **get_entity_meta(self)**: Return a dictionary of any JSON-serializable data. This data will be serialized into JSON and stored as a string for later access by any application. This function provides your project with the ability to save application-specific data in the metadata that can later be retrieved or viewed without having to access the main project tables. Defaults to returning None.
-
-- **is_entity_active(self)**: Returns True if this entity is active or False otherwise. This function provides the ability to specify if a given entity in your project is active. Sometimes it is valuable to retain information about entities in your system but be able to access them in different ways based on if they are active or inactive. For example, Django's User model provides the ability to specify if the User is still active without deleting the User model. This attribute can be mirrored here in this function. Defaults to returning True.
-
-- **get_super_entities(self)**: Returns a list of all of the models in your project that have a "super" relationship with this entity. In other words, what models in your project enclose this entity? For example, a Django User could have a Group super entity that encapsulates the current User models and any other User models in the same Group. Defaults to returning an empty list.
-
-## Now That My Entities And Relationships Are Specified, How Do I Use It?
-Let's start off with an example of two entities, an Account and a Group.
+Entity syncing can be costly depending on the amount of relationships mirrored. If the user is going to be updating many models in a row that are mirrored as entities, it is recommended to turn syncing off, explicitly sync all updated entities, and then turn syncing back on. This can be accomplished as follows:
 
 ```python
-from django.db import models
-from entity import BaseEntityModel
+from entity import turn_on_syncing, turn_off_syncing, sync_entities
 
-class Group(BaseEntityModel):
-    name = models.CharField(max_length=64)
 
-    def get_entity_meta(self):
-        """
-        Save the name as metadata about the entity.
-        """
-        return {'name': self.name}
+# Turn off syncing since we're going to be updating many different accounts
+turn_off_syncing()
 
-class Account(BaseEntityModel):
-    email = models.CharField(max_length=64)
-    group = models.ForeignKey(Group)
-    is_active = models.BooleanField(default=True)
+# Update all of the accounts
+accounts_to_update = [list of accounts]
+for account in accounts_to_update:
+    account.update(...)
 
-    def get_entity_meta(self):
-        """
-        Save the email and group of the Account as additional metadata.
-        """
-        return {
-            'email': self.email,
-            'group': self.group.name,
-        }
+# Explicitly sync the entities updated to keep the mirrored entities up to date
+sync_entities(*accounts_to_update)
 
-    def get_super_entities(self):
-        """
-        The group is a super entity of the Account.
-        """
-        return [self.group]
-
-    def is_entity_active(self):
-        return self.is_active
+# Dont forget to turn syncing back on...
+turn_on_syncing()
 ```
 
-The Account and Group entities have defined how they want their metadata mirrored along with how their relationship is set up. In this case, Accounts belong to Groups. We can create an example Account and Group and then access their mirrored metadata in the following way.
+## Accessing Entities
+After the entities have been synced, they can then be accessed in the primary entity table. The ``Entity`` model has the following fields:
 
-```python
-group = Group.objects.create(name='Hello Group')
-account = Account.objects.create(email='hello@hello.com', group=group)
+1. ``entity_type``: The ``ContentType`` of the mirrored entity.
+1. ``entity_id``: The object ID of the mirrored entity.
+1. ``entity_meta``: A JSONField of mirrored metadata about an entity (or null or none mirrored).
+1. ``is_active``: True if the entity is active, False otherwise.
 
-# Entity syncing happens automatically behind the scenes. Grab the entity of the account and group.
-# Check out their metadata.
-account_entity = Entity.objects.get_for_obj(account)
-print account_entity.entity_meta
-{'email': 'hello@hello.com', 'group': 'Hello Group'}
+Along with these basic fields, all of the following functions can either be called directly on the ``Entity`` model or on the ``Entity`` model manager.
 
-group_entity = Entity.objects.get_for_obj(group)
-print group_entity.entity_meta
-{'name': 'Hello Group'}
-```
-
-The entity metadata can be very powerful for REST APIs and other components that wish to return data about entities within the application without actually having to query the project's tables.
-
-Once the entities are obtained, it is also easy to query for relationships among the entities.
-
-```python
-# Print off the sub entity metadata of the group
-for entity in group_entity.get_sub_entities():
-    print entity.entity_meta
-{'email': 'hello@hello.com', 'group': 'Hello Group'}
-
-# Similarly, print off the super entities of the account
-for entity in account_entity.get_super_entities():
-    print entity.entity_meta
-{'name': 'Hello Group'}
-
-# Make the account inactive and query for active sub entities from the Group.
-# It should not return anything since the account is inactive
-account.is_active = False
-account.save()
-
-print len(list(group_entity.get_sub_entities().active()))
-0
-# The account still remains a sub entity, just an inactive one
-print len(list(group_entity.get_sub_entities()))
-1
-```
-
-One can also filter on the sub/super entities by their type. This is useful if the entity has many relationships of different types.
-
-```python
-for entity in group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Account)):
-    print entity.entity_meta
-{'email': 'hello@hello.com', 'group': 'Hello Group'}
-
-# Groups are not a sub entity of themselves, so this function returns nothing
-print len(list(group_entity.get_sub_entities().is_type(ContentType.objects.get_for_model(Group))))
-0
-```
-
-## Additional Manager and Model Filtering Methods
-Django entity has additional manager methods for quick global retrieval and filtering of entities and their relationships. As shown earlier, the __active__ and __is_type__ filters can easily be applied to a list of super or sub entities. Similarly, the functions can be used at the model manager layer or the per-model level. If the functions are used at the per-model layer, they return Booleans. If used at the model manager layer, they return QuerySets. Below are the various filtering functions available in Django entity along with examples of their use. Each function notes its available at a per-model layer.
-
-### get_for_obj(model_obj)
-The get_for_obj function takes a model object and returns the corresponding entity. Only available in the Entity model manager.
+### Basic Model and Manager Functions
+#### get_for_obj(model_obj)
+The get_for_obj function takes a model object and returns the corresponding entity. Only available in the ``Entity`` model manager.
 
 ```python
 test_model = TestModel.objects.create()
@@ -163,8 +215,33 @@ test_model = TestModel.objects.create()
 entity = Entity.objects.get_for_obj(test_model)
 ```
 
-### cache_relationships()
-The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset. This function is only available in the Entity model manager.
+#### active()
+Returns active entities when called on the ``Entity`` manager, or a boolean when called on an ``Entity`` object.
+
+#### inactive()
+Does the opposite of ``active()``.
+
+#### is_any_type(*entity_types)
+If called on the ``Entity`` manager, returns all entities that have any of the entity types provided. Returns a boolean if called on the ``Entity`` model.
+
+#### is_not_any_type(*entity_types)
+The opposite of ``is_any_type()``.
+
+#### is_sub_to_all(*super_entities)
+Return entities that are sub entities of every provided super entity (or all if no super entities are provided). This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
+
+For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
+
+```python
+groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
+groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
+for e in Entity.objects.is_sub_to_all(groupa_entity, groupb_entity):
+    # Do your thing with the results
+    pass
+```
+
+#### cache_relationships()
+The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_any_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset.
 
 ```python
 entity = Entity.objects.cache_relationships().get_for_obj(test_model)
@@ -173,42 +250,17 @@ for super_entity in entity.get_super_entities().active():
     pass
 ```
 
-### active()
-Returns only active entities. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
-
-### inactive()
-Returns only inactive entities. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
-
-### is_type(*entity_types)
-Return all entities that have one of the entity types provided. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
-
-### is_not_type(*entity_types)
-Return all entities that do not have the entity types provided. This function is available in the Entity model manager, the Entity model, and on lists of entities from the get_sub_entities or get_super_entities functions.
-
-### has_super_entity_subset(*super_entities)
-Return entities that have a subset of the given super entities. This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
-
-For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
-
-```python
-groupa_entity = Entity.objects.get_for_obj(Group.objects.get(name='A'))
-groupb_entity = Entity.objects.get_for_obj(Group.objects.get(name='B'))
-for e in Entity.objects.has_super_entity_subset(groupa_entity, groupb_entity):
-    # Do your thing with the results
-    pass
-```
-
 ### Chaining Filtering Functions
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
 ```python
-Entity.objects.has_super_entity_subset(groupa_entity).is_active().is_type(account_type, team_type)
+Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_type(account_type, team_type)
 
-Entity.objects.inactive().has_super_entity_subset(groupb_entity).cache_relationships()
+Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
+## A Final Word
+As a project increases in size and complexity, abstractions on top of project-specific models are important to the longevity of the code. It is even more important for the apps that are built around the project. Django Entity provides a powerful abstraction in this regard. If you have any comments, issues, or suggestions for the project, feel free to make issues here on Github or contact us at opensource@ambition.com.
 
-## Caveats With Django Entity
-Django Entity has some current caveats worth noting. Currently, Djagno Entity links with post_save and post_delete signals so that any BaseEntityModel will be mirrored when updated. However, if the BaseEntityModel uses other models in its metadata or in defining its relationships to other models, these will not be updated when those other models are updated. For example, if there is a GroupMembership model that defines a if a User is active within a Group, changing the GroupMembership model will not remirror the Entity tables since GroupMembership does not inherit from BaseEntityModel. Future methods will be put in place to eliminate this caveat.
-
-Note that if a user wishes to use a custom model manager for a BaseEntityModel, the user will have to make their model manager inherit EntityModelManager. If the user does not do this, entity syncing upon bulk methods will not work properly.
+## License
+MIT License (see the LICENSE file for more info).

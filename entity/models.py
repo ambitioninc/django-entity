@@ -2,19 +2,19 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
+from django.db.models.signals import post_save, post_delete, m2m_changed
 from jsonfield import JSONField
 from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
 
-from .entity_filter import EntityFilter
+from entity.entity_filter import EntityFilter
+from entity import entity_registry
 
 
 class EntityQuerySet(ManagerUtilsQuerySet):
     """
     Provides additional queryset filtering abilities.
     """
-    def has_super_entity_subset(self, *super_entities):
+    def is_sub_to_all(self, *super_entities):
         """
         Given a list of super entities, return the entities that have those as a subset of their super entities.
         """
@@ -40,13 +40,13 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         return self.filter(is_active=False)
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns entities that have any of the types listed in entity_types.
         """
         return self.filter(entity_type__in=entity_types) if entity_types else self
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns entities that are not any of the types listed in entity_types.
         """
@@ -72,11 +72,18 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get(entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id)
 
-    def has_super_entity_subset(self, *super_entities):
+    def delete_for_obj(self, entity_model_obj):
+        """
+        Delete the entity associated with a model object.
+        """
+        return self.filter(
+            entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id).delete()
+
+    def is_sub_to_all(self, *super_entities):
         """
         Given a list of super entities, return the entities that have those super entities as a subset of theirs.
         """
-        return self.get_queryset().has_super_entity_subset(*super_entities)
+        return self.get_queryset().is_sub_to_all(*super_entities)
 
     def active(self):
         """
@@ -90,17 +97,17 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get_queryset().inactive()
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns entities that have any of the types listed in entity_types.
         """
-        return self.get_queryset().is_type(*entity_types)
+        return self.get_queryset().is_any_type(*entity_types)
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns entities that are not any of the types listed in entity_types.
         """
-        return self.get_queryset().is_not_type(*entity_types)
+        return self.get_queryset().is_not_any_type(*entity_types)
 
     def cache_relationships(self):
         """
@@ -118,10 +125,13 @@ class Entity(models.Model):
     entity_id = models.IntegerField()
     entity_type = models.ForeignKey(ContentType)
     entity = generic.GenericForeignKey('entity_type', 'entity_id')
+
     # Metadata about the entity, stored as JSON
     entity_meta = JSONField(null=True)
+
     # True if this entity is active
     is_active = models.BooleanField(default=True)
+
     objects = EntityManager()
 
     def get_sub_entities(self):
@@ -150,21 +160,21 @@ class Entity(models.Model):
         """
         return self.is_active is False
 
-    def is_type(self, *entity_types):
+    def is_any_type(self, *entity_types):
         """
         Returns True if the entity's type is in any of the types given. If no entity types are given,
         returns True.
         """
         return self.entity_type_id in (entity_type.id for entity_type in entity_types) if entity_types else True
 
-    def is_not_type(self, *entity_types):
+    def is_not_any_type(self, *entity_types):
         """
         Returns True if the entity's type is not in any of the types given. If no entity types are given,
         returns True.
         """
         return self.entity_type_id not in (entity_type.id for entity_type in entity_types)
 
-    def has_super_entity_subset(self, *super_entities):
+    def is_sub_to_all(self, *super_entities):
         """
         Returns True if the super entities are a subset of the entity's super entities.
         """
@@ -181,116 +191,112 @@ class EntityRelationship(models.Model):
     # querying this reverse relationship returns all of the relationships
     # super to an entity
     sub_entity = models.ForeignKey(Entity, related_name='super_relationships')
+
     # The super entity. The related name is called sub_relationships since
     # querying this reverse relationships returns all of the relationships
     # sub to an entity
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
-class EntityModelMixin(object):
+def sync_entities(*model_objs):
     """
-    Provides functionality needed for apps that wish to mirror entities.
-    Any app that wishes to mirror an entity must make the model inherit
-    this mixin class. It is up to the user to override the necessary
-    function in this model (or leave them as defaults).
-
-    Similarly, this class provides additional functions that Entity models
-    will receive, such as the ability to quickly retrieve super and
-    subentities.
+    Sync the provided model objects. If there are no model objects, sync all models across the entire
+    project.
     """
-    def get_entity_meta(self):
-        """
-        Retrieves metadata about an entity.
-
-        Returns:
-            A dictionary of metadata about an entity or None if there is no
-            metadata. Defaults to returning None
-        """
-        return None
-
-    def is_entity_active(self):
-        """
-        Describes if the entity is currently active.
-
-        Returns:
-            A Boolean specifying if the entity is active. Defaults to
-            returning True.
-        """
-        return True
-
-    def get_super_entities(self):
-        """
-        Retrieves a list of all entities that have a "super" relationship with the
-        entity.
-
-        Returns:
-            A list of models. If there are no super entities, return a empty list.
-            Defaults to returning an empty list.
-        """
-        return []
+    # Import entity syncer here to avoid circular import
+    from entity.sync import EntitySyncer
+    EntitySyncer().sync_entities_and_relationships(*model_objs)
 
 
-class EntityModelManager(ManagerUtilsManager):
+def sync_entities_watching(instance):
     """
-    Provides the ability to prefetch entity relationships so that filtering operations happen
-    quickly on them.
+    Syncs entities watching changes of a model instance.
     """
-    pass
+    for entity_model, entity_model_qset_arg in entity_registry.entity_watching[instance.__class__]:
+        entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
+        if entity_model_qset is None:
+            entity_model_qset = entity_model.objects.all()
+
+        model_objs = list(entity_model_qset.filter(**{entity_model_qset_arg: instance}))
+        if model_objs:
+            sync_entities(*model_objs)
 
 
-class BaseEntityModel(models.Model, EntityModelMixin):
-    """
-    Defines base properties for an Entity model defined by a third-party application.
-    """
-    class Meta:
-        abstract = True
-
-    objects = EntityModelManager()
-
-
-def sync_entity_signal_handler(sender, model_obj, is_deleted):
-    """
-    Filters post save/delete signals for entities by checking if they
-    inherit EntityModelMixin. If so, the model is synced to the entity
-    table.
-    """
-    if issubclass(sender, EntityModelMixin):
-        # Include the function here to avoid circular dependencies
-        from .sync import sync_entity
-        sync_entity(model_obj, is_deleted)
-
-
-def sync_entities_signal_handler(sender):
-    """
-    When a bulk operation occurs on a model manager, sync all the entities
-    if the model of the manager is an entity class.
-    """
-    if issubclass(sender.model, EntityModelMixin):
-        from .sync import sync_entities
-        sync_entities()
-
-
-@receiver(post_delete, dispatch_uid='delete_entity_signal_handler')
-def delete_entity_signal_handler(sender, *args, **kwargs):
+def delete_entity_signal_handler(sender, instance, **kwargs):
     """
     Defines a signal handler for syncing an individual entity. Called when
     an entity is saved or deleted.
     """
-    sync_entity_signal_handler(sender, kwargs['instance'], True)
+    if instance.__class__ in entity_registry.entity_registry:
+        Entity.objects.delete_for_obj(instance)
 
 
-@receiver(post_save, dispatch_uid='save_entity_signal_handler')
-def save_entity_signal_handler(sender, *args, **kwargs):
+def save_entity_signal_handler(sender, instance, **kwargs):
     """
     Defines a signal handler for saving an entity. Syncs the entity to
     the entity mirror table.
     """
-    sync_entity_signal_handler(sender, kwargs['instance'], False)
+    if instance.__class__ in entity_registry.entity_registry:
+        sync_entities(instance)
+
+    if instance.__class__ in entity_registry.entity_watching:
+        sync_entities_watching(instance)
 
 
-@receiver(post_bulk_operation, dispatch_uid='bulk_operation_signal_handler')
+def m2m_changed_entity_signal_handler(sender, instance, action, **kwargs):
+    """
+    Defines a signal handler for a manytomany changed signal. Only listens for the
+    post actions so that entities are synced once (rather than twice for a pre and post action).
+    """
+    if action == 'post_add' or action == 'post_remove' or action == 'post_clear':
+        save_entity_signal_handler(sender, instance, **kwargs)
+
+
 def bulk_operation_signal_handler(sender, *args, **kwargs):
     """
     When a bulk operation has happened on a model, sync all the entities again.
+    NOTE - bulk syncing isn't turned on by default because of the consequences of it.
+    For example, a user may issue a simple update to a single model, which would trigger
+    syncing of all entities. It is up to the user to explicitly enable syncing on bulk
+    operations with turn_on_syncing(bulk=True)
     """
-    sync_entities_signal_handler(sender)
+    if sender.model in entity_registry.entity_registry:
+        sync_entities()
+
+
+def turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True):
+    """
+    Disables all of the signals for syncing entities. By default, everything is turned off. If the user wants
+    to turn off everything but one signal, for example the post_save signal, they would do:
+
+    turn_off_sync(for_post_save=False)
+    """
+    if for_post_save:
+        post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    if for_post_delete:
+        post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    if for_m2m_changed:
+        m2m_changed.disconnect(m2m_changed_entity_signal_handler, dispatch_uid='m2m_changed_entity_signal_handler')
+    if for_post_bulk_operation:
+        post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+
+
+def turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=False):
+    """
+    Enables all of the signals for syncing entities. Everything is True by default, except for the post_bulk_operation
+    signal. The reason for this is because when any bulk operation occurs on any mirrored entity model, it will
+    result in every single entity being synced again. This is not a desired behavior by the majority of users, and
+    should only be turned on explicitly.
+    """
+    if for_post_save:
+        post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
+    if for_post_delete:
+        post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
+    if for_m2m_changed:
+        m2m_changed.connect(m2m_changed_entity_signal_handler, dispatch_uid='m2m_changed_entity_signal_handler')
+    if for_post_bulk_operation:
+        post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
+
+
+# Connect all default signal handlers
+turn_on_syncing()
