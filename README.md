@@ -149,8 +149,8 @@ Note that the ``sync_entities()`` function takes a variable length list of model
 ```python
 from entity import sync_entities
 
-# Sync only the entities provided
-sync_entities(account_model_obj, group_model_obj, another_model_obj, etc.)
+# Sync three specific models
+sync_entities(account_model_obj, group_model_obj, another_model_obj)
 ```
 
 Entity syncing can be costly depending on the amount of relationships mirrored. If the user is going to be updating many models in a row that are mirrored as entities, it is recommended to turn syncing off, explicitly sync all updated entities, and then turn syncing back on. This can be accomplished as follows:
