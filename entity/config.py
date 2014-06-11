@@ -121,7 +121,7 @@ def register_entity(model_or_qset):
     The user can similarly explicitly call register with
 
     from django.registry import registry
-    registry.register_entity(model_or_qset, entity_config)
+    entity_registry.register_entity(model_or_qset, entity_config)
     """
     def _entity_config_wrapper(entity_config_class):
         entity_registry.register_entity(model_or_qset, entity_config=entity_config_class)
