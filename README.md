@@ -69,7 +69,7 @@ Entities can also be configured to be active or inactive, and this is done by ad
 
 ### Even More Advanced Syncing - Watching Other Models
 
-Underneath the hood, Django Entity is syncing up the mirrored Entity table when saves, deletes, and m2m updates are happening on the mirrored models. However, some models may actually depend on objects that are not pointed to by the immediate fields of the model. For example, assume that we have the following models:
+Underneath the hood, Django Entity is syncing up the mirrored Entity table when saves, deletes, and M2M updates are happening on the mirrored models. However, some models may actually depend on objects that are not pointed to by the immediate fields of the model. For example, assume that we have the following models:
 
 ```python
 class Group(models.Model):
