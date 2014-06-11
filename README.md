@@ -131,6 +131,7 @@ When invididual entities or all entities are synced, the QuerySet will be used t
 Models will be synced automatically when they are configured and registered with Django entity. However, the user will need to sync all entities initially after configuring the entities (and also subsequently resync all when configuration changes occur). This can be done with the sync_entities management command:
 
 ```python
+# Sync all entities
 python manage.py sync_entities
 ```
 
@@ -139,6 +140,7 @@ Similarly, you can directly call the function to sync entities in a celery proce
 ```python
 from entity import sync_entities
 
+# Sync all entities
 sync_entities()
 ```
 
@@ -147,6 +149,7 @@ Note that the ``sync_entities()`` function takes a variable length list of model
 ```python
 from entity import sync_entities
 
+# Sync only the entities provided
 sync_entities(account_model_obj, group_model_obj, another_model_obj, etc.)
 ```
 
