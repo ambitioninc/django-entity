@@ -10,7 +10,8 @@ class EntityConfig(object):
     Defines the configuration for a mirrored entity.
     """
     # The "watching" class variable is a list of tuples that specify what models this entity
-    # config watches and the field of the entity model that points to the watching model.
+    # config watches and the function to extract entity models from the watching model. The
+    # function's return must be an iterable object.
     #
     # For example, assume we have an Account model that has a foreign key to a User
     # model. Also, the User model has a M2M to Groups. If Groups are a super entity
@@ -19,11 +20,10 @@ class EntityConfig(object):
     # M2M is not directly on the Account model and does not trigger Account syncing
     # by default when changed. The watching variable would look like the following:
     #
-    #     watching = [(User, 'user')]
+    #     watching = [
+    #         (User, lambda user_model_obj: Account.objects.filter(user=user_model_obj))
+    #     ]
     #
-    # The watching tuples mean the following:
-    #   If any User object is changed (i.e. the M2M to Groups on the User model is changed),
-    #   sync all accounts in Account.objects.filter(user=user_id_changed)
     watching = []
 
     def get_entity_meta(self, model_obj):
@@ -100,8 +100,8 @@ class EntityRegistry(object):
             self._entity_registry[model] = (qset, entity_config())
 
             # Add watchers to the global look up table
-            for watching_model, watching_model_qset_arg in entity_config.watching:
-                self._entity_watching[watching_model].append((model, watching_model_qset_arg))
+            for watching_model, entity_model_getter in entity_config.watching:
+                self._entity_watching[watching_model].append((model, entity_model_getter))
 
 
 # Define the global registry variable

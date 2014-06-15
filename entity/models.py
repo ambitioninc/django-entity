@@ -212,12 +212,12 @@ def sync_entities_watching(instance):
     """
     Syncs entities watching changes of a model instance.
     """
-    for entity_model, entity_model_qset_arg in entity_registry.entity_watching[instance.__class__]:
+    for entity_model, entity_model_getter in entity_registry.entity_watching[instance.__class__]:
         entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
         if entity_model_qset is None:
             entity_model_qset = entity_model.objects.all()
 
-        model_objs = list(entity_model_qset.filter(**{entity_model_qset_arg: instance}))
+        model_objs = list(entity_model_getter(instance))
         if model_objs:
             sync_entities(*model_objs)
 
