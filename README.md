@@ -104,20 +104,16 @@ entity_registry.register_entity(Group)
 @register_entity(Account):
 class AccountConfig(EntityConfig):
     watching = [
-        (User, 'user'),
+        (User, lambda user_obj: Account.objects.filter(user=user_obj)),
     ]
 
     def get_super_entities(self, model_obj):
         return model_obj.user.groups.all()
 ```
 
-The ``watching`` field defines a list of tuples. The first element in each tuple represents the model to watch. The second element in the tuple describes the field of the entity model that points to the watching model. This field name is used directly in a queryset to access all of the entity models related to a changed watching model. Using our previous examples of accounts watching users, the accounts that need to be synced would be obtained with the following queryset.
+The ``watching`` field defines a list of tuples. The first element in each tuple represents the model to watch. The second element in the tuple describes the function used to access the entity models that are related to the changed watching model.
 
-```python
-accounts_to_update = Account.objects.filter(user=user_object_that_changed)
-```
-
-The second argument of the tuple can also specify fields of other models, for example, imagine you have an ``Address`` model that belongs to an account:
+Here's another more complex example using an ``Address`` model that points to an account.:
 
 ```python
 class Address(models.Model):
@@ -130,17 +126,17 @@ To make the Address model sync when the ``User`` model of the ``Account`` model 
 @register_entity(Address):
 class AddressConfig(EntityConfig):
     watching = [
-        (User, 'account__user'),
+        (User, lambda user_model_obj: Address.objects.fitler(account__user=user_model_obj)),
     ]
 ```
 
-Again, all that is happening under the hood is that when the ``Address`` model is changed, all ``User`` models that match the ``Address.objects.filter(account__user=user_model_changed)`` queryset are synced.
+Again, all that is happening under the hood is that when a ``User`` model is changed, all entity models related to that changed user model are returned so that they can be sycned.
 
 ### Ensuring Entity Syncing Optimal Queries
 Since a user may need to mirror many different super entities from many different foreign keys, it is beneficial for them to provide caching hints to Django Entity. This can be done by simply providing a Django QuerySet as an argument when registering entities rather than a model class. For example, our previous account entity config would want to do the following:
 
 ```python
-@register_entity(Account.objects.prefetch_related('user__groups')
+@register_entity(Account.objects.prefetch_related('user__groups'))
 class AccountConfig(EntityConfig):
     ...
 ```

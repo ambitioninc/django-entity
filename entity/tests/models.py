@@ -165,7 +165,7 @@ class M2mEntityConfig(EntityConfig):
 @register_entity(PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams'))
 class PointsToM2mEntityConfig(EntityConfig):
     watching = [
-        (M2mEntity, 'm2m_entity'),
+        (M2mEntity, lambda m2m_entity_obj: PointsToM2mEntity.objects.filter(m2m_entity=m2m_entity_obj)),
     ]
 
     def get_super_entities(self, model_obj):
@@ -175,8 +175,8 @@ class PointsToM2mEntityConfig(EntityConfig):
 @register_entity(PointsToAccount)
 class PointsToAccountConfig(EntityConfig):
     watching = [
-        (Competitor, 'account__competitor'),
-        (Team, 'account__team'),
+        (Competitor, lambda competitor_obj: PointsToAccount.objects.filter(account__competitor=competitor_obj)),
+        (Team, lambda team_obj: PointsToAccount.objects.filter(account__team=team_obj)),
     ]
 
     def get_entity_meta(self, model_obj):
