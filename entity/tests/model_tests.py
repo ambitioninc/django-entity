@@ -445,3 +445,16 @@ class TestEntityModel(EntityTestCase):
         entity = Entity.objects.get_for_obj(account)
         entity_unicode = entity.__unicode__()
         self.assertEquals(entity_unicode, 'account@example.com')
+
+    def test_unicode_null_entity_meta(self):
+        """
+        If entity_meta is null, __unicode__ should not fail.
+        """
+        account_ct = ContentType.objects.get_for_model(Account)
+        e = Entity.objects.create(
+            entity_id=1,
+            entity_type=account_ct,
+            entity_meta=None,
+        )
+        entity_unicode = e.__unicode__()
+        self.assertEquals(entity_unicode, 'Entity Object')
