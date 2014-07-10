@@ -1,4 +1,5 @@
 from django.contrib.contenttypes.models import ContentType
+from django.test.utils import override_settings
 from entity.models import Entity
 
 from .models import Account, Team, TeamGroup, Competitor
@@ -425,3 +426,22 @@ class TestEntityModel(EntityTestCase):
         team_entity = Entity.objects.get_for_obj(team)
         # Verify that the sub entities of the team is the account
         self.assertEquals(list(team_entity.get_sub_entities()), [account_entity])
+
+    def test_unicode_default_missing(self):
+        """
+        Tests that if we can't find a better representation, we have a default __unicode__.
+        """
+        account = Account.objects.create()
+        entity = Entity.objects.get_for_obj(account)
+        entity_unicode = entity.__unicode__()
+        self.assertEquals(entity_unicode, 'Entity Object')
+
+    @override_settings(ENTITY_NAME_KEYS=('something', 'email', 'something else'))
+    def test_unicode_from_settings(self):
+        """
+        Tests that, of the provided ENTITY_NAME_KEYS, the one that exists in entity_meta is used.
+        """
+        account = Account.objects.create(email="account@example.com")
+        entity = Entity.objects.get_for_obj(account)
+        entity_unicode = entity.__unicode__()
+        self.assertEquals(entity_unicode, 'account@example.com')
