@@ -184,6 +184,8 @@ class Entity(models.Model):
     def __unicode__(self):
         """Return a value from entity_meta based on settings.ENTITY_NAME_KEYS.
         """
+        if self.entity_meta is None:
+            return 'Entity Object'
         entity_name_keys = getattr(settings, 'ENTITY_NAME_KEYS', ('name',))
         for key in entity_name_keys:
             if key in self.entity_meta:
