@@ -1,5 +1,6 @@
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 from django.db import models
 from django.db.models import Count
 from django.db.models.signals import post_save, post_delete, m2m_changed
@@ -179,6 +180,15 @@ class Entity(models.Model):
         Returns True if the super entities are a subset of the entity's super entities.
         """
         return set(super_entities).issubset(self.get_super_entities())
+
+    def __unicode__(self):
+        """Return a value from entity_meta based on settings.ENTITY_NAME_KEYS.
+        """
+        entity_name_keys = getattr(settings, 'ENTITY_NAME_KEYS', ('name',))
+        for key in entity_name_keys:
+            if key in self.entity_meta:
+                return self.entity_meta[key]
+        return 'Entity Object'
 
 
 class EntityRelationship(models.Model):
