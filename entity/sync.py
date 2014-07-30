@@ -38,7 +38,7 @@ class EntitySyncer(object):
         entity_config = entity_registry.entity_registry.get(model_obj.__class__)[1]
         entity_type = ContentType.objects.get_for_model(model_obj)
 
-        if not self._synced_entity_cache.get((entity_type, model_obj.id)):
+        if not self._synced_entity_cache.get((entity_type, model_obj.id, deep)):
             # Create or update the entity
             entity, created = Entity.objects.upsert(
                 entity_type=entity_type, entity_id=model_obj.id, updates={
@@ -55,9 +55,9 @@ class EntitySyncer(object):
                 ]
 
             # Cache the synced entity for later use
-            self._synced_entity_cache[(entity_type, model_obj.id)] = entity
+            self._synced_entity_cache[(entity_type, model_obj.id, deep)] = entity
 
-        return self._synced_entity_cache[(entity_type, model_obj.id)]
+        return self._synced_entity_cache[(entity_type, model_obj.id, deep)]
 
     def _sync_entity_relationships(self):
         """
