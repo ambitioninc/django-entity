@@ -1,3 +1,5 @@
+from itertools import compress
+
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
@@ -20,10 +22,15 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         Given a list of super entities, return the entities that have those as a subset of their super entities.
         """
         if super_entities:
-            # Get a list of entities that have super entities with all types
-            has_subset = EntityRelationship.objects.filter(
-                super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
-                super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
+            if len(super_entities) == 1:
+                # Optimize for the case of just one super entity since this is a much less intensive query
+                has_subset = self.filter(id__in=EntityRelationship.objects.filter(
+                    super_entity=super_entities[0]).values_list('sub_entity', flat=True))
+            else:
+                # Get a list of entities that have super entities with all types
+                has_subset = EntityRelationship.objects.filter(
+                    super_entity__in=super_entities).values('sub_entity').annotate(Count('super_entity')).filter(
+                    super_entity__count=len(set(super_entities))).values_list('sub_entity', flat=True)
 
             return self.filter(id__in=has_subset)
         else:
@@ -53,11 +60,13 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         return self.exclude(entity_type__in=entity_types) if entity_types else self
 
-    def cache_relationships(self):
+    def cache_relationships(self, cache_super=True, cache_sub=True):
         """
         Caches the super and sub relationships by doing a prefetch_related.
         """
-        return self.prefetch_related('super_relationships__super_entity', 'sub_relationships__sub_entity')
+        relationships_to_cache = compress(
+            ['super_relationships__super_entity', 'sub_relationships__sub_entity'], [cache_super, cache_sub])
+        return self.prefetch_related(*relationships_to_cache)
 
 
 class EntityManager(ManagerUtilsManager):
@@ -110,11 +119,11 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get_queryset().is_not_any_type(*entity_types)
 
-    def cache_relationships(self):
+    def cache_relationships(self, cache_super=True, cache_sub=True):
         """
         Caches the super and sub relationships by doing a prefetch_related.
         """
-        return self.get_queryset().cache_relationships()
+        return self.get_queryset().cache_relationships(cache_super=cache_super, cache_sub=cache_sub)
 
 
 class Entity(models.Model):
