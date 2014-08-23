@@ -35,6 +35,56 @@ class TestEntityManager(EntityTestCase):
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
         self.assertEquals(entities.count(), 6)
 
+    def test_manager_cache_relationships_only_sub(self):
+        """
+        Tests a retrieval of cache relationships on the manager and verifies it results in the smallest amount of
+        queries when only caching sub entities.
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+
+        # Five queries should happen here - one for all entities, two for EntityRelationships,
+        # and two more for entities in the relationships
+        with self.assertNumQueries(3):
+            entities = Entity.objects.cache_relationships(cache_super=False)
+            for entity in entities:
+                self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
+        self.assertEquals(entities.count(), 6)
+
+    def test_manager_cache_relationships_only_super(self):
+        """
+        Tests a retrieval of cache relationships on the manager and verifies it results in the smallest amount of
+        queries when only caching super entities.
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+
+        # Five queries should happen here - one for all entities, two for EntityRelationships,
+        # and two more for entities in the relationships
+        with self.assertNumQueries(3):
+            entities = Entity.objects.cache_relationships(cache_sub=False)
+            for entity in entities:
+                self.assertTrue(len(list(entity.get_super_entities())) >= 0)
+        self.assertEquals(entities.count(), 6)
+
+    def test_manager_cache_relationships_none(self):
+        """
+        Tests a retrieval of cache relationships on the manager and verifies it results in the smallest amount of
+        queries when super and sub are set to false
+        """
+        team = Team.objects.create()
+        for i in range(5):
+            Account.objects.create(team=team)
+
+        # Five queries should happen here - one for all entities, two for EntityRelationships,
+        # and two more for entities in the relationships
+        with self.assertNumQueries(1):
+            entities = Entity.objects.cache_relationships(cache_sub=False, cache_super=False)
+            self.assertTrue(len(entities) > 0)
+        self.assertEquals(entities.count(), 6)
+
     def test_queryset_cache_relationships(self):
         """
         Tests a retrieval of cache relationships on the queryset and verifies it results in the smallest amount of
