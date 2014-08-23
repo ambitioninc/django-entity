@@ -246,6 +246,8 @@ for super_entity in entity.get_super_entities().active():
     pass
 ```
 
+If one wants to ignore caching sub or super entity relationships, simply pass ``cache_sub=False`` or ``cache_super=False`` as keyword arguments to the function. Note that both of these flags are turned on by default.
+
 ### Chaining Filtering Functions
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
