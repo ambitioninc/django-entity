@@ -54,8 +54,6 @@ class Account(BaseEntityModel):
     team_group = models.ForeignKey(TeamGroup, null=True)
     # The comptetitor group
     competitor = models.ForeignKey(Competitor, null=True)
-    # The superior of the account
-    superior = models.ForeignKey('Account', null=True)
 
     def __unicode__(self):
         return self.email
