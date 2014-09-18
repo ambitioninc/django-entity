@@ -131,6 +131,9 @@ class Entity(models.Model):
     Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions
     are provided that mirror the filtering functions in the Entity model manager.
     """
+    # A human-readable name for the entity
+    display_name = models.TextField(blank=True, db_index=True)
+
     # The generic entity
     entity_id = models.IntegerField()
     entity_type = models.ForeignKey(ContentType)
@@ -140,7 +143,7 @@ class Entity(models.Model):
     entity_meta = JSONField(null=True)
 
     # True if this entity is active
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     objects = EntityManager()
 

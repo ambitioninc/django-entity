@@ -54,6 +54,20 @@ class Account(BaseEntityModel):
     team_group = models.ForeignKey(TeamGroup, null=True)
     # The comptetitor group
     competitor = models.ForeignKey(Competitor, null=True)
+    # The superior of the account
+    superior = models.ForeignKey('Account', null=True)
+
+    def get_superiors(self):
+        """
+        Retrieves all superiors for an account. Halts if there is a cyclic chain.
+        """
+        superior = self.superior
+        superiors = []
+        while superior and superior != self:
+            superiors.append(superior)
+            superior = superior.superior
+
+        return superiors
 
 
 class M2mEntity(models.Model):
@@ -110,7 +124,7 @@ class MultiInheritEntity(BaseEntityClass):
     data = models.CharField(max_length=64)
 
 
-@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor'))
+@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor', 'superior'))
 class AccountConfig(EntityConfig):
     """
     Entity configuration for the account model
@@ -143,6 +157,8 @@ class AccountConfig(EntityConfig):
             super_entities.append(model_obj.team_group)
         if model_obj.competitor is not None and model_obj.competitor.is_active:
             super_entities.append(model_obj.competitor)
+
+        super_entities.extend(model_obj.get_superiors())
 
         return super_entities
 
