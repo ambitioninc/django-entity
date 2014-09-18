@@ -468,6 +468,15 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         e = Entity.objects.get_for_obj(a)
         self.assertEquals(e.display_name, 'test_email')
 
+    def test_display_name_mirrored_custom(self):
+        """
+        Tests that the display name is mirrored properly when a custom get_display_name
+        function is defined. In this case, the function for Teams returns 'team'
+        """
+        t = G(Team)
+        e = Entity.objects.get_for_obj(t)
+        self.assertEquals(e.display_name, 'team')
+
     def test_post_save_dummy_data(self):
         """
         Tests that dummy data that does not inherit from EntityModelMixin is not synced
