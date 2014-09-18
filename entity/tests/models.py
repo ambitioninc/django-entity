@@ -147,8 +147,6 @@ class AccountConfig(EntityConfig):
         if model_obj.competitor is not None and model_obj.competitor.is_active:
             super_entities.append(model_obj.competitor)
 
-        super_entities.extend(model_obj.get_superiors())
-
         return super_entities
 
 
