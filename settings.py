@@ -14,9 +14,9 @@ def configure_settings():
     app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
     if not settings.configured:
-        # Determine the database settings depending on if a test_db var is set in CI mode or Nonet
-        circle_ci = os.environ.get('CIRCLECI', None)
-        if circle_ci is None:
+        # Determine the database settings depending on if a test_db var is set in CI mode or not
+        test_db = os.environ.get('DB', None)
+        if test_db is None:
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql_psycopg2',
                 'NAME': 'ambition_dev',
@@ -24,13 +24,14 @@ def configure_settings():
                 'PASSWORD': 'ambition_dev',
                 'HOST': 'localhost'
             }
-        else:
+        elif test_db == 'postgres':
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql_psycopg2',
-                'NAME': 'circle_test',
-                'USER': 'ubuntu',
-                'PASSWORD': ''
+                'USER': 'postgres',
+                'NAME': 'entity',
             }
+        else:
+            raise RuntimeError('Unsupported test DB {0}'.format(test_db))
 
         settings.configure(
             DATABASES={
