@@ -43,6 +43,7 @@ class EntitySyncer(object):
             entity, created = Entity.objects.upsert(
                 entity_type=entity_type, entity_id=model_obj.id, updates={
                     'entity_meta': entity_config.get_entity_meta(model_obj),
+                    'display_name': entity_config.get_display_name(model_obj),
                     'is_active': entity_config.is_entity_active(model_obj),
                 })
 

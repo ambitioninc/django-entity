@@ -65,6 +65,8 @@ class AccountConfig(EntityConfig):
 
 With the above configuration, every account entity will have an entity_meta field (a JSON field) that has the email attribute mirrored as well. The metadata mirroring can be powerful for building generic apps on top of entities that need access to concrete fields of a concrete model (without having to prefetch all of the concrete models pointed to by the entities).
 
+Along with metadata, entities come with the ability to mirror a ``display_name`` field in order to provide a human-readable name for the entity that can also be filtered in the database. By default, the ``display_name`` field uses the result of the ``unicode()`` function applied to the concrete model instance. The user may override this behavior by overriding the ``get_display_name`` method in the entity configuration.
+
 Entities can also be configured to be active or inactive, and this is done by adding an ``is_entity_active`` function to the config that returns ``True`` (the default value) if the entity is active and ``False`` otherwise.
 
 ### Even More Advanced Syncing - Watching Other Models
