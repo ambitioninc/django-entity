@@ -26,6 +26,12 @@ class EntityConfig(object):
     #
     watching = []
 
+    def get_display_name(self, model_obj):
+        """
+        Returns a human-readable string for the entity.
+        """
+        return unicode(model_obj)
+
     def get_entity_meta(self, model_obj):
         """
         Retrieves metadata about an entity.

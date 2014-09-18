@@ -459,6 +459,24 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
     Tests that entities (from the test models) are properly synced upon post_save
     and post_delete signals.
     """
+    def test_display_name_mirrored_default(self):
+        """
+        Tests that the display name is mirrored to the __unicode__ of the models. This
+        is the default behavior.
+        """
+        a = Account.objects.create(email='test_email')
+        e = Entity.objects.get_for_obj(a)
+        self.assertEquals(e.display_name, 'test_email')
+
+    def test_display_name_mirrored_custom(self):
+        """
+        Tests that the display name is mirrored properly when a custom get_display_name
+        function is defined. In this case, the function for Teams returns 'team'
+        """
+        t = G(Team)
+        e = Entity.objects.get_for_obj(t)
+        self.assertEquals(e.display_name, 'team')
+
     def test_post_save_dummy_data(self):
         """
         Tests that dummy data that does not inherit from EntityModelMixin is not synced

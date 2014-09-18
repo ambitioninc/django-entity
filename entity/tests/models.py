@@ -55,6 +55,9 @@ class Account(BaseEntityModel):
     # The comptetitor group
     competitor = models.ForeignKey(Competitor, null=True)
 
+    def __unicode__(self):
+        return self.email
+
 
 class M2mEntity(models.Model):
     """
@@ -154,6 +157,9 @@ class TeamConfig(EntityConfig):
 
     def get_super_entities(self, model_obj):
         return [model_obj.team_group] if model_obj.team_group is not None else []
+
+    def get_display_name(self, model_obj):
+        return 'team'
 
 
 @register_entity(M2mEntity.objects.prefetch_related('teams'))

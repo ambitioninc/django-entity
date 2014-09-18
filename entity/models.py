@@ -2,7 +2,6 @@ from itertools import compress
 
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
-from django.conf import settings
 from django.db import models
 from django.db.models import Count
 from django.db.models.signals import post_save, post_delete, m2m_changed
@@ -131,6 +130,9 @@ class Entity(models.Model):
     Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions
     are provided that mirror the filtering functions in the Entity model manager.
     """
+    # A human-readable name for the entity
+    display_name = models.TextField(blank=True, db_index=True)
+
     # The generic entity
     entity_id = models.IntegerField()
     entity_type = models.ForeignKey(ContentType)
@@ -140,7 +142,7 @@ class Entity(models.Model):
     entity_meta = JSONField(null=True)
 
     # True if this entity is active
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     objects = EntityManager()
 
@@ -191,15 +193,9 @@ class Entity(models.Model):
         return set(super_entities).issubset(self.get_super_entities())
 
     def __unicode__(self):
-        """Return a value from entity_meta based on settings.ENTITY_NAME_KEYS.
+        """Return the display_name field
         """
-        if self.entity_meta is None:
-            return 'Entity Object'
-        entity_name_keys = getattr(settings, 'ENTITY_NAME_KEYS', ('name',))
-        for key in entity_name_keys:
-            if key in self.entity_meta:
-                return self.entity_meta[key]
-        return 'Entity Object'
+        return self.display_name
 
 
 class EntityRelationship(models.Model):
