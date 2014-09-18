@@ -57,6 +57,9 @@ class Account(BaseEntityModel):
     # The superior of the account
     superior = models.ForeignKey('Account', null=True)
 
+    def __unicode__(self):
+        return self.email
+
     def get_superiors(self):
         """
         Retrieves all superiors for an account. Halts if there is a cyclic chain.
