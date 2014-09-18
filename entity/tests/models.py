@@ -60,18 +60,6 @@ class Account(BaseEntityModel):
     def __unicode__(self):
         return self.email
 
-    def get_superiors(self):
-        """
-        Retrieves all superiors for an account. Halts if there is a cyclic chain.
-        """
-        superior = self.superior
-        superiors = []
-        while superior and superior != self:
-            superiors.append(superior)
-            superior = superior.superior
-
-        return superiors
-
 
 class M2mEntity(models.Model):
     """
