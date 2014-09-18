@@ -113,7 +113,7 @@ class MultiInheritEntity(BaseEntityClass):
     data = models.CharField(max_length=64)
 
 
-@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor', 'superior'))
+@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor'))
 class AccountConfig(EntityConfig):
     """
     Entity configuration for the account model
