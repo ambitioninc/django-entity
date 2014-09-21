@@ -199,6 +199,7 @@ After the entities have been synced, they can then be accessed in the primary en
 1. ``entity_type``: The ``ContentType`` of the mirrored entity.
 1. ``entity_id``: The object ID of the mirrored entity.
 1. ``entity_meta``: A JSONField of mirrored metadata about an entity (or null or none mirrored).
+1. ``entity_tag``: A tag that describes the type of mirrored entity. Defaults to parameters related to the entity content type.
 1. ``is_active``: True if the entity is active, False otherwise.
 
 Along with these basic fields, all of the following functions can either be called directly on the ``Entity`` model or on the ``Entity`` model manager.
@@ -214,19 +215,19 @@ entity = Entity.objects.get_for_obj(test_model)
 ```
 
 #### active()
-Returns active entities when called on the ``Entity`` manager, or a boolean when called on an ``Entity`` object.
+Returns active entities.
 
 #### inactive()
 Does the opposite of ``active()``.
 
-#### is_any_type(*entity_types)
-If called on the ``Entity`` manager, returns all entities that have any of the entity types provided. Returns a boolean if called on the ``Entity`` model.
+#### is_any_tag(*entity_tags)
+Returns all entities that have any of the entity tags provided.
 
-#### is_not_any_type(*entity_types)
-The opposite of ``is_any_type()``.
+#### is_not_any_tag(*entity_tags)
+The opposite of ``is_any_tag()``.
 
 #### is_sub_to_all(*super_entities)
-Return entities that are sub entities of every provided super entity (or all if no super entities are provided). This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
+Return entities that are sub entities of every provided super entity (or all if no super entities are provided).
 
 For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
 
@@ -238,13 +239,16 @@ for e in Entity.objects.is_sub_to_all(groupa_entity, groupb_entity):
     pass
 ```
 
+#### is_sub_to_any(*super_entities)
+Return entities that are sub entities of any one of the provided super entities (or all if no super entities are provided).
+
 #### cache_relationships()
-The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_any_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset.
+The cache_relationships function is useful for prefetching relationship information. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships.
 
 ```python
 entity = Entity.objects.cache_relationships().get_for_obj(test_model)
-for super_entity in entity.get_super_entities().active():
-    # Perform much faster filtering on super entity relationships...
+for super_entity in entity.get_super_entities():
+    # Perform much faster accesses on super entities...
     pass
 ```
 
@@ -254,7 +258,7 @@ If one wants to ignore caching sub or super entity relationships, simply pass ``
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
 ```python
-Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_type(account_type, team_type)
+Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_tag(account_tag, team_tag)
 
 Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```

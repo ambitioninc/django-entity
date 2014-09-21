@@ -1,6 +1,7 @@
 from collections import defaultdict
 import inspect
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Manager, Model
 from django.db.models.query import QuerySet
 
@@ -31,6 +32,15 @@ class EntityConfig(object):
         Returns a human-readable string for the entity.
         """
         return unicode(model_obj)
+
+    def get_entity_tag(self, model_obj):
+        """
+        Returns a tuple for a tag name and tag display name of an entity.
+        By default, uses the app_label and model of the model object's content
+        type as the tag.
+        """
+        model_obj_ctype = ContentType.objects.get_for_model(model_obj)
+        return ('{0}__{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), unicode(model_obj_ctype))
 
     def get_entity_meta(self, model_obj):
         """

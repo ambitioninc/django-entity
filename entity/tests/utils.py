@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from entity import turn_on_syncing, turn_off_syncing
-from entity.models import Entity
+from entity.models import Entity, EntityTag
 
 
 class EntityTestCase(TestCase):
@@ -28,5 +28,10 @@ class EntityTestCase(TestCase):
         """
         Given a model object, create an entity.
         """
+        entity_type = ContentType.objects.get_for_model(model_obj)
         return Entity.objects.create(
-            entity_type=ContentType.objects.get_for_model(model_obj), entity_id=model_obj.id)
+            entity_type=entity_type, entity_id=model_obj.id,
+            entity_tag=EntityTag.objects.get_or_create(
+                name='{0}__{1}'.format(entity_type.app_label, entity_type.model),
+                defaults={'display_name': unicode(entity_type)}
+            )[0])
