@@ -34,7 +34,7 @@ class EntitySyncer(object):
         Obtains an entity tag for a model obj, caching the values (and retrieving values from cache) when necesary.
         """
         entity_tag_name, entity_tag_display_name = entity_config.get_entity_tag(model_obj)
-        if not entity_tag_name in self._synced_entity_tag_cache:
+        if entity_tag_name not in self._synced_entity_tag_cache:
             self._synced_entity_tag_cache[entity_tag_name] = EntityTag.objects.upsert(
                 name=entity_tag_name, defaults={'display_name': entity_tag_display_name})[0]
 
