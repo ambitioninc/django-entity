@@ -9,7 +9,7 @@ class Migration(DataMigration):
     def forwards(self, orm):
         for e in orm.Entity.objects.all():
             e_kind, created = orm.EntityKind.objects.get_or_create(
-                name='{0}__{1}'.format(e.entity_type.app_label, e.entity_type.model), defaults={
+                name='{0}.{1}'.format(e.entity_type.app_label, e.entity_type.model), defaults={
                     'display_name': unicode(e.entity_type)
                 })
             e.entity_kind = e_kind

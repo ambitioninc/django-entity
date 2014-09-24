@@ -73,7 +73,7 @@ Entities can also be configured to be active or inactive, and this is done by ad
 
 Entities have the ability to be labeled with their "kind" for advanced filtering capabilities. The entity kind allows a user to explicitly state what type of entity is being mirrored along with providing human-readable content about the entity kind. This is done by mirroring a unique ``name`` field and a ``display_name`` field in the ``EntityKind`` object that each ``Entity`` model points to.
 
-By default, Django Entity will mirror the content type of the entity as its kind. The name field will be the ``app_label`` of the content type followed by two underscores followed by the ``model`` of the content type. For cases where this name is not descriptive enough for the kind of the entity, the user has the ability to override the ``get_entity_kind`` function in the entity config. For example:
+By default, Django Entity will mirror the content type of the entity as its kind. The name field will be the ``app_label`` of the content type followed by a dot followed by the ``model`` of the content type. For cases where this name is not descriptive enough for the kind of the entity, the user has the ability to override the ``get_entity_kind`` function in the entity config. For example:
 
 ```python
 @register_entity(Account)

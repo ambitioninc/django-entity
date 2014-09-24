@@ -40,7 +40,7 @@ class EntityConfig(object):
         type as the kind.
         """
         model_obj_ctype = ContentType.objects.get_for_model(model_obj)
-        return ('{0}__{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), unicode(model_obj_ctype))
+        return ('{0}.{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), unicode(model_obj_ctype))
 
     def get_entity_meta(self, model_obj):
         """

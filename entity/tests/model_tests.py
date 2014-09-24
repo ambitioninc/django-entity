@@ -13,13 +13,13 @@ class TestEntityManager(EntityTestCase):
     def setUp(self):
         super(TestEntityManager, self).setUp()
         self.account_type = ContentType.objects.get_for_model(Account)
-        self.account_kind = G(EntityKind, name='tests__account')
+        self.account_kind = G(EntityKind, name='tests.account')
         self.team_type = ContentType.objects.get_for_model(Team)
-        self.team_kind = G(EntityKind, name='tests__team')
+        self.team_kind = G(EntityKind, name='tests.team')
         self.team_group_type = ContentType.objects.get_for_model(TeamGroup)
-        self.team_group_kind = G(EntityKind, name='tests__teamgroup')
+        self.team_group_kind = G(EntityKind, name='tests.teamgroup')
         self.competitor_type = ContentType.objects.get_for_model(Competitor)
-        self.competitor_kind = G(EntityKind, name='tests__competitor')
+        self.competitor_kind = G(EntityKind, name='tests.competitor')
 
     def test_manager_cache_relationships(self):
         """
