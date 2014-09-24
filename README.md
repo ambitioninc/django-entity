@@ -273,7 +273,7 @@ If one wants to ignore caching sub or super entity relationships, simply pass ``
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
 ```python
-Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_tag(account_tag, team_tag)
+Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_kind(account_kind, team_kind)
 
 Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
