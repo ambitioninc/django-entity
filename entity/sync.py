@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 import manager_utils
 
 from entity import entity_registry
-from entity.models import Entity, EntityRelationship
+from entity.models import Entity, EntityRelationship, EntityKind
 
 
 class EntitySyncer(object):
@@ -22,9 +22,23 @@ class EntitySyncer(object):
         # model object
         self._synced_entity_cache = {}
 
+        # A cached of synced entity kinds, keyed on the entity kind name
+        self._synced_entity_kind_cache = {}
+
         # A cache of all entity relationships that will need to be synced after all entities have been synced. This
         # dictionary is keyed on the subentity and has a list of super entities
         self._entity_relationships_to_sync = {}
+
+    def _get_entity_kind(self, entity_config, model_obj):
+        """
+        Obtains an entity kind for a model obj, caching the values (and retrieving values from cache) when necesary.
+        """
+        entity_kind_name, entity_kind_display_name = entity_config.get_entity_kind(model_obj)
+        if entity_kind_name not in self._synced_entity_kind_cache:
+            self._synced_entity_kind_cache[entity_kind_name] = EntityKind.objects.upsert(
+                name=entity_kind_name, defaults={'display_name': entity_kind_display_name})[0]
+
+        return self._synced_entity_kind_cache[entity_kind_name]
 
     def _sync_entity(self, model_obj, deep=True):
         """
@@ -39,12 +53,16 @@ class EntitySyncer(object):
         entity_type = ContentType.objects.get_for_model(model_obj)
 
         if not self._synced_entity_cache.get((entity_type, model_obj.id, deep)):
+            # Get the entity kind related to this entity
+            entity_kind = self._get_entity_kind(entity_config, model_obj)
+
             # Create or update the entity
             entity, created = Entity.objects.upsert(
                 entity_type=entity_type, entity_id=model_obj.id, updates={
                     'entity_meta': entity_config.get_entity_meta(model_obj),
                     'display_name': entity_config.get_display_name(model_obj),
                     'is_active': entity_config.is_entity_active(model_obj),
+                    'entity_kind': entity_kind,
                 })
 
             # Cache all of the relationships that need to be synced. Do this only if in deep mode or if the entity
