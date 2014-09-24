@@ -33,11 +33,11 @@ class EntityConfig(object):
         """
         return unicode(model_obj)
 
-    def get_entity_tag(self, model_obj):
+    def get_entity_kind(self, model_obj):
         """
-        Returns a tuple for a tag name and tag display name of an entity.
+        Returns a tuple for a kind name and kind display name of an entity.
         By default, uses the app_label and model of the model object's content
-        type as the tag.
+        type as the kind.
         """
         model_obj_ctype = ContentType.objects.get_for_model(model_obj)
         return ('{0}__{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), unicode(model_obj_ctype))

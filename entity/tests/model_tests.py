@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django_dynamic_fixture import G
-from entity.models import Entity, EntityTag
+from entity.models import Entity, EntityKind
 
 from .models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
@@ -13,13 +13,13 @@ class TestEntityManager(EntityTestCase):
     def setUp(self):
         super(TestEntityManager, self).setUp()
         self.account_type = ContentType.objects.get_for_model(Account)
-        self.account_tag = G(EntityTag, name='tests__account')
+        self.account_kind = G(EntityKind, name='tests__account')
         self.team_type = ContentType.objects.get_for_model(Team)
-        self.team_tag = G(EntityTag, name='tests__team')
+        self.team_kind = G(EntityKind, name='tests__team')
         self.team_group_type = ContentType.objects.get_for_model(TeamGroup)
-        self.team_group_tag = G(EntityTag, name='tests__teamgroup')
+        self.team_group_kind = G(EntityKind, name='tests__teamgroup')
         self.competitor_type = ContentType.objects.get_for_model(Competitor)
-        self.competitor_tag = G(EntityTag, name='tests__competitor')
+        self.competitor_kind = G(EntityKind, name='tests__competitor')
 
     def test_manager_cache_relationships(self):
         """
@@ -178,9 +178,9 @@ class TestEntityManager(EntityTestCase):
         self.assertEquals(
             [inactive_entity], list(Entity.objects.filter(id__in=[active_entity.id, inactive_entity.id]).inactive()))
 
-    def test_filter_manager_is_tag_none(self):
+    def test_filter_manager_is_kind_none(self):
         """
-        Tests filtering by entity tag when no tag is given.
+        Tests filtering by entity kind when no kind is given.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -188,11 +188,11 @@ class TestEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         ]
-        self.assertEquals(set([team_entity] + account_entities), set(Entity.objects.is_any_tag()))
+        self.assertEquals(set([team_entity] + account_entities), set(Entity.objects.is_any_kind()))
 
-    def test_filter_manager_one_tag(self):
+    def test_filter_manager_one_kind(self):
         """
-        Tests filtering by entity tag when one tag is given.
+        Tests filtering by entity kind when one kind is given.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -200,12 +200,12 @@ class TestEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals([team_entity], list(Entity.objects.is_any_tag(self.team_tag)))
-        self.assertEquals(account_entities, set(Entity.objects.is_any_tag(self.account_tag)))
+        self.assertEquals([team_entity], list(Entity.objects.is_any_kind(self.team_kind)))
+        self.assertEquals(account_entities, set(Entity.objects.is_any_kind(self.account_kind)))
 
-    def test_filter_manager_two_tags(self):
+    def test_filter_manager_two_kinds(self):
         """
-        Tests filtering by entity tag when two tags are given.
+        Tests filtering by entity kind when two kinds are given.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -214,11 +214,11 @@ class TestEntityManager(EntityTestCase):
             for i in range(5)
         )
         self.assertEquals(
-            account_entities.union([team_entity]), set(Entity.objects.is_any_tag(self.account_tag, self.team_tag)))
+            account_entities.union([team_entity]), set(Entity.objects.is_any_kind(self.account_kind, self.team_kind)))
 
-    def test_filter_queryset_two_tags(self):
+    def test_filter_queryset_two_kinds(self):
         """
-        Tests filtering by entity tag when two tags are given on a queryset.
+        Tests filtering by entity kind when two kinds are given on a queryset.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -229,22 +229,22 @@ class TestEntityManager(EntityTestCase):
         self.assertEquals(
             account_entities.union([team_entity]),
             set(
-                Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_any_tag(
-                    self.account_tag, self.team_tag)
+                Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_any_kind(
+                    self.account_kind, self.team_kind)
             ))
 
-    def test_filter_manager_is_not_tag_two(self):
+    def test_filter_manager_is_not_kind_two(self):
         """
-        Tests filtering by entity tag when two tags are given.
+        Tests filtering by entity kind when two kinds are given.
         """
         team = Team.objects.create()
         for i in range(5):
             Account.objects.create(team=team)
-        self.assertEquals([], list(Entity.objects.is_not_any_tag(self.team_tag, self.account_tag)))
+        self.assertEquals([], list(Entity.objects.is_not_any_kind(self.team_kind, self.account_kind)))
 
-    def test_filter_manager_is_not_tag_one(self):
+    def test_filter_manager_is_not_kind_one(self):
         """
-        Tests filtering by entity tag when one tag is given.
+        Tests filtering by entity kind when one kind is given.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -252,12 +252,12 @@ class TestEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals([team_entity], list(Entity.objects.is_not_any_tag(self.account_tag)))
-        self.assertEquals(account_entities, set(Entity.objects.is_not_any_tag(self.team_tag)))
+        self.assertEquals([team_entity], list(Entity.objects.is_not_any_kind(self.account_kind)))
+        self.assertEquals(account_entities, set(Entity.objects.is_not_any_kind(self.team_kind)))
 
-    def test_filter_manager_is_not_tag_none(self):
+    def test_filter_manager_is_not_kind_none(self):
         """
-        Tests filtering by entity tag when no tags are given.
+        Tests filtering by entity kind when no kinds are given.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -266,11 +266,11 @@ class TestEntityManager(EntityTestCase):
             for i in range(5)
         )
         self.assertEquals(
-            account_entities.union([team_entity]), set(Entity.objects.is_not_any_tag()))
+            account_entities.union([team_entity]), set(Entity.objects.is_not_any_kind()))
 
-    def test_filter_queryset_two_is_not_tags(self):
+    def test_filter_queryset_two_is_not_kinds(self):
         """
-        Tests filtering by entity type when two tags are given on a queryset.
+        Tests filtering by entity type when two kinds are given on a queryset.
         """
         team = Team.objects.create()
         team_entity = Entity.objects.get_for_obj(team)
@@ -280,8 +280,8 @@ class TestEntityManager(EntityTestCase):
         )
         self.assertEquals(
             [],
-            list(Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_not_any_tag(
-                self.account_tag, self.team_tag))
+            list(Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_not_any_kind(
+                self.account_kind, self.team_kind))
         )
 
     def test_is_sub_to_all_none(self):
@@ -305,9 +305,9 @@ class TestEntityManager(EntityTestCase):
         self.assertEquals(
             set(Entity.objects.all()), set(Entity.objects.is_sub_to_all()))
 
-    def test_is_sub_to_all_none_is_any_tag(self):
+    def test_is_sub_to_all_none_is_any_kind(self):
         """
-        Tests the base case of is_sub_to_all on no super entities with a tag specified.
+        Tests the base case of is_sub_to_all on no super entities with a kind specified.
         """
         # Create test accounts that have three types of super entities
         team = Team.objects.create()
@@ -325,7 +325,7 @@ class TestEntityManager(EntityTestCase):
 
         self.assertEquals(
             set(Entity.objects.filter(entity_type=self.account_type)),
-            set(Entity.objects.is_sub_to_all().is_any_tag(self.account_tag)))
+            set(Entity.objects.is_sub_to_all().is_any_kind(self.account_kind)))
 
     def test_is_sub_to_all_manager(self):
         """

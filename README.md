@@ -69,20 +69,20 @@ Along with metadata, entities come with the ability to mirror a ``display_name``
 
 Entities can also be configured to be active or inactive, and this is done by adding an ``is_entity_active`` function to the config that returns ``True`` (the default value) if the entity is active and ``False`` otherwise.
 
-### Advanced Syncing Continued - Tagging Entities
+### Advanced Syncing Continued - Entity Kinds
 
-Entities have the ability to be tagged for more advanced filtering capabilities. Tagging allows a user to explicitly state what type of entity is being mirrored along with providing human-readable content about the entity's tag. This is done by mirroring a unique ``name`` field and a ``display_name`` field in the ``EntityTag`` object that each ``Entity`` model points to.
+Entities have the ability to be labeled with their "kind" for advanced filtering capabilities. The entity kind allows a user to explicitly state what type of entity is being mirrored along with providing human-readable content about the entity kind. This is done by mirroring a unique ``name`` field and a ``display_name`` field in the ``EntityKind`` object that each ``Entity`` model points to.
 
-By default, Django Entity will mirror the content type of the entity as its tag. The name field will be the ``app_label`` of the content type followed by two underscores followed by the ``model`` of the content type. For cases where this name is not descriptive enough for the tag of the entity, the user has the ability to override the ``get_entity_tag`` function in the entity config. For example:
+By default, Django Entity will mirror the content type of the entity as its kind. The name field will be the ``app_label`` of the content type followed by two underscores followed by the ``model`` of the content type. For cases where this name is not descriptive enough for the kind of the entity, the user has the ability to override the ``get_entity_kind`` function in the entity config. For example:
 
 ```python
 @register_entity(Account)
 class AccountConfig(EntityConfig):
-    def get_entity_tag(self, model_obj):
+    def get_entity_kind(self, model_obj):
         return (model_obj.email_domain, 'Email domain {0}'.format(model_obj.email_domain))
 ```
 
-In the above case, the account entities are tagged with the domain of the email of the account so that various groupings of account entities can be better segregated based on their email domain. The second value of the returned tuple provides a human-readable version of the tag that is being created.
+In the above case, the account entities are segregated into different kinds based on the domain of the email. The second value of the returned tuple provides a human-readable version of the kind that is being created.
 
 ### Even More Advanced Syncing - Watching Other Models
 
@@ -278,8 +278,11 @@ Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_tag(account_tag, 
 Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
-## A Final Word
-As a project increases in size and complexity, abstractions on top of project-specific models are important to the longevity of the code. It is even more important for the apps that are built around the project. Django Entity provides a powerful abstraction in this regard. If you have any comments, issues, or suggestions for the project, feel free to make issues here on Github or contact us at opensource@ambition.com.
+## Release Notes
+- 1.5.0:
+    - Added entity kinds to replace inadequacies of filtering by entity content types.
+    - Deprecated is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.
+    - Deprecated chainable entity filters. All entity filtering calls are now in the model manager.
 
 ## License
 MIT License (see the LICENSE file for more info).

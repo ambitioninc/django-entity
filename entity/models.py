@@ -27,17 +27,17 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         return self.filter(is_active=False)
 
-    def is_any_tag(self, *entity_tags):
+    def is_any_kind(self, *entity_kinds):
         """
-        Returns entities that have any of the tags listed in entity_tags.
+        Returns entities that have any of the kinds listed in entity_kinds.
         """
-        return self.filter(entity_tag__in=entity_tags) if entity_tags else self
+        return self.filter(entity_kind__in=entity_kinds) if entity_kinds else self
 
-    def is_not_any_tag(self, *entity_tags):
+    def is_not_any_kind(self, *entity_kinds):
         """
-        Returns entities that do not have any of the tags listed in entity_tags.
+        Returns entities that do not have any of the kinds listed in entity_kinds.
         """
-        return self.exclude(entity_tag__in=entity_tags) if entity_tags else self
+        return self.exclude(entity_kind__in=entity_kinds) if entity_kinds else self
 
     def is_sub_to_all(self, *super_entities):
         """
@@ -109,17 +109,17 @@ class EntityManager(ManagerUtilsManager):
         """
         return self.get_queryset().inactive()
 
-    def is_any_tag(self, *entity_tags):
+    def is_any_kind(self, *entity_kinds):
         """
-        Returns entities that have any of the tags listed in entity_tags.
+        Returns entities that have any of the kinds listed in entity_kinds.
         """
-        return self.get_queryset().is_any_tag(*entity_tags)
+        return self.get_queryset().is_any_kind(*entity_kinds)
 
-    def is_not_any_tag(self, *entity_tags):
+    def is_not_any_kind(self, *entity_kinds):
         """
-        Returns entities that do not have any of the tags listed in entity_tags.
+        Returns entities that do not have any of the kinds listed in entity_kinds.
         """
-        return self.get_queryset().is_not_any_tag(*entity_tags)
+        return self.get_queryset().is_not_any_kind(*entity_kinds)
 
     def is_sub_to_all(self, *super_entities):
         """
@@ -141,24 +141,24 @@ class EntityManager(ManagerUtilsManager):
         return self.get_queryset().cache_relationships(cache_super=cache_super, cache_sub=cache_sub)
 
 
-class EntityTagManager(ManagerUtilsManager):
+class EntityKindManager(ManagerUtilsManager):
     """
-    Provides additional filtering for entity tags.
+    Provides additional filtering for entity kinds.
     """
     pass
 
 
-class EntityTag(models.Model):
+class EntityKind(models.Model):
     """
-    A tag for an Entity that is useful for filtering based on different types of entities.
+    A kind for an Entity that is useful for filtering based on different types of entities.
     """
-    # The unique identification string for the entity tag
+    # The unique identification string for the entity kind
     name = models.CharField(max_length=256, unique=True, db_index=True)
 
-    # A human-readable string for the entity tag
+    # A human-readable string for the entity kind
     display_name = models.TextField(blank=True)
 
-    objects = EntityTagManager()
+    objects = EntityKindManager()
 
 
 class Entity(models.Model):
@@ -174,8 +174,8 @@ class Entity(models.Model):
     entity_type = models.ForeignKey(ContentType)
     entity = generic.GenericForeignKey('entity_type', 'entity_id')
 
-    # The entity tag
-    entity_tag = models.ForeignKey(EntityTag)
+    # The entity kind
+    entity_kind = models.ForeignKey(EntityKind)
 
     # Metadata about the entity, stored as JSON
     entity_meta = JSONField(null=True)
@@ -186,7 +186,7 @@ class Entity(models.Model):
     objects = EntityManager()
 
     class Meta:
-        unique_together = ('entity_id', 'entity_type', 'entity_tag')
+        unique_together = ('entity_id', 'entity_type', 'entity_kind')
 
     def get_sub_entities(self):
         """
