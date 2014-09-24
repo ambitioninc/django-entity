@@ -69,6 +69,21 @@ Along with metadata, entities come with the ability to mirror a ``display_name``
 
 Entities can also be configured to be active or inactive, and this is done by adding an ``is_entity_active`` function to the config that returns ``True`` (the default value) if the entity is active and ``False`` otherwise.
 
+### Advanced Syncing Continued - Entity Kinds
+
+Entities have the ability to be labeled with their "kind" for advanced filtering capabilities. The entity kind allows a user to explicitly state what type of entity is being mirrored along with providing human-readable content about the entity kind. This is done by mirroring a unique ``name`` field and a ``display_name`` field in the ``EntityKind`` object that each ``Entity`` model points to.
+
+By default, Django Entity will mirror the content type of the entity as its kind. The name field will be the ``app_label`` of the content type followed by a dot followed by the ``model`` of the content type. For cases where this name is not descriptive enough for the kind of the entity, the user has the ability to override the ``get_entity_kind`` function in the entity config. For example:
+
+```python
+@register_entity(Account)
+class AccountConfig(EntityConfig):
+    def get_entity_kind(self, model_obj):
+        return (model_obj.email_domain, 'Email domain {0}'.format(model_obj.email_domain))
+```
+
+In the above case, the account entities are segregated into different kinds based on the domain of the email. The second value of the returned tuple provides a human-readable version of the kind that is being created.
+
 ### Even More Advanced Syncing - Watching Other Models
 
 Underneath the hood, Django Entity is syncing up the mirrored Entity table when saves, deletes, and M2M updates are happening on the mirrored models. However, some models may actually depend on objects that are not pointed to by the immediate fields of the model. For example, assume that we have the following models:
@@ -199,6 +214,7 @@ After the entities have been synced, they can then be accessed in the primary en
 1. ``entity_type``: The ``ContentType`` of the mirrored entity.
 1. ``entity_id``: The object ID of the mirrored entity.
 1. ``entity_meta``: A JSONField of mirrored metadata about an entity (or null or none mirrored).
+1. ``entity_kind``: The EntityKind model that describes the type of mirrored entity. Defaults to parameters related to the entity content type.
 1. ``is_active``: True if the entity is active, False otherwise.
 
 Along with these basic fields, all of the following functions can either be called directly on the ``Entity`` model or on the ``Entity`` model manager.
@@ -214,19 +230,19 @@ entity = Entity.objects.get_for_obj(test_model)
 ```
 
 #### active()
-Returns active entities when called on the ``Entity`` manager, or a boolean when called on an ``Entity`` object.
+Returns active entities.
 
 #### inactive()
 Does the opposite of ``active()``.
 
-#### is_any_type(*entity_types)
-If called on the ``Entity`` manager, returns all entities that have any of the entity types provided. Returns a boolean if called on the ``Entity`` model.
+#### is_any_kind(*entity_kinds)
+Returns all entities that are any of the entity kinds provided.
 
-#### is_not_any_type(*entity_types)
-The opposite of ``is_any_type()``.
+#### is_not_any_kind(*entity_kinds)
+The opposite of ``is_any_kind()``.
 
 #### is_sub_to_all(*super_entities)
-Return entities that are sub entities of every provided super entity (or all if no super entities are provided). This function can be executed on the model manager, on an existing queryset, the model level, or on lists of entities from the get_sub_entities and get_super_entities functions.
+Return entities that are sub entities of every provided super entity (or all if no super entities are provided).
 
 For example, if one wishes to filter all of the Account entities by the ones that belong to Group A and Group B, the code would look like this:
 
@@ -238,13 +254,16 @@ for e in Entity.objects.is_sub_to_all(groupa_entity, groupb_entity):
     pass
 ```
 
+#### is_sub_to_any(*super_entities)
+Return entities that are sub entities of any one of the provided super entities (or all if no super entities are provided).
+
 #### cache_relationships()
-The cache_relationships function is useful for prefetching relationship information. This is especially useful when performing the various active() and is_any_type() filtering as shown above. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships. The cache_relationships function can be used on the model manager or a queryset.
+The cache_relationships function is useful for prefetching relationship information. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships.
 
 ```python
 entity = Entity.objects.cache_relationships().get_for_obj(test_model)
-for super_entity in entity.get_super_entities().active():
-    # Perform much faster filtering on super entity relationships...
+for super_entity in entity.get_super_entities():
+    # Perform much faster accesses on super entities...
     pass
 ```
 
@@ -254,13 +273,16 @@ If one wants to ignore caching sub or super entity relationships, simply pass ``
 All of the manager functions listed can be chained, so it is possible to do the following combinations:
 
 ```python
-Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_type(account_type, team_type)
+Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_kind(account_kind, team_kind)
 
 Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
-## A Final Word
-As a project increases in size and complexity, abstractions on top of project-specific models are important to the longevity of the code. It is even more important for the apps that are built around the project. Django Entity provides a powerful abstraction in this regard. If you have any comments, issues, or suggestions for the project, feel free to make issues here on Github or contact us at opensource@ambition.com.
+## Release Notes
+- 1.5.0:
+    - Added entity kinds to replace inadequacies of filtering by entity content types.
+    - Removed is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.
+    - Removed chainable entity filters. All entity filtering calls are now in the model manager.
 
 ## License
 MIT License (see the LICENSE file for more info).
