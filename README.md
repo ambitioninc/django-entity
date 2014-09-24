@@ -214,7 +214,7 @@ After the entities have been synced, they can then be accessed in the primary en
 1. ``entity_type``: The ``ContentType`` of the mirrored entity.
 1. ``entity_id``: The object ID of the mirrored entity.
 1. ``entity_meta``: A JSONField of mirrored metadata about an entity (or null or none mirrored).
-1. ``entity_tag``: A tag that describes the type of mirrored entity. Defaults to parameters related to the entity content type.
+1. ``entity_kind``: The EntityKind model that describes the type of mirrored entity. Defaults to parameters related to the entity content type.
 1. ``is_active``: True if the entity is active, False otherwise.
 
 Along with these basic fields, all of the following functions can either be called directly on the ``Entity`` model or on the ``Entity`` model manager.
@@ -235,11 +235,11 @@ Returns active entities.
 #### inactive()
 Does the opposite of ``active()``.
 
-#### is_any_tag(*entity_tags)
-Returns all entities that have any of the entity tags provided.
+#### is_any_kind(*entity_kinds)
+Returns all entities that are any of the entity kinds provided.
 
-#### is_not_any_tag(*entity_tags)
-The opposite of ``is_any_tag()``.
+#### is_not_any_kind(*entity_kinds)
+The opposite of ``is_any_kind()``.
 
 #### is_sub_to_all(*super_entities)
 Return entities that are sub entities of every provided super entity (or all if no super entities are provided).
