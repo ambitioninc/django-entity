@@ -281,8 +281,8 @@ Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ## Release Notes
 - 1.5.0:
     - Added entity kinds to replace inadequacies of filtering by entity content types.
-    - Deprecated is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.
-    - Deprecated chainable entity filters. All entity filtering calls are now in the model manager.
+    - Removed is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.
+    - Removed chainable entity filters. All entity filtering calls are now in the model manager.
 
 ## License
 MIT License (see the LICENSE file for more info).
