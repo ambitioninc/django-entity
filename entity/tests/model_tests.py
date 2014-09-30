@@ -6,7 +6,7 @@ from .models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
 
 
-class EntityKindTest(TestCase):
+class EntityKindTest(EntityTestCase):
     """
     Tests the EntityKind model.
     """
