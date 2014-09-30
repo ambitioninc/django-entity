@@ -160,6 +160,9 @@ class EntityKind(models.Model):
 
     objects = EntityKindManager()
 
+    def __unicode__(self):
+        return self.display_name
+
 
 class Entity(models.Model):
     """

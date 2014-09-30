@@ -1,9 +1,18 @@
 from django.contrib.contenttypes.models import ContentType
-from django_dynamic_fixture import G
+from django_dynamic_fixture import G, N
 from entity.models import Entity, EntityKind
 
 from .models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
+
+
+class EntityKindTest(EntityTestCase):
+    """
+    Tests the EntityKind model.
+    """
+    def test_unicode(self):
+        ek = N(EntityKind, display_name='hello')
+        self.assertEquals(unicode(ek), u'hello')
 
 
 class TestEntityManager(EntityTestCase):
