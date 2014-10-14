@@ -36,7 +36,7 @@ class EntitySyncer(object):
         entity_kind_name, entity_kind_display_name = entity_config.get_entity_kind(model_obj)
         if entity_kind_name not in self._synced_entity_kind_cache:
             self._synced_entity_kind_cache[entity_kind_name] = EntityKind.objects.upsert(
-                name=entity_kind_name, defaults={'display_name': entity_kind_display_name})[0]
+                name=entity_kind_name, updates={'display_name': entity_kind_display_name})[0]
 
         return self._synced_entity_kind_cache[entity_kind_name]
 
