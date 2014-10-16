@@ -226,12 +226,12 @@ class TestEntityManager(EntityTestCase):
             account_entities.union([team_entity]), set(Entity.objects.is_any_kind(self.account_kind, self.team_kind)))
 
     def test_is_sub_to_all_kinds_none(self):
-        # --- set up teams, groups and competitors
+        # set up teams, groups and competitors
         team = Team.objects.create()
         group = TeamGroup.objects.create(name='group')
         competitor = Competitor.objects.create(name='competitor')
 
-        # --- set up players with different compinations of team, group and competitor
+        # set up players with different compinations of team, group and competitor
         Account.objects.create(email='team_only', team=team)
         Account.objects.create(email='team_competitor', team=team, competitor=competitor)
         Account.objects.create(email='team_group', team=team, team_group=group)
@@ -247,12 +247,12 @@ class TestEntityManager(EntityTestCase):
         self.assertEqual(sorted_names, expected_names)
 
     def test_is_sub_to_all_kinds_double(self):
-        # --- set up teams, groups and competitors
+        # set up teams, groups and competitors
         team = Team.objects.create()
         group = TeamGroup.objects.create(name='group')
         competitor = Competitor.objects.create(name='competitor')
 
-        # --- set up players with different compinations of team, group and competitor
+        # set up players with different compinations of team, group and competitor
         Account.objects.create(email='team_only', team=team)
         Account.objects.create(email='team_competitor', team=team, competitor=competitor)
         Account.objects.create(email='team_group', team=team, team_group=group)
@@ -260,7 +260,7 @@ class TestEntityManager(EntityTestCase):
         Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
         Account.objects.create(email='competitor_only', competitor=competitor)
 
-        # --- get kind model(s)
+        # get kind model(s)
         team_kind = EntityKind.objects.get(name='tests.team')
         group_kind = EntityKind.objects.get(name='tests.teamgroup')
 
@@ -269,12 +269,12 @@ class TestEntityManager(EntityTestCase):
         self.assertEqual(sorted_names, expected_names)
 
     def test_is_sub_to_all_kinds_single(self):
-        # --- set up teams, groups and competitors
+        # set up teams, groups and competitors
         team = Team.objects.create()
         group = TeamGroup.objects.create(name='group')
         competitor = Competitor.objects.create(name='competitor')
 
-        # --- set up players with different compinations of team, group and competitor
+        # set up players with different compinations of team, group and competitor
         Account.objects.create(email='team_only', team=team)
         Account.objects.create(email='team_competitor', team=team, competitor=competitor)
         Account.objects.create(email='team_group', team=team, team_group=group)
@@ -282,7 +282,7 @@ class TestEntityManager(EntityTestCase):
         Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
         Account.objects.create(email='competitor_only', competitor=competitor)
 
-        # --- get kind model(s)
+        # get kind model(s)
         group_kind = EntityKind.objects.get(name='tests.teamgroup')
 
         sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_all_kinds(group_kind)])
@@ -290,12 +290,12 @@ class TestEntityManager(EntityTestCase):
         self.assertEqual(sorted_names, expected_names)
 
     def test_is_sub_to_any_kind_none(self):
-        # --- set up teams, groups and competitors
+        # set up teams, groups and competitors
         team = Team.objects.create()
         group = TeamGroup.objects.create(name='group')
         competitor = Competitor.objects.create(name='competitor')
 
-        # --- set up players with different compinations of team, group and competitor
+        # set up players with different compinations of team, group and competitor
         Account.objects.create(email='team_only', team=team)
         Account.objects.create(email='team_competitor', team=team, competitor=competitor)
         Account.objects.create(email='team_group', team=team, team_group=group)
@@ -311,12 +311,12 @@ class TestEntityManager(EntityTestCase):
         self.assertEqual(sorted_names, expected_names)
 
     def test_is_sub_to_any_kind_single(self):
-        # --- set up teams, groups and competitors
+        # set up teams, groups and competitors
         team = Team.objects.create()
         group = TeamGroup.objects.create(name='group')
         competitor = Competitor.objects.create(name='competitor')
 
-        # --- set up players with different compinations of team, group and competitor
+        # set up players with different compinations of team, group and competitor
         Account.objects.create(email='team_only', team=team)
         Account.objects.create(email='team_competitor', team=team, competitor=competitor)
         Account.objects.create(email='team_group', team=team, team_group=group)
@@ -324,7 +324,7 @@ class TestEntityManager(EntityTestCase):
         Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
         Account.objects.create(email='competitor_only', competitor=competitor)
 
-        # --- get kind model(s)
+        # get kind model(s)
         group_kind = EntityKind.objects.get(name='tests.teamgroup')
 
         sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_any_kind(group_kind)])
@@ -332,12 +332,12 @@ class TestEntityManager(EntityTestCase):
         self.assertEqual(sorted_names, expected_names)
 
     def test_is_sub_to_any_kind_double(self):
-        # --- set up teams, groups and competitors
+        # set up teams, groups and competitors
         team = Team.objects.create()
         group = TeamGroup.objects.create(name='group')
         competitor = Competitor.objects.create(name='competitor')
 
-        # --- set up players with different compinations of team, group and competitor
+        # set up players with different compinations of team, group and competitor
         Account.objects.create(email='team_only', team=team)
         Account.objects.create(email='team_competitor', team=team, competitor=competitor)
         Account.objects.create(email='team_group', team=team, team_group=group)
@@ -345,7 +345,7 @@ class TestEntityManager(EntityTestCase):
         Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
         Account.objects.create(email='competitor_only', competitor=competitor)
 
-        # --- get kind model(s)
+        # get kind model(s)
         team_kind = EntityKind.objects.get(name='tests.team')
         group_kind = EntityKind.objects.get(name='tests.teamgroup')
 

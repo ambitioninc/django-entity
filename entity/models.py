@@ -73,19 +73,18 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         Each returned entity will have superentites whos combined entity_kinds included *super_entity_kinds
         """
         if super_entity_kinds:
-            # --- get a list of all sub_entities that have any of the right super_entity_kinds
-            qs = EntityRelationship.objects.select_related('super_entity__entity_kind', 'sub_entity')
-            # --- create efficient query if you can
             if len(super_entity_kinds) == 1:
-                qs = qs.filter(super_entity__entity_kind=super_entity_kinds[0]).values('sub_entity')
+                # Optimize for the case of just one
+                has_subset = EntityRelationship.objects.filter(
+                    super_entity__entity_kind=super_entity_kinds[0]).values_list('sub_entity', flat=True)
             else:
-                qs = qs.filter(super_entity__entity_kind__in=super_entity_kinds).values('sub_entity')
-            # --- count how many entity_entity_kinds each sub_entity has
-            qs = qs.annotate(Count('super_entity__entity_kind'))
-            # --- find all the pks that had the right number of super_entity_kinds
-            pks = qs.filter(super_entity__entity_kind__count=len(super_entity_kinds)).values_list('sub_entity',
-                                                                                                  flat=True)
-            return self.filter(pk__in=pks)
+                # Get a list of entities that have super entities with all types
+                has_subset = EntityRelationship.objects.filter(
+                    super_entity__entity_kind__in=super_entity_kinds).values('sub_entity').annotate(
+                        Count('super_entity')).filter(super_entity__count=len(set(super_entity_kinds))).values_list(
+                            'sub_entity', flat=True)
+
+            return self.filter(pk__in=has_subset)
         else:
             return self
 
@@ -94,7 +93,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         Find all entities that have super_entities of any of the specified kinds
         """
         if super_entity_kinds:
-            # --- get the pks of the desired subs from the relationships table
+            # get the pks of the desired subs from the relationships table
             if len(super_entity_kinds) == 1:
                 entity_pks = EntityRelationship.objects.filter(
                     super_entity__entity_kind=super_entity_kinds[0]
@@ -103,7 +102,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
                 entity_pks = EntityRelationship.objects.filter(
                     super_entity__entity_kind__in=super_entity_kinds
                     ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
-            # --- return a queryset limited to only those pks
+            # return a queryset limited to only those pks
             return self.filter(pk__in=entity_pks)
         else:
             return self
