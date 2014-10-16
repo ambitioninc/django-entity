@@ -70,7 +70,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
 
     def is_sub_to_all_kinds(self, *super_entity_kinds):
         """
-        Find all entities that are sub to at least one super_entity of each specified kind
+        Each returned entity will have superentites whos combined entity_kinds included *super_entity_kinds
         """
         if super_entity_kinds:
             # --- get a list of all sub_entities that have any of the right super_entity_kinds
@@ -163,7 +163,7 @@ class EntityManager(ManagerUtilsManager):
 
     def is_sub_to_all_kinds(self, *super_entity_kinds):
         """
-        Find all entities that are sub to at least one super_entity of each specified kind
+        Each returned entity will have superentites whos combined entity_kinds included *super_entity_kinds
         """
         return self.get_queryset().is_sub_to_all_kinds(*super_entity_kinds)
 
