@@ -60,8 +60,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
 
     def is_sub_to_any(self, *super_entities):
         """
-        Given a list of super entities, return the entities that have super entities that interset with those
-        provided.
+        Given a list of super entities, return the entities that have super entities that interset with those provided.
         """
         if super_entities:
             return self.filter(id__in=EntityRelationship.objects.filter(
