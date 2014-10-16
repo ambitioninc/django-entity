@@ -68,6 +68,45 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         else:
             return self
 
+    def is_sub_to_all_kinds(self, *super_entity_kinds):
+        """
+        Each returned entity will have superentites whos combined entity_kinds included *super_entity_kinds
+        """
+        if super_entity_kinds:
+            if len(super_entity_kinds) == 1:
+                # Optimize for the case of just one
+                has_subset = EntityRelationship.objects.filter(
+                    super_entity__entity_kind=super_entity_kinds[0]).values_list('sub_entity', flat=True)
+            else:
+                # Get a list of entities that have super entities with all types
+                has_subset = EntityRelationship.objects.filter(
+                    super_entity__entity_kind__in=super_entity_kinds).values('sub_entity').annotate(
+                        Count('super_entity')).filter(super_entity__count=len(set(super_entity_kinds))).values_list(
+                            'sub_entity', flat=True)
+
+            return self.filter(pk__in=has_subset)
+        else:
+            return self
+
+    def is_sub_to_any_kind(self, *super_entity_kinds):
+        """
+        Find all entities that have super_entities of any of the specified kinds
+        """
+        if super_entity_kinds:
+            # get the pks of the desired subs from the relationships table
+            if len(super_entity_kinds) == 1:
+                entity_pks = EntityRelationship.objects.filter(
+                    super_entity__entity_kind=super_entity_kinds[0]
+                    ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
+            else:
+                entity_pks = EntityRelationship.objects.filter(
+                    super_entity__entity_kind__in=super_entity_kinds
+                    ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
+            # return a queryset limited to only those pks
+            return self.filter(pk__in=entity_pks)
+        else:
+            return self
+
     def cache_relationships(self, cache_super=True, cache_sub=True):
         """
         Caches the super and sub relationships by doing a prefetch_related.
@@ -120,6 +159,18 @@ class EntityManager(ManagerUtilsManager):
         Returns entities that do not have any of the kinds listed in entity_kinds.
         """
         return self.get_queryset().is_not_any_kind(*entity_kinds)
+
+    def is_sub_to_all_kinds(self, *super_entity_kinds):
+        """
+        Each returned entity will have superentites whos combined entity_kinds included *super_entity_kinds
+        """
+        return self.get_queryset().is_sub_to_all_kinds(*super_entity_kinds)
+
+    def is_sub_to_any_kind(self, *super_entity_kinds):
+        """
+        Find all entities that have super_entities of any of the specified kinds
+        """
+        return self.get_queryset().is_sub_to_any_kind(*super_entity_kinds)
 
     def is_sub_to_all(self, *super_entities):
         """

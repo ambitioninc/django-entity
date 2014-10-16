@@ -225,6 +225,134 @@ class TestEntityManager(EntityTestCase):
         self.assertEquals(
             account_entities.union([team_entity]), set(Entity.objects.is_any_kind(self.account_kind, self.team_kind)))
 
+    def test_is_sub_to_all_kinds_none(self):
+        # set up teams, groups and competitors
+        team = Team.objects.create()
+        group = TeamGroup.objects.create(name='group')
+        competitor = Competitor.objects.create(name='competitor')
+
+        # set up players with different compinations of team, group and competitor
+        Account.objects.create(email='team_only', team=team)
+        Account.objects.create(email='team_competitor', team=team, competitor=competitor)
+        Account.objects.create(email='team_group', team=team, team_group=group)
+        Account.objects.create(email='group_only', team_group=group)
+        Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
+        Account.objects.create(email='competitor_only', competitor=competitor)
+
+        sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_all_kinds()])
+        expected_names = [
+            u'competitor', u'competitor_only', u'group', u'group_competitor',
+            u'group_only', u'team', u'team_competitor', u'team_group', u'team_only'
+        ]
+        self.assertEqual(sorted_names, expected_names)
+
+    def test_is_sub_to_all_kinds_double(self):
+        # set up teams, groups and competitors
+        team = Team.objects.create()
+        group = TeamGroup.objects.create(name='group')
+        competitor = Competitor.objects.create(name='competitor')
+
+        # set up players with different compinations of team, group and competitor
+        Account.objects.create(email='team_only', team=team)
+        Account.objects.create(email='team_competitor', team=team, competitor=competitor)
+        Account.objects.create(email='team_group', team=team, team_group=group)
+        Account.objects.create(email='group_only', team_group=group)
+        Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
+        Account.objects.create(email='competitor_only', competitor=competitor)
+
+        # get kind model(s)
+        team_kind = EntityKind.objects.get(name='tests.team')
+        group_kind = EntityKind.objects.get(name='tests.teamgroup')
+
+        sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_all_kinds(group_kind, team_kind)])
+        expected_names = [u'team_group']
+        self.assertEqual(sorted_names, expected_names)
+
+    def test_is_sub_to_all_kinds_single(self):
+        # set up teams, groups and competitors
+        team = Team.objects.create()
+        group = TeamGroup.objects.create(name='group')
+        competitor = Competitor.objects.create(name='competitor')
+
+        # set up players with different compinations of team, group and competitor
+        Account.objects.create(email='team_only', team=team)
+        Account.objects.create(email='team_competitor', team=team, competitor=competitor)
+        Account.objects.create(email='team_group', team=team, team_group=group)
+        Account.objects.create(email='group_only', team_group=group)
+        Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
+        Account.objects.create(email='competitor_only', competitor=competitor)
+
+        # get kind model(s)
+        group_kind = EntityKind.objects.get(name='tests.teamgroup')
+
+        sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_all_kinds(group_kind)])
+        expected_names = [u'group_competitor', u'group_only', u'team_group']
+        self.assertEqual(sorted_names, expected_names)
+
+    def test_is_sub_to_any_kind_none(self):
+        # set up teams, groups and competitors
+        team = Team.objects.create()
+        group = TeamGroup.objects.create(name='group')
+        competitor = Competitor.objects.create(name='competitor')
+
+        # set up players with different compinations of team, group and competitor
+        Account.objects.create(email='team_only', team=team)
+        Account.objects.create(email='team_competitor', team=team, competitor=competitor)
+        Account.objects.create(email='team_group', team=team, team_group=group)
+        Account.objects.create(email='group_only', team_group=group)
+        Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
+        Account.objects.create(email='competitor_only', competitor=competitor)
+
+        sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_any_kind()])
+        expected_names = [
+            u'competitor', u'competitor_only', u'group', u'group_competitor',
+            u'group_only', u'team', u'team_competitor', u'team_group', u'team_only'
+        ]
+        self.assertEqual(sorted_names, expected_names)
+
+    def test_is_sub_to_any_kind_single(self):
+        # set up teams, groups and competitors
+        team = Team.objects.create()
+        group = TeamGroup.objects.create(name='group')
+        competitor = Competitor.objects.create(name='competitor')
+
+        # set up players with different compinations of team, group and competitor
+        Account.objects.create(email='team_only', team=team)
+        Account.objects.create(email='team_competitor', team=team, competitor=competitor)
+        Account.objects.create(email='team_group', team=team, team_group=group)
+        Account.objects.create(email='group_only', team_group=group)
+        Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
+        Account.objects.create(email='competitor_only', competitor=competitor)
+
+        # get kind model(s)
+        group_kind = EntityKind.objects.get(name='tests.teamgroup')
+
+        sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_any_kind(group_kind)])
+        expected_names = [u'group_competitor', u'group_only', u'team_group']
+        self.assertEqual(sorted_names, expected_names)
+
+    def test_is_sub_to_any_kind_double(self):
+        # set up teams, groups and competitors
+        team = Team.objects.create()
+        group = TeamGroup.objects.create(name='group')
+        competitor = Competitor.objects.create(name='competitor')
+
+        # set up players with different compinations of team, group and competitor
+        Account.objects.create(email='team_only', team=team)
+        Account.objects.create(email='team_competitor', team=team, competitor=competitor)
+        Account.objects.create(email='team_group', team=team, team_group=group)
+        Account.objects.create(email='group_only', team_group=group)
+        Account.objects.create(email='group_competitor', team_group=group, competitor=competitor)
+        Account.objects.create(email='competitor_only', competitor=competitor)
+
+        # get kind model(s)
+        team_kind = EntityKind.objects.get(name='tests.team')
+        group_kind = EntityKind.objects.get(name='tests.teamgroup')
+
+        sorted_names = sorted([e.display_name for e in Entity.objects.is_sub_to_any_kind(team_kind, group_kind)])
+        expected_names = [u'group_competitor', u'group_only', u'team_competitor', u'team_group', u'team_only']
+        self.assertEqual(sorted_names, expected_names)
+
     def test_filter_queryset_two_kinds(self):
         """
         Tests filtering by entity kind when two kinds are given on a queryset.
