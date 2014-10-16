@@ -17,6 +17,9 @@ class TeamGroup(BaseEntityModel):
     """
     name = models.CharField(max_length=256)
 
+    def __unicode__(self):
+        return self.name
+
 
 class Competitor(BaseEntityModel):
     """
@@ -24,6 +27,9 @@ class Competitor(BaseEntityModel):
     """
     name = models.CharField(max_length=64)
     is_active = models.BooleanField(default=True)
+
+    def __unicode__(self):
+        return self.name
 
 
 class Team(BaseEntityModel):
