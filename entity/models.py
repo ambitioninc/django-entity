@@ -74,13 +74,16 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         """
         if super_entity_kinds:
             # --- get a list of all sub_entities that have any of the right super_entity_kinds
-            qs = EntityRelationship.objects.filter(
-                super_entity__entity_kind__in=super_entity_kinds).values('sub_entity')
+            qs = EntityRelationship.objects.select_related('super_entity__entity_kind', 'sub_entity')
+            if len(super_entity_kinds) > 1:
+                qs = qs.filter(super_entity__entity_kind__in=super_entity_kinds).values('sub_entity')
+            else:
+                qs = qs.filter(super_entity__entity_kind=super_entity_kinds[0]).values('sub_entity')
             # --- count how many entity_entity_kinds each sub_entity has
             qs = qs.annotate(Count('super_entity__entity_kind'))
             # --- find all the pks that had the right number of super_entity_kinds
             pks = qs.filter(super_entity__entity_kind__count=len(super_entity_kinds)).values_list('sub_entity',
-                           flat=True)
+                                                                                                  flat=True)
             return self.filter(pk__in=pks)
         else:
             return self
