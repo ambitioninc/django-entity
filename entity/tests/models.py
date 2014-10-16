@@ -21,7 +21,6 @@ class TeamGroup(BaseEntityModel):
         return self.name
 
 
-
 class Competitor(BaseEntityModel):
     """
     An enclosing group for competitors
