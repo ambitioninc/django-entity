@@ -259,6 +259,12 @@ for e in Entity.objects.is_sub_to_all(groupa_entity, groupb_entity):
 #### is_sub_to_any(*super_entities)
 Return entities that are sub entities of any one of the provided super entities (or all if no super entities are provided).
 
+#### is_sub_to_all_kinds(*super_entity_kinds)
+Return entities for which the set of provided kinds is contained in the set of all their super-entity-kinds
+
+#### is_sub_to_any_kind(*super_entity_kinds)
+Return entities that have at least one super entity-kind contained in the provided set of kinds (or all if no kinds are provided)
+
 #### cache_relationships()
 The cache_relationships function is useful for prefetching relationship information. Accessing entities without the cache_relationships function will result in many extra database queries if filtering is performed on the entity relationships.
 
