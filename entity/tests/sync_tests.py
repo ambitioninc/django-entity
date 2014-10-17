@@ -516,7 +516,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         main_account = Account.objects.create()
         other_account = Account.objects.create()
         # Clear out the Entity table since post_save will create an entry for it
-        Entity.objects.all().delete()
+        Entity.objects.all().delete(force=True)
 
         # Create entity entries for the account object and for another account
         self.create_entity(main_account)

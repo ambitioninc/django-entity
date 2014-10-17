@@ -101,7 +101,7 @@ class EntitySyncer(object):
 
             # Delete any existing entities that are not in the model obj table
             Entity.objects.filter(entity_type=ContentType.objects.get_for_model(entity_model)).exclude(
-                entity_id__in=(model_obj.id for model_obj in model_objs)).delete()
+                entity_id__in=(model_obj.id for model_obj in model_objs)).delete(force=True)
 
     def _sync_select_entities(self, *model_objs):
         """
