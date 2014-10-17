@@ -15,12 +15,22 @@ class EntityKindTest(EntityTestCase):
         self.assertEquals(unicode(ek), u'hello')
 
 
-class TestEntityManager(EntityTestCase):
+class TestActiveEntityManager(EntityTestCase):
+    def test_filters_active_by_default(self):
+        """
+        Tests that active entities are returned by default when accessing Entity.objects
+        """
+        e = G(Entity, is_active=True)
+        G(Entity, is_active=False)
+        self.assertEquals([e], list(Entity.objects.all()))
+
+
+class TestAllEntityManager(EntityTestCase):
     """
-    Tests custom function in the EntityManager class.
+    Tests custom function in the AllEntityManager class.
     """
     def setUp(self):
-        super(TestEntityManager, self).setUp()
+        super(TestAllEntityManager, self).setUp()
         self.account_type = ContentType.objects.get_for_model(Account)
         self.account_kind = G(EntityKind, name='tests.account')
         self.team_type = ContentType.objects.get_for_model(Team)
@@ -164,8 +174,8 @@ class TestEntityManager(EntityTestCase):
         account = Account.objects.create()
         account = Account.objects.create(is_active=False)
         # Get its resulting entity
-        entity = Entity.objects.get_for_obj(account)
-        self.assertEquals([entity], list(Entity.objects.inactive()))
+        entity = Entity.all_objects.get_for_obj(account)
+        self.assertEquals([entity], list(Entity.all_objects.inactive()))
 
     def test_filter_queryset_active(self):
         """
@@ -173,7 +183,7 @@ class TestEntityManager(EntityTestCase):
         """
         # Create an active and inactive account
         active_entity = Entity.objects.get_for_obj(Account.objects.create())
-        inactive_entity = Entity.objects.get_for_obj(Account.objects.create(is_active=False))
+        inactive_entity = Entity.all_objects.get_for_obj(Account.objects.create(is_active=False))
         self.assertEquals(
             [active_entity], list(Entity.objects.filter(id__in=[active_entity.id, inactive_entity.id]).active()))
 
@@ -183,9 +193,10 @@ class TestEntityManager(EntityTestCase):
         """
         # Create an active and inactive account
         active_entity = Entity.objects.get_for_obj(Account.objects.create())
-        inactive_entity = Entity.objects.get_for_obj(Account.objects.create(is_active=False))
+        inactive_entity = Entity.all_objects.get_for_obj(Account.objects.create(is_active=False))
         self.assertEquals(
-            [inactive_entity], list(Entity.objects.filter(id__in=[active_entity.id, inactive_entity.id]).inactive()))
+            [inactive_entity],
+            list(Entity.all_objects.filter(id__in=[active_entity.id, inactive_entity.id]).inactive()))
 
     def test_filter_manager_is_kind_none(self):
         """

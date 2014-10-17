@@ -220,6 +220,8 @@ After the entities have been synced, they can then be accessed in the primary en
 Along with these basic fields, all of the following functions can either be called directly on the ``Entity`` model or on the ``Entity`` model manager.
 
 ### Basic Model and Manager Functions
+Note that since entities are activatable (i.e. can have active and inactive states), the entity model manager only accesses active entities by default. If the user wishes to access every single entity (active or inactive), they must go through the ``all_objects`` manager, which is used in the example code below. The methods below are available on the ``objects`` and ``all_objects`` model managers, although the ``active`` and ``inactive`` methods are not useful on the ``objects`` model manager since it already filters for active entities.
+
 #### get_for_obj(model_obj)
 The get_for_obj function takes a model object and returns the corresponding entity. Only available in the ``Entity`` model manager.
 
@@ -230,10 +232,10 @@ entity = Entity.objects.get_for_obj(test_model)
 ```
 
 #### active()
-Returns active entities.
+Returns active entities. Only applicable when using the ``all_objects`` model manager. Note that ``objects`` already filters for only active entities.
 
 #### inactive()
-Does the opposite of ``active()``.
+Does the opposite of ``active()``. Only applicable when using the ``all_objects`` model manager. Note that ``objects`` already disregards inactive entities.
 
 #### is_any_kind(*entity_kinds)
 Returns all entities that are any of the entity kinds provided.
@@ -279,6 +281,8 @@ Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
 ## Release Notes
+- 1.6.0:
+    - Made entities ``activatable``, i.e. they inherit the properties defined in [Django Activatable Model](https://github.com/ambitioninc/django-activatable-model)
 - 1.5.0:
     - Added entity kinds to replace inadequacies of filtering by entity content types.
     - Removed is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.

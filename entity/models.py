@@ -78,9 +78,9 @@ class EntityQuerySet(ActivatableQuerySet):
         return self.prefetch_related(*relationships_to_cache)
 
 
-class EntityManager(ActivatableManager):
+class AllEntityManager(ActivatableManager):
     """
-    Provides additional entity-wide filtering abilities.
+    Provides additional entity-wide filtering abilities over all of the entity objects.
     """
     def get_queryset(self):
         return EntityQuerySet(self.model)
@@ -143,6 +143,15 @@ class EntityManager(ActivatableManager):
         return self.get_queryset().cache_relationships(cache_super=cache_super, cache_sub=cache_sub)
 
 
+class ActiveEntityManager(AllEntityManager):
+    """
+    The default 'objects' on the Entity model. This manager restricts all Entity queries to happen over active
+    entities.
+    """
+    def get_queryset(self):
+        return EntityQuerySet(self.model).active()
+
+
 class EntityKindManager(ManagerUtilsManager):
     """
     Provides additional filtering for entity kinds.
@@ -188,7 +197,8 @@ class Entity(BaseActivatableModel):
     # True if this entity is active
     is_active = models.BooleanField(default=True, db_index=True)
 
-    objects = EntityManager()
+    objects = ActiveEntityManager()
+    all_objects = AllEntityManager()
 
     class Meta:
         unique_together = ('entity_id', 'entity_type', 'entity_kind')
