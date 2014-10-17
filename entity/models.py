@@ -1,17 +1,18 @@
 from itertools import compress
 
+from activatable_model import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from jsonfield import JSONField
-from manager_utils import ManagerUtilsManager, ManagerUtilsQuerySet, post_bulk_operation
+from manager_utils import post_bulk_operation, ManagerUtilsManager
 
 from entity import entity_registry
 
 
-class EntityQuerySet(ManagerUtilsQuerySet):
+class EntityQuerySet(ActivatableQuerySet):
     """
     Provides additional queryset filtering abilities.
     """
@@ -77,7 +78,7 @@ class EntityQuerySet(ManagerUtilsQuerySet):
         return self.prefetch_related(*relationships_to_cache)
 
 
-class EntityManager(ManagerUtilsManager):
+class EntityManager(ActivatableManager):
     """
     Provides additional entity-wide filtering abilities.
     """
@@ -92,10 +93,11 @@ class EntityManager(ManagerUtilsManager):
 
     def delete_for_obj(self, entity_model_obj):
         """
-        Delete the entity associated with a model object.
+        Delete the entities associated with a model object.
         """
         return self.filter(
-            entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id).delete()
+            entity_type=ContentType.objects.get_for_model(entity_model_obj), entity_id=entity_model_obj.id).delete(
+            force=True)
 
     def active(self):
         """
@@ -164,7 +166,7 @@ class EntityKind(models.Model):
         return self.display_name
 
 
-class Entity(models.Model):
+class Entity(BaseActivatableModel):
     """
     Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions
     are provided that mirror the filtering functions in the Entity model manager.
@@ -174,11 +176,11 @@ class Entity(models.Model):
 
     # The generic entity
     entity_id = models.IntegerField()
-    entity_type = models.ForeignKey(ContentType)
+    entity_type = models.ForeignKey(ContentType, on_delete=models.PROTECT)
     entity = generic.GenericForeignKey('entity_type', 'entity_id')
 
     # The entity kind
-    entity_kind = models.ForeignKey(EntityKind)
+    entity_kind = models.ForeignKey(EntityKind, on_delete=models.PROTECT)
 
     # Metadata about the entity, stored as JSON
     entity_meta = JSONField(null=True)
