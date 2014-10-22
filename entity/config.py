@@ -52,7 +52,7 @@ class EntityConfig(object):
         """
         return None
 
-    def is_entity_active(self, model_obj):
+    def get_is_active(self, model_obj):
         """
         Describes if the entity is currently active.
 
