@@ -67,7 +67,7 @@ With the above configuration, every account entity will have an entity_meta fiel
 
 Along with metadata, entities come with the ability to mirror a ``display_name`` field in order to provide a human-readable name for the entity that can also be filtered in the database. By default, the ``display_name`` field uses the result of the ``unicode()`` function applied to the concrete model instance. The user may override this behavior by overriding the ``get_display_name`` method in the entity configuration.
 
-Entities can also be configured to be active or inactive, and this is done by adding an ``is_entity_active`` function to the config that returns ``True`` (the default value) if the entity is active and ``False`` otherwise.
+Entities can also be configured to be active or inactive, and this is done by adding an ``get_is_active`` function to the config that returns ``True`` (the default value) if the entity is active and ``False`` otherwise.
 
 ### Advanced Syncing Continued - Entity Kinds
 

@@ -459,6 +459,22 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
     Tests that entities (from the test models) are properly synced upon post_save
     and post_delete signals.
     """
+    def test_active_inactive_syncing(self):
+        """
+        Tests that an inactive entity is synced properly when starting in an inactive
+        state and going to an active state.
+        """
+        a = Account.objects.create(email='test_email', is_active=False)
+        e = Entity.all_objects.get_for_obj(a)
+        self.assertEquals(e.display_name, 'test_email')
+        self.assertFalse(e.is_active)
+
+        a.is_active = True
+        a.save()
+        e = Entity.all_objects.get_for_obj(a)
+        self.assertEquals(e.display_name, 'test_email')
+        self.assertTrue(e.is_active)
+
     def test_display_name_mirrored_default(self):
         """
         Tests that the display name is mirrored to the __unicode__ of the models. This

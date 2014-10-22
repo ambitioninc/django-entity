@@ -57,11 +57,11 @@ class EntitySyncer(object):
             entity_kind = self._get_entity_kind(entity_config, model_obj)
 
             # Create or update the entity
-            entity, created = Entity.objects.upsert(
+            entity, created = Entity.all_objects.upsert(
                 entity_type=entity_type, entity_id=model_obj.id, updates={
                     'entity_meta': entity_config.get_entity_meta(model_obj),
                     'display_name': entity_config.get_display_name(model_obj),
-                    'is_active': entity_config.is_entity_active(model_obj),
+                    'is_active': entity_config.get_is_active(model_obj),
                     'entity_kind': entity_kind,
                 })
 
@@ -100,7 +100,7 @@ class EntitySyncer(object):
                 self._sync_entity(model_obj)
 
             # Delete any existing entities that are not in the model obj table
-            Entity.objects.filter(entity_type=ContentType.objects.get_for_model(entity_model)).exclude(
+            Entity.all_objects.filter(entity_type=ContentType.objects.get_for_model(entity_model)).exclude(
                 entity_id__in=(model_obj.id for model_obj in model_objs)).delete(force=True)
 
     def _sync_select_entities(self, *model_objs):
