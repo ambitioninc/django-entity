@@ -85,7 +85,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests that delete signals are connected by default.
         """
         a = Account.objects.create()
-        with patch('entity.models.Entity.objects.delete_for_obj') as mock_handler:
+        with patch('entity.models.Entity.all_objects.delete_for_obj') as mock_handler:
             # Delete the object. The signal should be called
             a.delete()
             self.assertEquals(mock_handler.call_count, 1)
@@ -143,7 +143,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing()
-        with patch('entity.models.Entity.objects.delete_for_obj') as mock_handler:
+        with patch('entity.models.Entity.all_objects.delete_for_obj') as mock_handler:
             a = Account.objects.create()
             a.delete()
             self.assertEquals(mock_handler.call_count, 1)
@@ -242,7 +242,7 @@ class SyncAllEntitiesTest(EntityTestCase):
 
     def test_sync_all_accounts_teams(self):
         """
-        Tests syncing of all accounts when they have syper entities.
+        Tests syncing of all accounts when they have super entities.
         """
         # Create five test accounts
         accounts = [Account.objects.create() for i in range(5)]
@@ -509,6 +509,14 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         MultiInheritEntity.objects.create()
         # Verify that one entity was synced
         self.assertEquals(Entity.objects.all().count(), 1)
+
+    def test_post_delete_inactive_entity(self):
+        """
+        Tests deleting an entity that was already inactive.
+        """
+        account = Account.objects.create(is_active=False)
+        account.delete()
+        self.assertEquals(Entity.all_objects.all().count(), 0)
 
     def test_post_delete_no_entity(self):
         """
