@@ -82,8 +82,8 @@ class EntityQuerySet(ActivatableQuerySet):
                 # Get a list of entities that have super entities with all types
                 has_subset = EntityRelationship.objects.filter(
                     super_entity__entity_kind__in=super_entity_kinds).values('sub_entity').annotate(
-                        Count('super_entity')).filter(super_entity__count=len(set(super_entity_kinds))).values_list(
-                            'sub_entity', flat=True)
+                    Count('super_entity')).filter(super_entity__count=len(set(super_entity_kinds))).values_list(
+                    'sub_entity', flat=True)
 
             return self.filter(pk__in=has_subset)
         else:
@@ -98,11 +98,11 @@ class EntityQuerySet(ActivatableQuerySet):
             if len(super_entity_kinds) == 1:
                 entity_pks = EntityRelationship.objects.filter(
                     super_entity__entity_kind=super_entity_kinds[0]
-                    ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
+                ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
             else:
                 entity_pks = EntityRelationship.objects.filter(
                     super_entity__entity_kind__in=super_entity_kinds
-                    ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
+                ).select_related('entity_kind', 'sub_entity').values_list('sub_entity', flat=True)
             # return a queryset limited to only those pks
             return self.filter(pk__in=entity_pks)
         else:
@@ -321,7 +321,7 @@ def delete_entity_signal_handler(sender, instance, **kwargs):
     an entity is saved or deleted.
     """
     if instance.__class__ in entity_registry.entity_registry:
-        Entity.objects.delete_for_obj(instance)
+        Entity.all_objects.delete_for_obj(instance)
 
 
 def save_entity_signal_handler(sender, instance, **kwargs):

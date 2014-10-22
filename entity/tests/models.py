@@ -124,7 +124,7 @@ class AccountConfig(EntityConfig):
     """
     Entity configuration for the account model
     """
-    def is_entity_active(self, model_obj):
+    def get_is_active(self, model_obj):
         return model_obj.is_active
 
     def get_entity_meta(self, model_obj):
@@ -158,7 +158,7 @@ class AccountConfig(EntityConfig):
 
 @register_entity(Team.objects.select_related('team_group'))
 class TeamConfig(EntityConfig):
-    def is_entity_active(self, model_obj):
+    def get_is_active(self, model_obj):
         return model_obj.is_active
 
     def get_super_entities(self, model_obj):
