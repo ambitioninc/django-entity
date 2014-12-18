@@ -50,7 +50,7 @@ class EntitySyncer(object):
         relationships if the entity did not previously exist.
         """
         entity_config = entity_registry.entity_registry.get(model_obj.__class__)[1]
-        entity_type = ContentType.objects.get_for_model(model_obj)
+        entity_type = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
 
         if not self._synced_entity_cache.get((entity_type, model_obj.id, deep)):
             # Get the entity kind related to this entity
@@ -100,7 +100,8 @@ class EntitySyncer(object):
                 self._sync_entity(model_obj)
 
             # Delete any existing entities that are not in the model obj table
-            Entity.all_objects.filter(entity_type=ContentType.objects.get_for_model(entity_model)).exclude(
+            Entity.all_objects.filter(entity_type=ContentType.objects.get_for_model(
+                entity_model, for_concrete_model=False)).exclude(
                 entity_id__in=(model_obj.id for model_obj in model_objs)).delete(force=True)
 
     def _sync_select_entities(self, *model_objs):
