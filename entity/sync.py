@@ -95,6 +95,7 @@ class EntitySyncer(object):
         """
         # Loop through all entities that inherit EntityModelMixin and sync the entity.
         for entity_model, (entity_qset, entity_config) in entity_registry.entity_registry.iteritems():
+            entity_config.pre_sync()
             model_objs = list(entity_qset.all() if entity_qset is not None else entity_model.objects.all())
             for model_obj in model_objs:
                 self._sync_entity(model_obj)
@@ -115,7 +116,8 @@ class EntitySyncer(object):
 
         # Sync entities of each type
         for model_type, model_objs in model_objs_per_type.iteritems():
-            qset = entity_registry.entity_registry.get(model_type)[0]
+            qset, entity_config = entity_registry.entity_registry.get(model_type)
+            entity_config.pre_sync()
 
             # Refetch the model objects if the user registered a queryset. This performs select/prefetch
             # relates on the queryset and speeds up individual entity syncing. Note - compare the querysets
