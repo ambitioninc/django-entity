@@ -27,13 +27,6 @@ class EntityConfig(object):
     #
     watching = []
 
-    def pre_sync(self):
-        """
-        Called before individual or bulk syncing. Allows the user to cache miscellaneous data
-        for optimizations.
-        """
-        pass
-
     def get_display_name(self, model_obj):
         """
         Returns a human-readable string for the entity.
