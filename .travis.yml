@@ -2,7 +2,8 @@ language: python
 python:
   - '2.7'
 env:
-  - DJANGO=1.6.1 DB=postgres
+  - DJANGO=1.6.10 DB=postgres
+  - DJANGO=1.7.4 DB=postgres
 install:
   - pip install -q coverage flake8 psycopg2 Django==$DJANGO
 before_script:
