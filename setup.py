@@ -34,7 +34,7 @@ setup(
         'Framework :: Django',
     ],
     install_requires=[
-        'django>=1.6,<1.7',
+        'django>=1.7',
         'django-activatable-model>=0.2.0',
         'django-manager-utils>=0.6.3',
         'celery>=3.1',
@@ -44,7 +44,6 @@ setup(
         'mock',
         'django-dynamic-fixture',
         'django-nose',
-        'south',
     ],
     test_suite='run_tests.run_tests',
     include_package_data=True,
