@@ -31,7 +31,7 @@ class EntityConfig(object):
         """
         Returns a human-readable string for the entity.
         """
-        return model_obj.__unicode__()
+        return u'{0}'.format(model_obj)
 
     def get_entity_kind(self, model_obj):
         """
@@ -40,7 +40,7 @@ class EntityConfig(object):
         type as the kind.
         """
         model_obj_ctype = ContentType.objects.get_for_model(model_obj)
-        return ('{0}.{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), unicode(model_obj_ctype))
+        return (u'{0}.{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), u'{0}'.format(model_obj_ctype))
 
     def get_entity_meta(self, model_obj):
         """

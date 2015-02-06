@@ -10,7 +10,7 @@ class Migration(DataMigration):
         for e in orm.Entity.objects.all():
             e_kind, created = orm.EntityKind.objects.get_or_create(
                 name='{0}.{1}'.format(e.entity_type.app_label, e.entity_type.model), defaults={
-                    'display_name': unicode(e.entity_type)
+                    'display_name': u'{0}'.format(e.entity_type)
                 })
             e.entity_kind = e_kind
             e.save()

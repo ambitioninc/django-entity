@@ -12,7 +12,7 @@ class EntityKindTest(EntityTestCase):
     """
     def test_unicode(self):
         ek = N(EntityKind, display_name='hello')
-        self.assertEquals(ek.__unicode__(), u'hello')
+        self.assertEquals(u'{0}'.format(ek), u'hello')
 
 
 class TestActiveEntityManager(EntityTestCase):
@@ -704,5 +704,5 @@ class TestEntityModel(EntityTestCase):
         """
         account = Account.objects.create(email='hi')
         entity = Entity.objects.get_for_obj(account)
-        entity_unicode = entity.__unicode__()
+        entity_unicode = entity.__str__()
         self.assertEquals(entity_unicode, 'hi')
