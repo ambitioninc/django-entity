@@ -35,8 +35,8 @@ setup(
     ],
     install_requires=[
         'django>=1.6',
-        'django-activatable-model>=0.2.0',
-        'django-manager-utils>=0.6.3',
+        'django-activatable-model>=0.3.0',
+        'django-manager-utils>=0.7.0',
         'celery>=3.1',
         'jsonfield>=0.9.20',
     ],
