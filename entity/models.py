@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count
 from django.db.models.signals import post_save, post_delete, m2m_changed
+from django.utils.encoding import python_2_unicode_compatible
 from jsonfield import JSONField
 from manager_utils import post_bulk_operation, ManagerUtilsManager
 
@@ -212,6 +213,7 @@ class EntityKindManager(ManagerUtilsManager):
     pass
 
 
+@python_2_unicode_compatible
 class EntityKind(models.Model):
     """
     A kind for an Entity that is useful for filtering based on different types of entities.
@@ -224,10 +226,11 @@ class EntityKind(models.Model):
 
     objects = EntityKindManager()
 
-    def __unicode__(self):
+    def __str__(self):
         return self.display_name
 
 
+@python_2_unicode_compatible
 class Entity(BaseActivatableModel):
     """
     Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions
@@ -270,7 +273,7 @@ class Entity(BaseActivatableModel):
         """
         return [r.super_entity for r in self.super_relationships.all()]
 
-    def __unicode__(self):
+    def __str__(self):
         """Return the display_name field
         """
         return self.display_name
