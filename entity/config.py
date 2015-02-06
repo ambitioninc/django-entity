@@ -31,7 +31,7 @@ class EntityConfig(object):
         """
         Returns a human-readable string for the entity.
         """
-        return unicode(model_obj)
+        return model_obj.__unicode__()
 
     def get_entity_kind(self, model_obj):
         """

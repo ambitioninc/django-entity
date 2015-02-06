@@ -33,5 +33,5 @@ class EntityTestCase(TestCase):
             entity_type=entity_type, entity_id=model_obj.id,
             entity_kind=EntityKind.objects.get_or_create(
                 name='{0}__{1}'.format(entity_type.app_label, entity_type.model),
-                defaults={'display_name': unicode(entity_type)}
+                defaults={'display_name': entity_type.__unicode__()}
             )[0])

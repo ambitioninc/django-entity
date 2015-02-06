@@ -12,7 +12,7 @@ class EntityKindTest(EntityTestCase):
     """
     def test_unicode(self):
         ek = N(EntityKind, display_name='hello')
-        self.assertEquals(unicode(ek), u'hello')
+        self.assertEquals(ek.__unicode__(), u'hello')
 
 
 class TestActiveEntityManager(EntityTestCase):
