@@ -287,6 +287,8 @@ Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
 ## Release Notes
+- 1.8.0:
+    - Added support for Django 1.7 and also backwards-compatible support for Django 1.6.
 - 1.7.1:
     - Changed the ``is_entity_active`` function in the entity configuration to be named ``get_is_active`` for consistency with other functions.
 - 1.6.0:
