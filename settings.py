@@ -43,7 +43,7 @@ def configure_settings():
             'entity',
             'entity.tests',
         ]
-        if django.VERSION[1] == 6:
+        if django.VERSION[1] < 7:
             installed_apps.append('south')
 
         settings.configure(

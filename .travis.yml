@@ -4,12 +4,12 @@ python:
   - '3.4'
 env:
   - DJANGO=1.6.10 DB=postgres
-  - DJANGO=1.7.4 DB=postgres
+  - DJANGO=1.7.7 DB=postgres
 install:
   - pip install -q coverage flake8 psycopg2 Django==$DJANGO
 before_script:
-  - flake8 . --max-line-length=120 --max-complexity=10 --exclude='env,south_migrations,migrations,*.egg'
+  - flake8 .
   - psql -c 'CREATE DATABASE entity;' -U postgres
 script:
-  - coverage run --source='entity' --branch  --omit='entity/migrations/*,entity/south_migrations/*' setup.py test
-  - coverage report --fail-under=100 --show-missing
+  - coverage run setup.py test
+  - coverage report --fail-under=100
