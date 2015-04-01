@@ -9,6 +9,7 @@ from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.utils.encoding import python_2_unicode_compatible
 from jsonfield import JSONField
 from manager_utils import post_bulk_operation, ManagerUtilsManager
+from python3_utils import compare_on_attr
 
 from entity import entity_registry
 
@@ -230,6 +231,7 @@ class EntityKind(models.Model):
         return self.display_name
 
 
+@compare_on_attr()
 @python_2_unicode_compatible
 class Entity(BaseActivatableModel):
     """
