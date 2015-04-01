@@ -41,6 +41,7 @@ setup(
         'django-manager-utils>=0.7.0',
         'celery>=3.1',
         'jsonfield>=0.9.20',
+        'python3-utils>=0.3',
     ],
     tests_require=[
         'django-dynamic-fixture',
