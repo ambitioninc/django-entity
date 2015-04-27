@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django.test.utils import override_settings
 from django_dynamic_fixture import G, F
 from entity.config import EntityRegistry
-from entity.models import Entity, EntityRelationship
+from entity.models import Entity, EntityRelationship, EntityKind
 from entity.sync import EntitySyncer
 from entity import turn_on_syncing, turn_off_syncing, sync_entities
 from mock import patch
@@ -256,6 +256,35 @@ class SyncAllEntitiesTest(EntityTestCase):
         accounts[2].save()
         accounts[3].team = teams[1]
         accounts[3].save()
+
+        # Sync all the entities. There should be 7 (5 accounts 2 teams)
+        sync_entities()
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 7)
+
+        # There should be four entity relationships since four accounts have teams
+        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+
+    def test_sync_all_accounts_teams_inactive_entity_kind(self):
+        """
+        Tests syncing of all accounts when they have super entities and the entiity kind is inactive
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        team_ek = EntityKind.objects.get(name='tests.team')
+        team_ek.delete()
 
         # Sync all the entities. There should be 7 (5 accounts 2 teams)
         sync_entities()
