@@ -6,6 +6,21 @@ from .models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
 
 
+class EntityKindManagerTest(EntityTestCase):
+    """
+    Tests the active and all entity kind managers.
+    """
+    def test_only_active(self):
+        G(EntityKind, is_active=False)
+        active_ek = G(EntityKind, is_active=True)
+        self.assertEquals([active_ek], list(EntityKind.objects.all()))
+
+    def test_all_objects(self):
+        inactive_ek = G(EntityKind, is_active=False)
+        active_ek = G(EntityKind, is_active=True)
+        self.assertEquals(set([active_ek, inactive_ek]), set(EntityKind.all_objects.all()))
+
+
 class EntityKindTest(EntityTestCase):
     """
     Tests the EntityKind model.
@@ -13,6 +28,14 @@ class EntityKindTest(EntityTestCase):
     def test_unicode(self):
         ek = N(EntityKind, display_name='hello')
         self.assertEquals(u'{0}'.format(ek), u'hello')
+
+    def test_regular_delete(self):
+        """
+        Regular deletion should deactivate the entity kind.
+        """
+        ek = G(EntityKind, is_active=True)
+        ek.delete()
+        self.assertFalse(ek.is_active)
 
 
 class TestActiveEntityManager(EntityTestCase):
