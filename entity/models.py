@@ -8,19 +8,20 @@ from django.db.models import Count
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.utils.encoding import python_2_unicode_compatible
 from jsonfield import JSONField
-from manager_utils import post_bulk_operation, ManagerUtilsManager
+from manager_utils import post_bulk_operation
+from python3_utils import compare_on_attr
 
 from entity import entity_registry
 
 
-class AllEntityKindManager(ManagerUtilsManager):
+class AllEntityKindManager(ActivatableManager):
     """
     Provides additional filtering for entity kinds.
     """
     pass
 
 
-class ActiveEntityKindManager(ManagerUtilsManager):
+class ActiveEntityKindManager(AllEntityKindManager):
     """
     Provides additional filtering for entity kinds.
     """
@@ -39,7 +40,7 @@ class EntityKind(BaseActivatableModel):
     # A human-readable string for the entity kind
     display_name = models.TextField(blank=True)
 
-    # True if this entity kind is active
+    # True if the entity kind is active
     is_active = models.BooleanField(default=True)
 
     objects = ActiveEntityKindManager()
@@ -242,6 +243,7 @@ class ActiveEntityManager(AllEntityManager):
         return EntityQuerySet(self.model).active()
 
 
+@compare_on_attr()
 @python_2_unicode_compatible
 class Entity(BaseActivatableModel):
     """

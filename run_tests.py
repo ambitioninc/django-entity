@@ -11,7 +11,7 @@ from settings import configure_settings
 
 # Configure the default settings and setup django
 configure_settings()
-if django.VERSION[1] == 7:
+if django.VERSION[1] >= 7:
     django.setup()
 
 # Django nose must be imported here since it depends on the settings being configured

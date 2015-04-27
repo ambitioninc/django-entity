@@ -1,0 +1,17 @@
+[run]
+branch = True
+omit =
+    */migrations/*
+    */south_migrations/*
+    entity/version.py
+    entity/apps.py
+source = entity
+[report]
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise NotImplementedError
+fail_under = 100
+show_missing = 1
