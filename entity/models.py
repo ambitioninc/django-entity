@@ -13,6 +13,42 @@ from manager_utils import post_bulk_operation, ManagerUtilsManager
 from entity import entity_registry
 
 
+class AllEntityKindManager(ManagerUtilsManager):
+    """
+    Provides additional filtering for entity kinds.
+    """
+    pass
+
+
+class ActiveEntityKindManager(ManagerUtilsManager):
+    """
+    Provides additional filtering for entity kinds.
+    """
+    def get_queryset(self):
+        return super(ActiveEntityKindManager, self).get_queryset().filter(is_active=True)
+
+
+@python_2_unicode_compatible
+class EntityKind(BaseActivatableModel):
+    """
+    A kind for an Entity that is useful for filtering based on different types of entities.
+    """
+    # The unique identification string for the entity kind
+    name = models.CharField(max_length=256, unique=True, db_index=True)
+
+    # A human-readable string for the entity kind
+    display_name = models.TextField(blank=True)
+
+    # True if this entity kind is active
+    is_active = models.BooleanField(default=True)
+
+    objects = ActiveEntityKindManager()
+    all_objects = AllEntityKindManager()
+
+    def __str__(self):
+        return self.display_name
+
+
 class EntityQuerySet(ActivatableQuerySet):
     """
     Provides additional queryset filtering abilities.
@@ -204,30 +240,6 @@ class ActiveEntityManager(AllEntityManager):
     """
     def get_queryset(self):
         return EntityQuerySet(self.model).active()
-
-
-class EntityKindManager(ManagerUtilsManager):
-    """
-    Provides additional filtering for entity kinds.
-    """
-    pass
-
-
-@python_2_unicode_compatible
-class EntityKind(models.Model):
-    """
-    A kind for an Entity that is useful for filtering based on different types of entities.
-    """
-    # The unique identification string for the entity kind
-    name = models.CharField(max_length=256, unique=True, db_index=True)
-
-    # A human-readable string for the entity kind
-    display_name = models.TextField(blank=True)
-
-    objects = EntityKindManager()
-
-    def __str__(self):
-        return self.display_name
 
 
 @python_2_unicode_compatible
