@@ -1,7 +1,6 @@
 import os
 
 from celery import Celery
-import django
 from django.conf import settings
 
 
