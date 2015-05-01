@@ -7,8 +7,8 @@ env:
   global:
     - DB=postgres
   matrix:
-    - DJANGO=">=1.7,<1.8"
-    - DJANGO=">=1.8,<1.9"
+    - DJANGO=1.7.7
+    - DJANGO>=1.8.0
 install:
   - pip install -q coverage flake8 psycopg2 Django==$DJANGO
 before_script:
