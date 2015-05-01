@@ -46,6 +46,9 @@ class EntityKind(BaseActivatableModel):
     objects = ActiveEntityKindManager()
     all_objects = AllEntityKindManager()
 
+    class Meta:
+        app_label = 'entity'
+
     def __str__(self):
         return self.display_name
 
@@ -272,6 +275,7 @@ class Entity(BaseActivatableModel):
 
     class Meta:
         unique_together = ('entity_id', 'entity_type', 'entity_kind')
+        app_label = 'entity'
 
     def get_sub_entities(self):
         """
@@ -308,6 +312,9 @@ class EntityRelationship(models.Model):
     # querying this reverse relationships returns all of the relationships
     # sub to an entity
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
+
+    class Meta:
+        app_label = 'entity'
 
 
 def sync_entities(*model_objs):

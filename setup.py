@@ -45,10 +45,9 @@ setup(
     ],
     tests_require=[
         'django-dynamic-fixture',
-        'django-nose',
+        'django-nose>=1.4',
         'mock',
         'psycopg2',
-        'south>=1.0.2',
     ],
     test_suite='run_tests.run_tests',
     include_package_data=True,

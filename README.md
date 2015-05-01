@@ -287,6 +287,8 @@ Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
 ## Release Notes
+- 1.10.0:
+    - Added Django 1.8 support.
 - 1.9.0:
     - Updated Entity Kinds to be activatable models.
 - 1.8.2:
