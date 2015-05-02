@@ -1,17 +1,49 @@
 from itertools import compress
 
-from activatable_model import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
+from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count
-from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.utils.encoding import python_2_unicode_compatible
 from jsonfield import JSONField
-from manager_utils import post_bulk_operation, ManagerUtilsManager
 from python3_utils import compare_on_attr
 
-from entity import entity_registry
+
+class AllEntityKindManager(ActivatableManager):
+    """
+    Provides additional filtering for entity kinds.
+    """
+    pass
+
+
+class ActiveEntityKindManager(AllEntityKindManager):
+    """
+    Provides additional filtering for entity kinds.
+    """
+    def get_queryset(self):
+        return super(ActiveEntityKindManager, self).get_queryset().filter(is_active=True)
+
+
+@python_2_unicode_compatible
+class EntityKind(BaseActivatableModel):
+    """
+    A kind for an Entity that is useful for filtering based on different types of entities.
+    """
+    # The unique identification string for the entity kind
+    name = models.CharField(max_length=256, unique=True, db_index=True)
+
+    # A human-readable string for the entity kind
+    display_name = models.TextField(blank=True)
+
+    # True if the entity kind is active
+    is_active = models.BooleanField(default=True)
+
+    objects = ActiveEntityKindManager()
+    all_objects = AllEntityKindManager()
+
+    def __str__(self):
+        return self.display_name
 
 
 class EntityQuerySet(ActivatableQuerySet):
@@ -207,30 +239,6 @@ class ActiveEntityManager(AllEntityManager):
         return EntityQuerySet(self.model).active()
 
 
-class EntityKindManager(ManagerUtilsManager):
-    """
-    Provides additional filtering for entity kinds.
-    """
-    pass
-
-
-@python_2_unicode_compatible
-class EntityKind(models.Model):
-    """
-    A kind for an Entity that is useful for filtering based on different types of entities.
-    """
-    # The unique identification string for the entity kind
-    name = models.CharField(max_length=256, unique=True, db_index=True)
-
-    # A human-readable string for the entity kind
-    display_name = models.TextField(blank=True)
-
-    objects = EntityKindManager()
-
-    def __str__(self):
-        return self.display_name
-
-
 @compare_on_attr()
 @python_2_unicode_compatible
 class Entity(BaseActivatableModel):
@@ -296,107 +304,3 @@ class EntityRelationship(models.Model):
     # querying this reverse relationships returns all of the relationships
     # sub to an entity
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
-
-
-def sync_entities(*model_objs):
-    """
-    Sync the provided model objects. If there are no model objects, sync all models across the entire
-    project.
-    """
-    # Import entity syncer here to avoid circular import
-    from entity.sync import EntitySyncer
-    EntitySyncer().sync_entities_and_relationships(*model_objs)
-
-
-def sync_entities_watching(instance):
-    """
-    Syncs entities watching changes of a model instance.
-    """
-    for entity_model, entity_model_getter in entity_registry.entity_watching[instance.__class__]:
-        entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
-        if entity_model_qset is None:
-            entity_model_qset = entity_model.objects.all()
-
-        model_objs = list(entity_model_getter(instance))
-        if model_objs:
-            sync_entities(*model_objs)
-
-
-def delete_entity_signal_handler(sender, instance, **kwargs):
-    """
-    Defines a signal handler for syncing an individual entity. Called when
-    an entity is saved or deleted.
-    """
-    if instance.__class__ in entity_registry.entity_registry:
-        Entity.all_objects.delete_for_obj(instance)
-
-
-def save_entity_signal_handler(sender, instance, **kwargs):
-    """
-    Defines a signal handler for saving an entity. Syncs the entity to
-    the entity mirror table.
-    """
-    if instance.__class__ in entity_registry.entity_registry:
-        sync_entities(instance)
-
-    if instance.__class__ in entity_registry.entity_watching:
-        sync_entities_watching(instance)
-
-
-def m2m_changed_entity_signal_handler(sender, instance, action, **kwargs):
-    """
-    Defines a signal handler for a manytomany changed signal. Only listens for the
-    post actions so that entities are synced once (rather than twice for a pre and post action).
-    """
-    if action == 'post_add' or action == 'post_remove' or action == 'post_clear':
-        save_entity_signal_handler(sender, instance, **kwargs)
-
-
-def bulk_operation_signal_handler(sender, *args, **kwargs):
-    """
-    When a bulk operation has happened on a model, sync all the entities again.
-    NOTE - bulk syncing isn't turned on by default because of the consequences of it.
-    For example, a user may issue a simple update to a single model, which would trigger
-    syncing of all entities. It is up to the user to explicitly enable syncing on bulk
-    operations with turn_on_syncing(bulk=True)
-    """
-    if sender.model in entity_registry.entity_registry:
-        sync_entities()
-
-
-def turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True):
-    """
-    Disables all of the signals for syncing entities. By default, everything is turned off. If the user wants
-    to turn off everything but one signal, for example the post_save signal, they would do:
-
-    turn_off_sync(for_post_save=False)
-    """
-    if for_post_save:
-        post_save.disconnect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-    if for_post_delete:
-        post_delete.disconnect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
-    if for_m2m_changed:
-        m2m_changed.disconnect(m2m_changed_entity_signal_handler, dispatch_uid='m2m_changed_entity_signal_handler')
-    if for_post_bulk_operation:
-        post_bulk_operation.disconnect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
-
-
-def turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=False):
-    """
-    Enables all of the signals for syncing entities. Everything is True by default, except for the post_bulk_operation
-    signal. The reason for this is because when any bulk operation occurs on any mirrored entity model, it will
-    result in every single entity being synced again. This is not a desired behavior by the majority of users, and
-    should only be turned on explicitly.
-    """
-    if for_post_save:
-        post_save.connect(save_entity_signal_handler, dispatch_uid='save_entity_signal_handler')
-    if for_post_delete:
-        post_delete.connect(delete_entity_signal_handler, dispatch_uid='delete_entity_signal_handler')
-    if for_m2m_changed:
-        m2m_changed.connect(m2m_changed_entity_signal_handler, dispatch_uid='m2m_changed_entity_signal_handler')
-    if for_post_bulk_operation:
-        post_bulk_operation.connect(bulk_operation_signal_handler, dispatch_uid='bulk_operation_signal_handler')
-
-
-# Connect all default signal handlers
-turn_on_syncing()

@@ -6,9 +6,9 @@ from django.core.management import call_command
 from django.test.utils import override_settings
 from django_dynamic_fixture import G, F
 from entity.config import EntityRegistry
-from entity.models import Entity, EntityRelationship
-from entity.sync import EntitySyncer
-from entity import turn_on_syncing, turn_off_syncing, sync_entities
+from entity.models import Entity, EntityRelationship, EntityKind
+from entity.sync import EntitySyncer, sync_entities
+from entity.signal_handlers import turn_on_syncing, turn_off_syncing
 from mock import patch
 
 from entity.tests.models import (
@@ -22,10 +22,10 @@ class TestTurnOnOffSyncing(EntityTestCase):
     """
     Tests turning on and off entity syncing.
     """
-    @patch('entity.models.post_save', spec_set=True)
-    @patch('entity.models.post_delete', spec_set=True)
-    @patch('entity.models.m2m_changed', spec_set=True)
-    @patch('entity.models.post_bulk_operation', spec_set=True)
+    @patch('entity.signal_handlers.post_save', spec_set=True)
+    @patch('entity.signal_handlers.post_delete', spec_set=True)
+    @patch('entity.signal_handlers.m2m_changed', spec_set=True)
+    @patch('entity.signal_handlers.post_bulk_operation', spec_set=True)
     def test_turn_on_syncing_all_handlers_true(
             self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
         turn_on_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True)
@@ -34,10 +34,10 @@ class TestTurnOnOffSyncing(EntityTestCase):
         self.assertTrue(m2m_changed_mock.connect.called)
         self.assertTrue(post_bulk_operation_mock.connect.called)
 
-    @patch('entity.models.post_save', spec_set=True)
-    @patch('entity.models.post_delete', spec_set=True)
-    @patch('entity.models.m2m_changed', spec_set=True)
-    @patch('entity.models.post_bulk_operation', spec_set=True)
+    @patch('entity.signal_handlers.post_save', spec_set=True)
+    @patch('entity.signal_handlers.post_delete', spec_set=True)
+    @patch('entity.signal_handlers.m2m_changed', spec_set=True)
+    @patch('entity.signal_handlers.post_bulk_operation', spec_set=True)
     def test_turn_on_syncing_all_handlers_false(
             self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
         turn_on_syncing(
@@ -47,10 +47,10 @@ class TestTurnOnOffSyncing(EntityTestCase):
         self.assertFalse(m2m_changed_mock.connect.called)
         self.assertFalse(post_bulk_operation_mock.connect.called)
 
-    @patch('entity.models.post_save', spec_set=True)
-    @patch('entity.models.post_delete', spec_set=True)
-    @patch('entity.models.m2m_changed', spec_set=True)
-    @patch('entity.models.post_bulk_operation', spec_set=True)
+    @patch('entity.signal_handlers.post_save', spec_set=True)
+    @patch('entity.signal_handlers.post_delete', spec_set=True)
+    @patch('entity.signal_handlers.m2m_changed', spec_set=True)
+    @patch('entity.signal_handlers.post_bulk_operation', spec_set=True)
     def test_turn_off_syncing_all_handlers_true(
             self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
         turn_off_syncing(for_post_save=True, for_post_delete=True, for_m2m_changed=True, for_post_bulk_operation=True)
@@ -59,10 +59,10 @@ class TestTurnOnOffSyncing(EntityTestCase):
         self.assertTrue(m2m_changed_mock.disconnect.called)
         self.assertTrue(post_bulk_operation_mock.disconnect.called)
 
-    @patch('entity.models.post_save', spec_set=True)
-    @patch('entity.models.post_delete', spec_set=True)
-    @patch('entity.models.m2m_changed', spec_set=True)
-    @patch('entity.models.post_bulk_operation', spec_set=True)
+    @patch('entity.signal_handlers.post_save', spec_set=True)
+    @patch('entity.signal_handlers.post_delete', spec_set=True)
+    @patch('entity.signal_handlers.m2m_changed', spec_set=True)
+    @patch('entity.signal_handlers.post_bulk_operation', spec_set=True)
     def test_turn_off_syncing_all_handlers_false(
             self, post_bulk_operation_mock, m2m_changed_mock, post_delete_mock, post_save_mock):
         turn_off_syncing(
@@ -76,7 +76,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that save signals are connected by default.
         """
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertTrue(mock_handler.called)
 
@@ -94,7 +94,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that bulk operations are turned off by default.
         """
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -103,7 +103,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the save signal.
         """
         turn_off_syncing()
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertFalse(mock_handler.called)
 
@@ -112,7 +112,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the delete signal.
         """
         turn_off_syncing()
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             a = Account.objects.create()
             self.assertFalse(mock_handler.called)
             a.delete()
@@ -123,7 +123,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for bulk operations.
         """
         turn_off_syncing()
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -133,7 +133,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing()
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertTrue(mock_handler.called)
 
@@ -154,7 +154,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         turn_off_syncing()
         turn_on_syncing(for_post_bulk_operation=True)
-        with patch('entity.models.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertTrue(mock_handler.called)
 
@@ -256,6 +256,35 @@ class SyncAllEntitiesTest(EntityTestCase):
         accounts[2].save()
         accounts[3].team = teams[1]
         accounts[3].save()
+
+        # Sync all the entities. There should be 7 (5 accounts 2 teams)
+        sync_entities()
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 7)
+
+        # There should be four entity relationships since four accounts have teams
+        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+
+    def test_sync_all_accounts_teams_inactive_entity_kind(self):
+        """
+        Tests syncing of all accounts when they have super entities and the entiity kind is inactive
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        team_ek = EntityKind.objects.get(name='tests.team')
+        team_ek.delete()
 
         # Sync all the entities. There should be 7 (5 accounts 2 teams)
         sync_entities()
