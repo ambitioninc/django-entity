@@ -1,7 +1,6 @@
 import os
 
 from celery import Celery
-import django
 from django.conf import settings
 
 
@@ -43,10 +42,10 @@ def configure_settings():
             'entity',
             'entity.tests',
         ]
-        if django.VERSION[1] < 7:
-            installed_apps.append('south')
 
         settings.configure(
+            TEST_RUNNER='django_nose.NoseTestSuiteRunner',
+            NOSE_ARGS=['--nocapture', '--nologcapture', '--verbosity=1'],
             DATABASES={
                 'default': db_config,
             },
@@ -55,5 +54,4 @@ def configure_settings():
             ROOT_URLCONF='entity.urls',
             DEBUG=False,
             DDF_FILL_NULLABLE_FIELDS=False,
-            NOSE_ARGS=['--nocapture', '--nologcapture', '--verbosity=1'],
         )

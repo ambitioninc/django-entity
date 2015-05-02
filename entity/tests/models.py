@@ -1,7 +1,8 @@
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 
-from entity import Entity, EntityConfig, entity_registry, register_entity
+from entity.config import EntityConfig, entity_registry, register_entity
+from entity.models import Entity
 from manager_utils import ManagerUtilsManager
 
 
@@ -69,14 +70,14 @@ class Account(BaseEntityModel):
         return self.email
 
 
-class M2mEntity(models.Model):
+class M2mEntity(BaseEntityModel):
     """
     Used for testing syncing of a model with a M2M.
     """
     teams = models.ManyToManyField(Team)
 
 
-class PointsToM2mEntity(models.Model):
+class PointsToM2mEntity(BaseEntityModel):
     """
     A model that points to an m2mentity. Used to recreate the scenario when an account
     points to a user that is included in a group.
@@ -84,11 +85,11 @@ class PointsToM2mEntity(models.Model):
     m2m_entity = models.OneToOneField(M2mEntity)
 
 
-class PointsToAccount(models.Model):
+class PointsToAccount(BaseEntityModel):
     account = models.ForeignKey(Account)
 
 
-class EntityPointer(models.Model):
+class EntityPointer(BaseEntityModel):
     """
     Describes a test model that points to an entity. Used for ensuring
     that syncing entities doesn't perform any Entity deletes (causing models like
@@ -97,7 +98,7 @@ class EntityPointer(models.Model):
     entity = models.ForeignKey(Entity)
 
 
-class DummyModel(models.Model):
+class DummyModel(BaseEntityModel):
     """
     Used to ensure that models that don't register for entity syncing aren't synced.
     """
