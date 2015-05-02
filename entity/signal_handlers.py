@@ -44,11 +44,7 @@ def bulk_operation_signal_handler(sender, *args, **kwargs):
     syncing of all entities. It is up to the user to explicitly enable syncing on bulk
     operations with turn_on_syncing(bulk=True)
     """
-    print 'post bulk'
-    print 'sender', sender
-    print 'reg', entity_registry.entity_registry
     if sender in entity_registry.entity_registry:
-        print 'syncing'
         sync_entities()
 
 
