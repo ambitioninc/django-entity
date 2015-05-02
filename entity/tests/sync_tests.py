@@ -94,7 +94,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         """
         Tests that bulk operations are turned off by default.
         """
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.bulk_create([Account() for i in range(5)])
             self.assertFalse(mock_handler.called)
 
@@ -103,7 +103,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         Tests turning off syncing for the save signal.
         """
         turn_off_syncing()
-        with patch('entity.sync.sync_entities') as mock_handler:
+        with patch('entity.signal_handlers.sync_entities') as mock_handler:
             Account.objects.create()
             self.assertFalse(mock_handler.called)
 
