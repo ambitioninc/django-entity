@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-from entity import turn_on_syncing, turn_off_syncing
+from entity.signal_handlers import turn_on_syncing, turn_off_syncing
 from entity.models import Entity, EntityKind
 
 

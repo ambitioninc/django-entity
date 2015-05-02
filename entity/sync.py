@@ -8,7 +8,7 @@ from itertools import chain
 from django.contrib.contenttypes.models import ContentType
 import manager_utils
 
-from entity import entity_registry
+from entity.config import entity_registry
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
@@ -144,3 +144,27 @@ class EntitySyncer(object):
 
         # After entities have been synced, their relationships have been cached in memory. Sync this to disk
         self._sync_entity_relationships()
+
+
+def sync_entities(*model_objs):
+    """
+    Sync the provided model objects. If there are no model objects, sync all models across the entire
+    project.
+    """
+    # Import entity syncer here to avoid circular import
+    from entity.sync import EntitySyncer
+    EntitySyncer().sync_entities_and_relationships(*model_objs)
+
+
+def sync_entities_watching(instance):
+    """
+    Syncs entities watching changes of a model instance.
+    """
+    for entity_model, entity_model_getter in entity_registry.entity_watching[instance.__class__]:
+        entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
+        if entity_model_qset is None:
+            entity_model_qset = entity_model.objects.all()
+
+        model_objs = list(entity_model_getter(instance))
+        if model_objs:
+            sync_entities(*model_objs)

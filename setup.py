@@ -36,9 +36,9 @@ setup(
         'Framework :: Django',
     ],
     install_requires=[
-        'Django>=1.6',
-        'django-activatable-model>=0.3.0',
-        'django-manager-utils>=0.7.0',
+        'Django>=1.7',
+        'django-activatable-model>=0.4.0',
+        'django-manager-utils>=0.8.0',
         'celery>=3.1',
         'jsonfield>=0.9.20',
         'python3-utils>=0.3',
