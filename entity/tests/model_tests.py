@@ -825,3 +825,24 @@ class EntityGroupBulkAddEntitiesTest(EntityTestCase):
         expected = 2
         self.assertEqual(count, expected)
         self.assertIsInstance(membership[0], EntityGroupMembership)
+
+
+class EntityGroupRemoveEntityTest(EntityTestCase):
+    def setUp(self):
+        self.group = G(EntityGroup)
+        self.e1, self.e2 = G(Entity), G(Entity)
+        self.k = G(EntityKind)
+        to_add = [(self.e1, self.k), (self.e2, None)]
+        self.group.bulk_add_entities(to_add)
+
+    def test_removes_only_selected_no_entity_kind(self):
+        self.group.remove_entity(self.e2)
+        member = EntityGroupMembership.objects.get()
+        expected = self.k
+        self.assertEqual(member.sub_entity_kind, expected)
+
+    def test_removes_only_selected_with_entity_kind(self):
+        self.group.remove_entity(self.e1, self.k)
+        member = EntityGroupMembership.objects.get()
+        expected = None
+        self.assertEqual(member.sub_entity_kind, expected)
