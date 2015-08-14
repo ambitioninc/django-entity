@@ -400,9 +400,9 @@ class EntityGroup(models.Model):
             can be ``None``, to add a single entity, or some entity
             kind to add all sub-entities of that kind.
         """
-        criteria = [Q(entity=entity, entity_kind=entity_kind)
+        criteria = [Q(entity=entity, sub_entity_kind=entity_kind)
                     for entity, entity_kind in entities_and_kinds]
-        criteria = reduce(criteria, lambda q1, q2: q1 | q2, Q())
+        criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
         EntityGroupMembership.objects.filter(
             criteria, entity_group=self).delete()
 
