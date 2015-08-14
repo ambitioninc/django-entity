@@ -757,10 +757,47 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         self.assertEqual(result, expected)
 
     def test_sub_entity_group_entities_returned(self):
-        pass
+        e = self.super_entities[0]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = self.sub_entities[0:2]
+        self.assertEqual(result, expected)
+
+    def test_sub_entity_group_entities_filters_by_kind(self):
+        e = self.super_entities[1]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [self.sub_entities[2]]
+        self.assertEqual(result, expected)
 
     def test_combined_returned(self):
-        pass
+        e = self.super_entities[1]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=None)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [e, self.sub_entities[2]]
+        self.assertEqual(result, expected)
 
     def test_number_of_queries(self):
-        pass
+        e1 = self.super_entities[1]
+        e2 = self.super_entities[2]
+        sub1 = self.sub_entities[0]
+
+        # Individual memberships
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e1, sub_entity_kind=None)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=sub1, sub_entity_kind=None)
+
+        # Group memberships
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e1, sub_entity_kind=self.kind1)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e2, sub_entity_kind=self.kind2)
+
+        with self.assertNumQueries(4):
+            list(self.group.all_entities())
