@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django_dynamic_fixture import G, N
-from entity.models import Entity, EntityKind
+from entity.models import Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership
 
 from .models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
@@ -729,3 +729,38 @@ class TestEntityModel(EntityTestCase):
         entity = Entity.objects.get_for_obj(account)
         entity_unicode = entity.__str__()
         self.assertEquals(entity_unicode, 'hi')
+
+
+class EntityGroupAllEntitiesTest(EntityTestCase):
+    def setUp(self):
+        super(EntityGroupAllEntitiesTest, self).setUp()
+        # Create three super entities, each with two sub
+        # entities. THere are two entity kinds. Super entity 1 has two
+        # sub entities of the first kind, super entity 2 has subs of
+        # two different kinds, and super entity three has two of the
+        # second kind.
+        self.kind1, self.kind2 = G(EntityKind), G(EntityKind)
+        self.super_entities = [G(Entity) for _ in range(3)]
+        self.sub_entities = [G(Entity, entity_kind=k)
+                             for k in [self.kind1] * 3 + [self.kind2] * 3]
+        for i, sub in enumerate(self.sub_entities):
+            sup = self.super_entities[i // 2]
+            G(EntityRelationship, sub_entity=sub, super_entity=sup)
+
+        self.group = G(EntityGroup)
+
+    def test_individual_entities_returned(self):
+        e = self.super_entities[0]
+        G(EntityGroupMembership, entity_group=self.group, entity=e, sub_entity_kind=None)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [e]
+        self.assertEqual(result, expected)
+
+    def test_sub_entity_group_entities_returned(self):
+        pass
+
+    def test_combined_returned(self):
+        pass
+
+    def test_number_of_queries(self):
+        pass

@@ -314,15 +314,30 @@ class EntityGroup(models.Model):
     def all_entities(self):
         """Return all the entities in the group.
         """
+        # handle the individual memberships
         individual_member_ids = EntityGroupMembership.objects.filter(
-            entity_group=self, sub_entity_kind__is_null=True).values_list('id', flat=True)
+            entity_group=self,
+            sub_entity_kind__isnull=True).values_list('entity_id', flat=True)
+
+        # Create a set of criteria to find members of sub-entity
+        # groups in this EntityGroup
         group_members = EntityGroupMembership.objects.filter(
-            entity_group=self, sub_entity_kind__is_null=False)
-        criteria = [Q(super_entity=member.entity, sub_entity__entity_kind=member.sub_entity_kind)
+            entity_group=self, sub_entity_kind__isnull=False)
+        criteria = [Q(super_entity=member.entity,
+                      sub_entity__entity_kind=member.sub_entity_kind)
                     for member in group_members]
-        group_sub_entity_ids = EntityRelationship.objects.select_related('sub_entity').filter(
-            criteria).values_list('sub_entity_id', flat=True)
-        entity_ids = individual_member_ids + group_sub_entity_ids
+        criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
+
+        # If there are group members, get thier ids
+        if group_members.exists():
+            group_sub_entity_ids = EntityRelationship.objects.select_related(
+                'sub_entity').filter(criteria).values_list('sub_entity_id', flat=True)
+        else:
+            group_sub_entity_ids = []
+
+        # Return all the entities who are individually included, or
+        # included through as a sub-entity.
+        entity_ids = set(list(individual_member_ids) + list(group_sub_entity_ids))
         return Entity.objects.filter(id__in=entity_ids)
 
     def add_entity(self, entity, sub_entity_kind=None):
