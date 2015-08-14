@@ -308,11 +308,27 @@ class EntityRelationship(models.Model):
 
 class EntityGroup(models.Model):
     """An arbitrary group of entities and sub-entity groups.
+
+    Members can be added to the group through the ``add_entity`` and
+    ``bulk_add_entities`` methods, removed with the ``remove_entity``
+    and ``bulk_remove_entities`` methods, as well as completely change
+    the members of the group with the ``bulk_overwrite`` method.
+
+    Since entity groups support inclusion of individual entities, as
+    well as groups of sub-entities of a given kind, querying for all
+    of the individual entities in the group could be challenging. For
+    this reason the ``all_entities`` method is included, which will
+    return all of the individual entities in a given group.
+
     """
     entities = models.ManyToManyField(Entity, through='EntityGroupMembership')
 
     def all_entities(self):
         """Return all the entities in the group.
+
+        Because groups can contain both individual entities, as well
+        as whole groups of entities, this method acts as a convenient
+        way to get a queryset of all the entities in the group.
         """
         # handle the individual memberships
         individual_member_ids = EntityGroupMembership.objects.filter(
@@ -424,6 +440,9 @@ class EntityGroup(models.Model):
 
 class EntityGroupMembership(models.Model):
     """Membership information for entity groups.
+
+    This model should usually not be queried/updated directly, but
+    accessed through the EntityGroup api.
     """
     entity_group = models.ForeignKey(EntityGroup)
     entity = models.ForeignKey(Entity)
