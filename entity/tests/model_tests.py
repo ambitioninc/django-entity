@@ -801,3 +801,14 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
 
         with self.assertNumQueries(4):
             list(self.group.all_entities())
+
+
+class EntityGroupAddEntityTest(EntityTestCase):
+    def test_adds_entity(self):
+        group = G(EntityGroup)
+        e = G(Entity)
+        membership = group.add_entity(e)
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        expected = 1
+        self.assertEqual(count, expected)
+        self.assertIsInstance(membership, EntityGroupMembership)
