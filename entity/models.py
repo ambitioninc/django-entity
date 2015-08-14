@@ -372,7 +372,7 @@ class EntityGroup(models.Model):
             entity=entity,
             sub_entity_kind=sub_entity_kind,
         ) for entity, sub_entity_kind in entities_and_kinds]
-        return EntityGroupMembership.bulk_create(memberships)
+        return EntityGroupMembership.objects.bulk_create(memberships)
 
     def remove_entity(self, entity, sub_entity_kind=None):
         """Remove an entity, or sub-entity group to this EntityGroup.

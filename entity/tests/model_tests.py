@@ -812,3 +812,16 @@ class EntityGroupAddEntityTest(EntityTestCase):
         expected = 1
         self.assertEqual(count, expected)
         self.assertIsInstance(membership, EntityGroupMembership)
+
+
+class EntityGroupBulkAddEntitiesTest(EntityTestCase):
+    def test_bulk_adds(self):
+        group = G(EntityGroup)
+        e1, e2 = G(Entity), G(Entity)
+        k = G(EntityKind)
+        to_add = [(e1, k), (e2, None)]
+        membership = group.bulk_add_entities(to_add)
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        expected = 2
+        self.assertEqual(count, expected)
+        self.assertIsInstance(membership[0], EntityGroupMembership)
