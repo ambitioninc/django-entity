@@ -782,6 +782,19 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         expected = [e, self.sub_entities[2]]
         self.assertEqual(result, expected)
 
+    def test_filters_groups(self):
+        other_group = G(EntityGroup)
+        e = self.super_entities[1]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=None)
+        G(EntityGroupMembership, entity_gropu=other_group,
+          entity=e, sub_entity_kind=None)
+        result = self.group.all_entities().count()
+        expected = 2
+        self.assertEqual(result, expected)
+
     def test_number_of_queries(self):
         e1 = self.super_entities[1]
         e2 = self.super_entities[2]
@@ -837,13 +850,13 @@ class EntityGroupRemoveEntityTest(EntityTestCase):
 
     def test_removes_only_selected_no_entity_kind(self):
         self.group.remove_entity(self.e2)
-        member = EntityGroupMembership.objects.get()
+        member = EntityGroupMembership.objects.get(entity_group=self.group)
         expected = self.k
         self.assertEqual(member.sub_entity_kind, expected)
 
     def test_removes_only_selected_with_entity_kind(self):
         self.group.remove_entity(self.e1, self.k)
-        member = EntityGroupMembership.objects.get()
+        member = EntityGroupMembership.objects.get(entity_group=self.group)
         expected = None
         self.assertEqual(member.sub_entity_kind, expected)
 
@@ -878,7 +891,7 @@ class EntityGroupBulkOverwriteEntitiesTest(EntityTestCase):
     def test_overwrites(self):
         to_overwrite = [(self.e1, None), (self.e2, self.k)]
         self.group.bulk_overwrite(to_overwrite)
-        count = EntityGroupMembership.objects.count()
+        count = EntityGroupMembership.objects.filter(entity_group=self.group).count()
         new_members = EntityGroupMembership.objects.values_list('entity', 'sub_entity_kind')
         expected = 2
         self.assertEqual(count, expected)
