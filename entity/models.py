@@ -8,6 +8,7 @@ from django.db.models import Count, Q
 from django.utils.encoding import python_2_unicode_compatible
 from jsonfield import JSONField
 from python3_utils import compare_on_attr
+from six.moves import reduce
 
 
 class AllEntityKindManager(ActivatableManager):
