@@ -308,8 +308,8 @@ my_group.add_entity(entity=some_super_entity, sub_entity_kind=some_entity_kind)
 all_entities_in_group = my_group.all_entities()
 ```
 
-After the code above is run, `all_entities_in_group` will be an
-`EntityGroup` instance that contains the entity `some_entity` as well
+After the code above is run, `all_entities_in_group` will be a
+Queryset of `Entity`s that contains the entity `some_entity` as well
 as all the sub-entities of `some_super_entity` who's entity-kind is
 `some_entity_kind`.
 
