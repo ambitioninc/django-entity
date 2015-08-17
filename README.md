@@ -286,7 +286,105 @@ Entity.objects.is_sub_to_all(groupa_entity).is_active().is_any_kind(account_kind
 Entity.objects.inactive().is_sub_to_all(groupb_entity).cache_relationships()
 ```
 
+## Arbitrary groups of Entities
+
+Once entities and their relationships are syncing is set up, most groupings of entities will be automatically encoded with the super/sub entity relationships. However, there are occasions when the groups that are automatically encoded do not capture the full extent of groupings that are useful.
+
+In order to support arbitrary groups of entities without requiring additional syncing code, the `EntityGroup` model is provided. This model comes with convenience functions for adding and removing entities to a group, as well as methods for querying what entities are in the arbitrary group.
+
+In addition to adding individual entities to an EntityGroup, you can also add all of an entity's sub-entities with a given type to the `EntityGroup` very easily. The following does the following:
+
+1. Creates an `EntityGroup`
+2. Adds an individual entity to the group
+3. Adds all the subentities of a given kind to the group
+4. Queries for all the entities in the group
+
+```python
+my_group = EntityGroup.objects.create()
+
+my_group.add_entity(entity=some_entity)
+my_group.add_entity(entity=some_super_entity, sub_entity_kind=some_entity_kind)
+
+all_entities_in_group = my_group.all_entities()
+```
+
+After the code above is run, `all_entities_in_group` will be a
+Queryset of `Entity`s that contains the entity `some_entity` as well
+as all the sub-entities of `some_super_entity` who's entity-kind is
+`some_entity_kind`.
+
+The following methods are available on `EntityGroup`s
+
+#### all_entitites
+
+Get a list of all individual entities in the group. This will pull out
+all the entities that have been added, combining all the entities that
+were added individually as well as all the entities that were added
+because they are sub-entities to a super-entity that was added the the
+group, with the specified entity kind.
+
+#### add_entity
+
+Add an individual entity, or all the sub-entities (with a given kind)
+of a super-entity to the group. There are two ways to add entities to
+the group with this method. The first adds an individual entity to the
+group. The second adds all the individuals who are a super-entity's
+sub-entities of a given kind to the group.
+
+This allows leveraging existing groupings as well as allowing other
+arbitrary additions. Both individual, and sub-entity group memberships
+can be added to a single `EntityGroup`.
+
+The syntax for adding an individual entity is as simple as specifying
+the entity to add:
+
+```python
+my_group.add(some_entity)
+```
+
+And adding a sub-entity group is as simple as specifying the
+super-entity and the sub-entity kind:
+
+```python
+my_group.add(entity=some_entity, sub_entity_kind=some_entity_kind)
+```
+
+#### bulk_add_entities
+
+Add a number of entities, or sub-entity groups to the
+`EntityGroup`. It takes a list of tuples, where the first item in the
+tuple is an `Entity` instance, and the second is either an
+`EntityKind` instance or `None`.
+
+```python
+my_group.bulk_add_entities([
+    (some_entity_1, None),
+    (some_entity_2, None),
+    (some_super_entity_1, some_entity_kind)
+    (some_super_entity_2, other_entity_kind)
+])
+```
+
+#### remove_entitiy
+
+Removes a given entity, or sub-entity grouping from the
+`EntityGroup`. This method uses the same syntax of `add_entity`.
+
+### bulk_remove_entities
+
+Removes a number of entities or sub-entity groupings from the
+`EntityGroup`. This method uses the same syntax as
+`bulk_add_entities`.
+
+#### bulk_overwrite
+
+This method replaces all of the group members with a new set of group
+members. It has the same syntax as ``bulk_add_entities``.
+
+
 ## Release Notes
+- 1.11.0:
+    - Added support for arbitrary groups of entities.
 - 1.10.0:
     - Added Django 1.8 support.
 - 1.9.0:

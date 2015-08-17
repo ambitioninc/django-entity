@@ -4,10 +4,11 @@ from activatable_model.models import BaseActivatableModel, ActivatableManager, A
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils.encoding import python_2_unicode_compatible
 from jsonfield import JSONField
 from python3_utils import compare_on_attr
+from six.moves import reduce
 
 
 class AllEntityKindManager(ActivatableManager):
@@ -304,3 +305,150 @@ class EntityRelationship(models.Model):
     # querying this reverse relationships returns all of the relationships
     # sub to an entity
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
+
+
+class EntityGroup(models.Model):
+    """An arbitrary group of entities and sub-entity groups.
+
+    Members can be added to the group through the ``add_entity`` and
+    ``bulk_add_entities`` methods, removed with the ``remove_entity``
+    and ``bulk_remove_entities`` methods, as well as completely change
+    the members of the group with the ``bulk_overwrite`` method.
+
+    Since entity groups support inclusion of individual entities, as
+    well as groups of sub-entities of a given kind, querying for all
+    of the individual entities in the group could be challenging. For
+    this reason the ``all_entities`` method is included, which will
+    return all of the individual entities in a given group.
+
+    """
+    entities = models.ManyToManyField(Entity, through='EntityGroupMembership')
+
+    def all_entities(self):
+        """Return all the entities in the group.
+
+        Because groups can contain both individual entities, as well
+        as whole groups of entities, this method acts as a convenient
+        way to get a queryset of all the entities in the group.
+        """
+        # handle the individual memberships
+        individual_member_ids = EntityGroupMembership.objects.filter(
+            entity_group=self,
+            sub_entity_kind__isnull=True).values_list('entity_id', flat=True)
+
+        # Create a set of criteria to find members of sub-entity
+        # groups in this EntityGroup
+        group_members = EntityGroupMembership.objects.filter(
+            entity_group=self, sub_entity_kind__isnull=False)
+        criteria = [
+            Q(super_entity=member.entity_id, sub_entity__entity_kind_id=member.sub_entity_kind_id)
+            for member in group_members
+        ]
+        # Or all the criteria Q objects together to make a single condition
+        criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
+
+        # If there are group members, get thier ids
+        if group_members.exists():
+            group_sub_entity_ids = EntityRelationship.objects.select_related(
+                'sub_entity').filter(criteria).values_list('sub_entity_id', flat=True)
+        else:
+            group_sub_entity_ids = []
+
+        # Return all the entities who are individually included, or
+        # included through as a sub-entity.
+        entity_ids = set(list(individual_member_ids) + list(group_sub_entity_ids))
+        return Entity.objects.filter(id__in=entity_ids)
+
+    def add_entity(self, entity, sub_entity_kind=None):
+        """Add an entity, or sub-entity group to this EntityGroup.
+
+        :type entity: Entity
+        :param entity: The entity to add.
+
+        :type sub_entity_kind: Optional EntityKind
+        :param sub_entity_kind: If a sub_entity_kind is given, all
+            sub_entities of the entity will be added to this
+            EntityGroup.
+        """
+        membership = EntityGroupMembership.objects.create(
+            entity_group=self,
+            entity=entity,
+            sub_entity_kind=sub_entity_kind,
+        )
+        return membership
+
+    def bulk_add_entities(self, entities_and_kinds):
+        """Add many entities and sub-entity groups to this EntityGroup.
+
+        :type entities_and_kinds: List of (Entity, EntityKind) pairs.
+        :param entities_and_kinds: A list of entity, entity-kind pairs
+            to add to the group. In the pairs the entity-kind can be
+            ``None``, to add a single entity, or some entity kind to
+            add all sub-entities of that kind.
+        """
+        memberships = [EntityGroupMembership(
+            entity_group=self,
+            entity=entity,
+            sub_entity_kind=sub_entity_kind,
+        ) for entity, sub_entity_kind in entities_and_kinds]
+        return EntityGroupMembership.objects.bulk_create(memberships)
+
+    def remove_entity(self, entity, sub_entity_kind=None):
+        """Remove an entity, or sub-entity group to this EntityGroup.
+
+        :type entity: Entity
+        :param entity: The entity to remove.
+
+        :type sub_entity_kind: Optional EntityKind
+        :param sub_entity_kind: If a sub_entity_kind is given, all
+            sub_entities of the entity will be removed from this
+            EntityGroup.
+        """
+        EntityGroupMembership.objects.get(
+            entity_group=self,
+            entity=entity,
+            sub_entity_kind=sub_entity_kind,
+        ).delete()
+
+    def bulk_remove_entities(self, entities_and_kinds):
+        """Remove many entities and sub-entity groups to this EntityGroup.
+
+        :type entities_and_kinds: List of (Entity, EntityKind) pairs.
+        :param entities_and_kinds: A list of entity, entity-kind pairs
+            to remove from the group. In the pairs, the entity-kind
+            can be ``None``, to add a single entity, or some entity
+            kind to add all sub-entities of that kind.
+        """
+        criteria = [
+            Q(entity=entity, sub_entity_kind=entity_kind)
+            for entity, entity_kind in entities_and_kinds
+        ]
+        criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
+        EntityGroupMembership.objects.filter(
+            criteria, entity_group=self).delete()
+
+    def bulk_overwrite(self, entities_and_kinds):
+        """Update the group to the given entities and sub-entity groups.
+
+        After this operation, the only members of this EntityGroup
+        will be the given entities, and sub-entity groups.
+
+        :type entities_and_kinds: List of (Entity, EntityKind) pairs.
+        :param entities_and_kinds: A list of entity, entity-kind pairs
+            to set to the EntityGroup. In the pairs the entity-kind
+            can be ``None``, to add a single entity, or some entity
+            kind to add all sub-entities of that kind.
+        """
+        EntityGroupMembership.objects.filter(entity_group=self).delete()
+        return self.bulk_add_entities(entities_and_kinds)
+
+
+class EntityGroupMembership(models.Model):
+    """Membership information for entity groups.
+
+    This model should usually not be queried/updated directly, but
+    accessed through the EntityGroup api.
+    """
+    entity_group = models.ForeignKey(EntityGroup)
+    entity = models.ForeignKey(Entity)
+    sub_entity_kind = models.ForeignKey(EntityKind, null=True)

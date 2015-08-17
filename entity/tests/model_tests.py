@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django_dynamic_fixture import G, N
-from entity.models import Entity, EntityKind
+from entity.models import Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership
 
 from .models import Account, Team, TeamGroup, Competitor
 from .utils import EntityTestCase
@@ -729,3 +729,173 @@ class TestEntityModel(EntityTestCase):
         entity = Entity.objects.get_for_obj(account)
         entity_unicode = entity.__str__()
         self.assertEquals(entity_unicode, 'hi')
+
+
+class EntityGroupAllEntitiesTest(EntityTestCase):
+    def setUp(self):
+        super(EntityGroupAllEntitiesTest, self).setUp()
+        # Create three super entities, each with two sub
+        # entities. THere are two entity kinds. Super entity 1 has two
+        # sub entities of the first kind, super entity 2 has subs of
+        # two different kinds, and super entity three has two of the
+        # second kind.
+        self.kind1, self.kind2 = G(EntityKind), G(EntityKind)
+        self.super_entities = [G(Entity) for _ in range(3)]
+        self.sub_entities = [
+            G(Entity, entity_kind=k)
+            for k in [self.kind1] * 3 + [self.kind2] * 3
+        ]
+        for i, sub in enumerate(self.sub_entities):
+            sup = self.super_entities[i // 2]
+            G(EntityRelationship, sub_entity=sub, super_entity=sup)
+
+        self.group = G(EntityGroup)
+
+    def test_individual_entities_returned(self):
+        e = self.super_entities[0]
+        G(EntityGroupMembership, entity_group=self.group, entity=e, sub_entity_kind=None)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [e]
+        self.assertEqual(result, expected)
+
+    def test_sub_entity_group_entities_returned(self):
+        e = self.super_entities[0]
+        G(
+            EntityGroupMembership, entity_group=self.group,
+            entity=e, sub_entity_kind=self.kind1)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = self.sub_entities[0:2]
+        self.assertEqual(result, expected)
+
+    def test_sub_entity_group_entities_filters_by_kind(self):
+        e = self.super_entities[1]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [self.sub_entities[2]]
+        self.assertEqual(result, expected)
+
+    def test_combined_returned(self):
+        e = self.super_entities[1]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=None)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [e, self.sub_entities[2]]
+        self.assertEqual(result, expected)
+
+    def test_filters_groups(self):
+        other_group = G(EntityGroup)
+        e = self.super_entities[1]
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=self.kind1)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e, sub_entity_kind=None)
+        G(EntityGroupMembership, entity_gropu=other_group,
+          entity=e, sub_entity_kind=None)
+        result = self.group.all_entities().count()
+        expected = 2
+        self.assertEqual(result, expected)
+
+    def test_number_of_queries(self):
+        e1 = self.super_entities[1]
+        e2 = self.super_entities[2]
+        sub1 = self.sub_entities[0]
+
+        # Individual memberships
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e1, sub_entity_kind=None)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=sub1, sub_entity_kind=None)
+
+        # Group memberships
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e1, sub_entity_kind=self.kind1)
+        G(EntityGroupMembership, entity_group=self.group,
+          entity=e2, sub_entity_kind=self.kind2)
+
+        with self.assertNumQueries(4):
+            list(self.group.all_entities())
+
+
+class EntityGroupAddEntityTest(EntityTestCase):
+    def test_adds_entity(self):
+        group = G(EntityGroup)
+        e = G(Entity)
+        membership = group.add_entity(e)
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        expected = 1
+        self.assertEqual(count, expected)
+        self.assertIsInstance(membership, EntityGroupMembership)
+
+
+class EntityGroupBulkAddEntitiesTest(EntityTestCase):
+    def test_bulk_adds(self):
+        group = G(EntityGroup)
+        e1, e2 = G(Entity), G(Entity)
+        k = G(EntityKind)
+        to_add = [(e1, k), (e2, None)]
+        membership = group.bulk_add_entities(to_add)
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        expected = 2
+        self.assertEqual(count, expected)
+        self.assertIsInstance(membership[0], EntityGroupMembership)
+
+
+class EntityGroupRemoveEntityTest(EntityTestCase):
+    def setUp(self):
+        self.group = G(EntityGroup)
+        self.e1, self.e2 = G(Entity), G(Entity)
+        self.k = G(EntityKind)
+        to_add = [(self.e1, self.k), (self.e2, None)]
+        self.group.bulk_add_entities(to_add)
+
+    def test_removes_only_selected_no_entity_kind(self):
+        self.group.remove_entity(self.e2)
+        member = EntityGroupMembership.objects.get(entity_group=self.group)
+        expected = self.k
+        self.assertEqual(member.sub_entity_kind, expected)
+
+    def test_removes_only_selected_with_entity_kind(self):
+        self.group.remove_entity(self.e1, self.k)
+        member = EntityGroupMembership.objects.get(entity_group=self.group)
+        expected = None
+        self.assertEqual(member.sub_entity_kind, expected)
+
+
+class EntityGroupBulkRemoveEntitiesTest(EntityTestCase):
+    def setUp(self):
+        self.group = G(EntityGroup)
+        self.e1, self.e2, self.e3 = G(Entity), G(Entity), G(Entity)
+        self.k = G(EntityKind)
+        to_add = [(self.e1, self.k), (self.e2, None), (self.e3, self.k), (self.e3, None)]
+        self.group.bulk_add_entities(to_add)
+
+    def test_only_removes_selected(self):
+        self.group.bulk_remove_entities([(self.e3, self.k), (self.e2, None)])
+        count = EntityGroupMembership.objects.filter(entity_group=self.group).count()
+        expected = 2
+        self.assertEqual(count, expected)
+
+    def test_num_queries(self):
+        with self.assertNumQueries(2):
+            self.group.bulk_remove_entities([(self.e3, self.k), (self.e2, None)])
+
+
+class EntityGroupBulkOverwriteEntitiesTest(EntityTestCase):
+    def setUp(self):
+        self.group = G(EntityGroup)
+        self.e1, self.e2, self.e3 = G(Entity), G(Entity), G(Entity)
+        self.k = G(EntityKind)
+        to_add = [(self.e1, self.k), (self.e2, None), (self.e3, self.k), (self.e3, None)]
+        self.group.bulk_add_entities(to_add)
+
+    def test_overwrites(self):
+        to_overwrite = [(self.e1, None), (self.e2, self.k)]
+        self.group.bulk_overwrite(to_overwrite)
+        count = EntityGroupMembership.objects.filter(entity_group=self.group).count()
+        new_members = EntityGroupMembership.objects.values_list('entity', 'sub_entity_kind')
+        expected = 2
+        self.assertEqual(count, expected)
+        self.assertIn((self.e1.id, None), new_members)
