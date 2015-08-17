@@ -337,7 +337,7 @@ class EntityGroup(models.Model):
 
         # Create a set of criteria to find members of sub-entity
         # groups in this EntityGroup
-        group_members = EntityGroupMembership.objects.select_related('').filter(
+        group_members = EntityGroupMembership.objects.filter(
             entity_group=self, sub_entity_kind__isnull=False)
         criteria = [
             Q(super_entity=member.entity_id, sub_entity__entity_kind_id=member.sub_entity_kind_id)
