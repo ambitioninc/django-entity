@@ -339,9 +339,11 @@ class EntityGroup(models.Model):
         # groups in this EntityGroup
         group_members = EntityGroupMembership.objects.select_related('').filter(
             entity_group=self, sub_entity_kind__isnull=False)
-        criteria = [Q(super_entity=member.entity_id,
-                      sub_entity__entity_kind_id=member.sub_entity_kind_id)
-                    for member in group_members]
+        criteria = [
+            Q(super_entity=member.entity_id, sub_entity__entity_kind_id=member.sub_entity_kind_id)
+            for member in group_members
+        ]
+        # Or all the criteria Q objects together to make a single condition
         criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
 
         # If there are group members, get thier ids
@@ -416,8 +418,10 @@ class EntityGroup(models.Model):
             can be ``None``, to add a single entity, or some entity
             kind to add all sub-entities of that kind.
         """
-        criteria = [Q(entity=entity, sub_entity_kind=entity_kind)
-                    for entity, entity_kind in entities_and_kinds]
+        criteria = [
+            Q(entity=entity, sub_entity_kind=entity_kind)
+            for entity, entity_kind in entities_and_kinds
+        ]
         criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
         EntityGroupMembership.objects.filter(
             criteria, entity_group=self).delete()

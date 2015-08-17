@@ -741,8 +741,10 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         # second kind.
         self.kind1, self.kind2 = G(EntityKind), G(EntityKind)
         self.super_entities = [G(Entity) for _ in range(3)]
-        self.sub_entities = [G(Entity, entity_kind=k)
-                             for k in [self.kind1] * 3 + [self.kind2] * 3]
+        self.sub_entities = [
+            G(Entity, entity_kind=k)
+            for k in [self.kind1] * 3 + [self.kind2] * 3
+        ]
         for i, sub in enumerate(self.sub_entities):
             sup = self.super_entities[i // 2]
             G(EntityRelationship, sub_entity=sub, super_entity=sup)
@@ -758,8 +760,9 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
 
     def test_sub_entity_group_entities_returned(self):
         e = self.super_entities[0]
-        G(EntityGroupMembership, entity_group=self.group,
-          entity=e, sub_entity_kind=self.kind1)
+        G(
+            EntityGroupMembership, entity_group=self.group,
+            entity=e, sub_entity_kind=self.kind1)
         result = list(self.group.all_entities().order_by('id'))
         expected = self.sub_entities[0:2]
         self.assertEqual(result, expected)
