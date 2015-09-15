@@ -447,6 +447,11 @@ class EntityGroupMembership(models.Model):
 
     This model should usually not be queried/updated directly, but
     accessed through the EntityGroup api.
+
+    When entity is null, it means all entities of the sub_entity_kind will be selected.
+    When sub_entity_kind is null, only the specified entity will be selected.
+    When entity and sub_entity_kind are both not null, it means all sub entities below 'entity'
+    with a kind of 'sub_entity_kind' will be selected.
     """
     entity_group = models.ForeignKey(EntityGroup)
     entity = models.ForeignKey(Entity, null=True)
