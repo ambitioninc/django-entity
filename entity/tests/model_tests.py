@@ -783,6 +783,17 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
           entity=e, sub_entity_kind=None)
         result = list(self.group.all_entities().order_by('id'))
         expected = [e, self.sub_entities[2]]
+
+        self.assertEqual(result, expected)
+
+    def test_all_entities_of_a_kind_returned(self):
+        """
+        When a group has a sub_entity_kind but a null entity, it should return all entities of that kind
+        """
+        G(EntityGroupMembership, entity_group=self.group, sub_entity_kind=self.kind1)
+        result = list(self.group.all_entities().order_by('id'))
+        expected = [self.sub_entities[0], self.sub_entities[1], self.sub_entities[2]]
+
         self.assertEqual(result, expected)
 
     def test_filters_groups(self):
@@ -792,7 +803,7 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
           entity=e, sub_entity_kind=self.kind1)
         G(EntityGroupMembership, entity_group=self.group,
           entity=e, sub_entity_kind=None)
-        G(EntityGroupMembership, entity_gropu=other_group,
+        G(EntityGroupMembership, entity_group=other_group,
           entity=e, sub_entity_kind=None)
         result = self.group.all_entities().count()
         expected = 2
@@ -815,7 +826,7 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         G(EntityGroupMembership, entity_group=self.group,
           entity=e2, sub_entity_kind=self.kind2)
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(2):
             list(self.group.all_entities())
 
 

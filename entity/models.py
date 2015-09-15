@@ -331,33 +331,32 @@ class EntityGroup(models.Model):
         as whole groups of entities, this method acts as a convenient
         way to get a queryset of all the entities in the group.
         """
-        # handle the individual memberships
-        individual_member_ids = EntityGroupMembership.objects.filter(
-            entity_group=self,
-            sub_entity_kind__isnull=True).values_list('entity_id', flat=True)
+        # Get custom entity selection
+        all_entities_qs = Entity.objects.filter(
+            entitygroupmembership__entity_group=self, entitygroupmembership__sub_entity_kind__isnull=True)
 
-        # Create a set of criteria to find members of sub-entity
-        # groups in this EntityGroup
-        group_members = EntityGroupMembership.objects.filter(
-            entity_group=self, sub_entity_kind__isnull=False)
-        criteria = [
-            Q(super_entity=member.entity_id, sub_entity__entity_kind_id=member.sub_entity_kind_id)
-            for member in group_members
-        ]
-        # Or all the criteria Q objects together to make a single condition
-        criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
+        # Get all entities of a kind
+        entity_kind_qs = EntityGroupMembership.objects.filter(
+            entity_group=self, entity__isnull=True).values_list('sub_entity_kind_id', flat=True)
+        all_entities_qs |= Entity.objects.filter(entity_kind_id__in=entity_kind_qs)
 
-        # If there are group members, get thier ids
-        if group_members.exists():
-            group_sub_entity_ids = EntityRelationship.objects.select_related(
-                'sub_entity').filter(criteria).values_list('sub_entity_id', flat=True)
-        else:
-            group_sub_entity_ids = []
+        # Get all entities sub to another entity
+        memberships_qs = EntityGroupMembership.objects.filter(
+            entity_group=self, entity__isnull=False, sub_entity_kind__isnull=False
+        ).values('sub_entity_kind_id', 'entity_id')
 
-        # Return all the entities who are individually included, or
-        # included through as a sub-entity.
-        entity_ids = set(list(individual_member_ids) + list(group_sub_entity_ids))
-        return Entity.objects.filter(id__in=entity_ids)
+        # Build unique set of sub_entity_kind_id and entity_id
+        memberships = set([
+            (membership['sub_entity_kind_id'], membership['entity_id'])
+            for membership in memberships_qs
+        ])
+
+        # Union each type together
+        for membership in memberships:
+            all_entities_qs |= Entity.objects.filter(
+                entity_kind_id=membership[0], super_relationships__super_entity_id=membership[1])
+
+        return all_entities_qs.distinct('id')
 
     def add_entity(self, entity, sub_entity_kind=None):
         """Add an entity, or sub-entity group to this EntityGroup.
@@ -448,7 +447,12 @@ class EntityGroupMembership(models.Model):
 
     This model should usually not be queried/updated directly, but
     accessed through the EntityGroup api.
+
+    When entity is null, it means all entities of the sub_entity_kind will be selected.
+    When sub_entity_kind is null, only the specified entity will be selected.
+    When entity and sub_entity_kind are both not null, it means all sub entities below 'entity'
+    with a kind of 'sub_entity_kind' will be selected.
     """
     entity_group = models.ForeignKey(EntityGroup)
-    entity = models.ForeignKey(Entity)
+    entity = models.ForeignKey(Entity, null=True)
     sub_entity_kind = models.ForeignKey(EntityKind, null=True)
