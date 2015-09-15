@@ -331,34 +331,6 @@ class EntityGroup(models.Model):
         as whole groups of entities, this method acts as a convenient
         way to get a queryset of all the entities in the group.
         """
-        # # handle the individual memberships
-        # individual_member_ids = EntityGroupMembership.objects.filter(
-        #     entity_group=self,
-        #     sub_entity_kind__isnull=True).values_list('entity_id', flat=True)
-        #
-        # # Create a set of criteria to find members of sub-entity
-        # # groups in this EntityGroup
-        # group_members = EntityGroupMembership.objects.filter(
-        #     entity_group=self, sub_entity_kind__isnull=False)
-        # criteria = [
-        #     Q(super_entity=member.entity_id, sub_entity__entity_kind_id=member.sub_entity_kind_id)
-        #     for member in group_members
-        # ]
-        # # Or all the criteria Q objects together to make a single condition
-        # criteria = reduce(lambda q1, q2: q1 | q2, criteria, Q())
-        #
-        # # If there are group members, get thier ids
-        # if group_members.exists():
-        #     group_sub_entity_ids = EntityRelationship.objects.select_related(
-        #         'sub_entity').filter(criteria).values_list('sub_entity_id', flat=True)
-        # else:
-        #     group_sub_entity_ids = []
-        #
-        # # Return all the entities who are individually included, or
-        # # included through as a sub-entity.
-        # entity_ids = set(list(individual_member_ids) + list(group_sub_entity_ids))
-        # return Entity.objects.filter(id__in=entity_ids)
-
         # Get custom entity selection
         all_entities_qs = Entity.objects.filter(
             entitygroupmembership__entity_group=self, entitygroupmembership__sub_entity_kind__isnull=True)
