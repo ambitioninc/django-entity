@@ -6,6 +6,7 @@ from collections import defaultdict
 from itertools import chain
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.paginator import Paginator
 import manager_utils
 
 from entity.config import entity_registry
@@ -62,7 +63,7 @@ class EntitySyncer(object):
                     'entity_meta': entity_config.get_entity_meta(model_obj),
                     'display_name': entity_config.get_display_name(model_obj),
                     'is_active': entity_config.get_is_active(model_obj),
-                    'entity_kind': entity_kind,
+                    'entity_kind_id': entity_kind.id,
                 })
 
             # Cache all of the relationships that need to be synced. Do this only if in deep mode or if the entity
@@ -95,14 +96,24 @@ class EntitySyncer(object):
         """
         # Loop through all entities that inherit EntityModelMixin and sync the entity.
         for entity_model, (entity_qset, entity_config) in entity_registry.entity_registry.items():
-            model_objs = list(entity_qset.all() if entity_qset is not None else entity_model.objects.all())
-            for model_obj in model_objs:
-                self._sync_entity(model_obj)
+            # Get the queryset to use
+            entity_qset = entity_qset if entity_qset is not None else entity_model.objects
+
+            # Iterate over all the entity items in this models queryset
+            entity_ids = []
+            paginator = Paginator(entity_qset.all(), 1000)
+            for page in range(1, paginator.num_pages + 1):
+                for model_obj in paginator.page(page).object_list:
+                    # Add a reference to the entity ids list
+                    entity_ids.append(model_obj.id)
+
+                    # Sync the entity
+                    self._sync_entity(model_obj)
 
             # Delete any existing entities that are not in the model obj table
             Entity.all_objects.filter(entity_type=ContentType.objects.get_for_model(
                 entity_model, for_concrete_model=False)).exclude(
-                entity_id__in=(model_obj.id for model_obj in model_objs)).delete(force=True)
+                entity_id__in=entity_ids).delete(force=True)
 
     def _sync_select_entities(self, *model_objs):
         """
