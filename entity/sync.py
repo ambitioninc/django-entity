@@ -6,6 +6,7 @@ from collections import defaultdict
 from itertools import chain
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.paginator import Paginator
 import manager_utils
 
 from entity.config import entity_registry
@@ -100,12 +101,14 @@ class EntitySyncer(object):
 
             # Iterate over all the entity items in this models queryset
             entity_ids = []
-            for model_obj in entity_qset.all().iterator():
-                # Add a reference to the entity ids list
-                entity_ids.append(model_obj.id)
+            paginator = Paginator(entity_qset.all(), 1000)
+            for page in range(1, paginator.num_pages + 1):
+                for model_obj in paginator.page(page).object_list:
+                    # Add a reference to the entity ids list
+                    entity_ids.append(model_obj.id)
 
-                # Sync the entity
-                self._sync_entity(model_obj)
+                    # Sync the entity
+                    self._sync_entity(model_obj)
 
             # Delete any existing entities that are not in the model obj table
             Entity.all_objects.filter(entity_type=ContentType.objects.get_for_model(
