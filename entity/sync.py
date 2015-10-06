@@ -101,7 +101,7 @@ class EntitySyncer(object):
 
             # Iterate over all the entity items in this models queryset
             entity_ids = []
-            paginator = Paginator(entity_qset.all(), 1000)
+            paginator = Paginator(entity_qset.order_by('pk').all(), 1000)
             for page in range(1, paginator.num_pages + 1):
                 for model_obj in paginator.page(page).object_list:
                     # Add a reference to the entity ids list
