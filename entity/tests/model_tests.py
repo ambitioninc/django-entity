@@ -855,10 +855,11 @@ class EntityGroupBulkAddEntitiesTest(EntityTestCase):
 
     def test_bulk_add_none_entity(self):
         group = EntityGroup.objects.create()
+        e = G(Entity)
         k = G(EntityKind)
-        group.bulk_add_entities([(None, k)])
-        count = group.entities.all().count()
-        self.assertEqual(count, 1)
+        group.bulk_add_entities([(None, k), (e, k), (e, None)])
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        self.assertEqual(count, 3)
 
 
 class EntityGroupRemoveEntityTest(EntityTestCase):
@@ -921,5 +922,5 @@ class EntityGroupBulkOverwriteEntitiesTest(EntityTestCase):
     def test_bulk_overwrite_none_entity(self):
         group = EntityGroup.objects.create()
         group.bulk_overwrite([(None, self.k)])
-        count = group.entities.all().count()
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
         self.assertEqual(count, 1)
