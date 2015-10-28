@@ -860,6 +860,7 @@ class EntityGroupBulkAddEntitiesTest(EntityTestCase):
         count = group.entities.all().count()
         self.assertEqual(count, 1)
 
+
 class EntityGroupRemoveEntityTest(EntityTestCase):
     def setUp(self):
         self.group = G(EntityGroup)
