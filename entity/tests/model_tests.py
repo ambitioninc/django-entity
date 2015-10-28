@@ -853,6 +853,14 @@ class EntityGroupBulkAddEntitiesTest(EntityTestCase):
         self.assertEqual(count, expected)
         self.assertIsInstance(membership[0], EntityGroupMembership)
 
+    def test_bulk_add_none_entity(self):
+        group = EntityGroup.objects.create()
+        e = G(Entity)
+        k = G(EntityKind)
+        group.bulk_add_entities([(None, k), (e, k), (e, None)])
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        self.assertEqual(count, 3)
+
 
 class EntityGroupRemoveEntityTest(EntityTestCase):
     def setUp(self):
@@ -910,3 +918,9 @@ class EntityGroupBulkOverwriteEntitiesTest(EntityTestCase):
         expected = 2
         self.assertEqual(count, expected)
         self.assertIn((self.e1.id, None), new_members)
+
+    def test_bulk_overwrite_none_entity(self):
+        group = EntityGroup.objects.create()
+        group.bulk_overwrite([(None, self.k)])
+        count = EntityGroupMembership.objects.filter(entity_group=group).count()
+        self.assertEqual(count, 1)
