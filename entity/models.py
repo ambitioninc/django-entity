@@ -322,7 +322,6 @@ class EntityGroup(models.Model):
     return all of the individual entities in a given group.
 
     """
-    entities = models.ManyToManyField(Entity, through='EntityGroupMembership')
 
     def all_entities(self):
         """Return all the entities in the group.
@@ -390,7 +389,8 @@ class EntityGroup(models.Model):
             entity=entity,
             sub_entity_kind=sub_entity_kind,
         ) for entity, sub_entity_kind in entities_and_kinds]
-        return EntityGroupMembership.objects.bulk_create(memberships)
+        created = EntityGroupMembership.objects.bulk_create(memberships)
+        return created
 
     def remove_entity(self, entity, sub_entity_kind=None):
         """Remove an entity, or sub-entity group to this EntityGroup.
