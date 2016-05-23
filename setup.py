@@ -46,7 +46,7 @@ setup(
     tests_require=[
         'django-dynamic-fixture',
         'django-nose>=1.4',
-        'mock',
+        'mock==1.0.1',
         'psycopg2',
     ],
     test_suite='run_tests.run_tests',
