@@ -1,7 +1,7 @@
 from itertools import compress
 
 from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count, Q
@@ -253,7 +253,7 @@ class Entity(BaseActivatableModel):
     # The generic entity
     entity_id = models.IntegerField()
     entity_type = models.ForeignKey(ContentType, on_delete=models.PROTECT)
-    entity = generic.GenericForeignKey('entity_type', 'entity_id')
+    entity = GenericForeignKey('entity_type', 'entity_id')
 
     # The entity kind
     entity_kind = models.ForeignKey(EntityKind, on_delete=models.PROTECT)
@@ -322,7 +322,6 @@ class EntityGroup(models.Model):
     return all of the individual entities in a given group.
 
     """
-    entities = models.ManyToManyField(Entity, through='EntityGroupMembership')
 
     def all_entities(self):
         """Return all the entities in the group.
@@ -390,7 +389,8 @@ class EntityGroup(models.Model):
             entity=entity,
             sub_entity_kind=sub_entity_kind,
         ) for entity, sub_entity_kind in entities_and_kinds]
-        return EntityGroupMembership.objects.bulk_create(memberships)
+        created = EntityGroupMembership.objects.bulk_create(memberships)
+        return created
 
     def remove_entity(self, entity, sub_entity_kind=None):
         """Remove an entity, or sub-entity group to this EntityGroup.
