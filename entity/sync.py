@@ -69,10 +69,12 @@ class EntitySyncer(object):
             # Cache all of the relationships that need to be synced. Do this only if in deep mode or if the entity
             # was created
             if created or deep:
-                self._entity_relationships_to_sync[entity] = [
-                    EntityRelationship(sub_entity=entity, super_entity=self._sync_entity(super_model_obj, deep=False))
-                    for super_model_obj in entity_config.get_super_entities(model_obj)
-                ]
+                # Get the super relations by map so we avoid duplicates
+                super_relations = {}
+                for super_model_obj in entity_config.get_super_entities(model_obj):
+                    super_entity = self._sync_entity(super_model_obj, deep=False)
+                    super_relations[super_entity.id] = EntityRelationship(sub_entity=entity, super_entity=super_entity)
+                self._entity_relationships_to_sync[entity] = super_relations.values()
 
             # Cache the synced entity for later use
             self._synced_entity_cache[(entity_type, model_obj.id, deep)] = entity
@@ -85,9 +87,11 @@ class EntitySyncer(object):
         stored in the _entity_relationships_to_sync variable. Sync these relationships.
         """
         manager_utils.sync(
-            EntityRelationship.objects.filter(sub_entity__in=self._entity_relationships_to_sync.keys()),
-            chain(*self._entity_relationships_to_sync.values()),
-            ['super_entity_id', 'sub_entity_id']
+            queryset=EntityRelationship.objects.filter(
+                sub_entity__in=self._entity_relationships_to_sync.keys()
+            ),
+            model_objs=chain(*self._entity_relationships_to_sync.values()),
+            unique_fields=['super_entity_id', 'sub_entity_id']
         )
 
     def _sync_all_entities(self):
