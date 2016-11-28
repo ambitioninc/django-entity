@@ -151,7 +151,7 @@ class EntityRegistryTest(TestCase):
 
         register_mock.assert_called_once_with(ValidRegistryModel, entity_config=ValidEntityConfig)
 
-    @patch.object(EntityRegistry, 'register_entity', spec_set=True)
+    @patch.object(EntityRegistry, 'register_entity')
     def test_decorator_qset(self, register_mock):
         """
         Tests the decorator calls appropriate functions.
@@ -159,7 +159,7 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             pass
 
-        qset = ValidRegistryModel.objects.filter()
+        qset = Mock(ValidRegistryModel.objects)
 
         @register_entity(qset)
         class ValidEntityConfig(EntityConfig):
