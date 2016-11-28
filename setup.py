@@ -41,7 +41,7 @@ setup(
         'Django>=1.8',
         'django-activatable-model>=0.7.3',
         'django-manager-utils>=0.12.0',
-        'celery>=3.1',
+        'celery>=3.1,<4.0',
         'jsonfield>=0.9.20',
         'python3-utils>=0.3',
     ],
