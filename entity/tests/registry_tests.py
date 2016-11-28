@@ -1,7 +1,7 @@
 from django.db.models import Model, Manager
 from django.db.models.query import QuerySet
 from django.test import TestCase
-from mock import patch
+from mock import patch, Mock
 
 from entity.config import EntityConfig, entity_registry, EntityRegistry, register_entity
 
@@ -137,7 +137,7 @@ class EntityRegistryTest(TestCase):
         with self.assertRaises(ValueError):
             entity_registry.register_entity(ValidRegistryModel, InvalidEntityConfig)
 
-    @patch.object(EntityRegistry, 'register_entity', spec_set=True)
+    @patch.object(EntityRegistry, 'register_entity')
     def test_decorator(self, register_mock):
         """
         Tests the decorator calls appropriate functions.
@@ -151,7 +151,7 @@ class EntityRegistryTest(TestCase):
 
         register_mock.assert_called_once_with(ValidRegistryModel, entity_config=ValidEntityConfig)
 
-    @patch.object(EntityRegistry, 'register_entity', spec_set=True)
+    @patch.object(EntityRegistry, 'register_entity')
     def test_decorator_qset(self, register_mock):
         """
         Tests the decorator calls appropriate functions.
@@ -159,7 +159,7 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             pass
 
-        qset = ValidRegistryModel.objects.filter()
+        qset = Mock(ValidRegistryModel.objects)
 
         @register_entity(qset)
         class ValidEntityConfig(EntityConfig):
