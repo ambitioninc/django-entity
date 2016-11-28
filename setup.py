@@ -6,7 +6,6 @@ import multiprocessing
 assert multiprocessing
 
 
-
 def get_version():
     """
     Extracts the version number from the version.py file.
