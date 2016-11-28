@@ -137,7 +137,7 @@ class EntityRegistryTest(TestCase):
         with self.assertRaises(ValueError):
             entity_registry.register_entity(ValidRegistryModel, InvalidEntityConfig)
 
-    @patch.object(EntityRegistry, 'register_entity', spec_set=True)
+    @patch.object(EntityRegistry, 'register_entity')
     def test_decorator(self, register_mock):
         """
         Tests the decorator calls appropriate functions.
