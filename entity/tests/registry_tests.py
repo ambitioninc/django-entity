@@ -1,7 +1,7 @@
 from django.db.models import Model, Manager
 from django.db.models.query import QuerySet
 from django.test import TestCase
-from mock import patch
+from mock import patch, Mock
 
 from entity.config import EntityConfig, entity_registry, EntityRegistry, register_entity
 
