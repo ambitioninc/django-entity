@@ -442,6 +442,22 @@ class EntityGroup(models.Model):
         return self.bulk_add_entities(entities_and_kinds)
 
 
+@compare_on_attr()
+class AllEntityProxy(Entity):
+    """
+    This is a proxy of the entity class that makes the .objects attribute
+    access all of the entities regardless of active state.  Active entities
+    are accessed with the active_objects manager.  This proxy should be used
+    when you need foreign-key relationships to be able to access all entities
+    regardless of active state.
+    """
+    objects = AllEntityManager()
+    active_objects = ActiveEntityManager()
+
+    class Meta:
+        proxy = True
+
+
 class EntityGroupMembership(models.Model):
     """Membership information for entity groups.
 
