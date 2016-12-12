@@ -296,6 +296,10 @@ class EntityRelationship(models.Model):
     entity is a superior (or sub) to another entity. Similary, this
     model allows us to define if the relationship is active.
     """
+
+    class Meta:
+        unique_together = ('sub_entity', 'super_entity')
+
     # The sub entity. The related name is called super_relationships since
     # querying this reverse relationship returns all of the relationships
     # super to an entity
@@ -440,6 +444,22 @@ class EntityGroup(models.Model):
         """
         EntityGroupMembership.objects.filter(entity_group=self).delete()
         return self.bulk_add_entities(entities_and_kinds)
+
+
+@compare_on_attr()
+class AllEntityProxy(Entity):
+    """
+    This is a proxy of the entity class that makes the .objects attribute
+    access all of the entities regardless of active state.  Active entities
+    are accessed with the active_objects manager.  This proxy should be used
+    when you need foreign-key relationships to be able to access all entities
+    regardless of active state.
+    """
+    objects = AllEntityManager()
+    active_objects = ActiveEntityManager()
+
+    class Meta:
+        proxy = True
 
 
 class EntityGroupMembership(models.Model):
