@@ -296,6 +296,10 @@ class EntityRelationship(models.Model):
     entity is a superior (or sub) to another entity. Similary, this
     model allows us to define if the relationship is active.
     """
+
+    class Meta:
+        unique_together = ('sub_entity', 'super_entity')
+
     # The sub entity. The related name is called super_relationships since
     # querying this reverse relationship returns all of the relationships
     # super to an entity
