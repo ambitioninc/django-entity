@@ -51,8 +51,12 @@ def remove_duplicates(apps, schema_editor):
     EntityRelationship = apps.get_model('entity', 'EntityRelationship')
 
     # Find the duplicates
-    duplicates = EntityRelationship.objects.all().order_by().values(
-        'sub_entity_id', 'super_entity_id'
+    duplicates = EntityRelationship.objects.all().order_by(
+        'sub_entity_id',
+        'super_entity_id'
+    ).values(
+        'sub_entity_id',
+        'super_entity_id'
     ).annotate(
         Count('sub_entity_id'),
         Count('super_entity_id'),
