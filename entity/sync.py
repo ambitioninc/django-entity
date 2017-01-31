@@ -15,8 +15,9 @@ from entity.models import Entity, EntityRelationship, EntityKind
 
 class EntitySyncer(object):
     """
-    Responsible for syncing entities. This object maintains a cache of synced entities so that syncing many entities
-    that share super entities is faster.
+    Responsible for syncing entities.
+
+    This object maintains a cache of synced entities so that syncing many entities that share super entities is faster.
     """
     def __init__(self):
         # A cache of all entities synced, keyed on the content type and model object id. Each key points to an Entity
@@ -32,13 +33,28 @@ class EntitySyncer(object):
 
     def _get_entity_kind(self, entity_config, model_obj):
         """
-        Obtains an entity kind for a model obj, caching the values (and retrieving values from cache) when necesary.
+        Obtains an entity kind for a model obj, caching the values (and retrieving values from cache) when necessary.
+
+        :param entity_config: The entity config
+        :type entity_config: entity.config.EntityConfig
+
+        :param model_obj: The model
+        :type model_obj: django.db.models.Model
         """
+
+        # Get the entity kind name and display name
         entity_kind_name, entity_kind_display_name = entity_config.get_entity_kind(model_obj)
+
+        # If this entity kind is not in the cache, create it and store in the cache
         if entity_kind_name not in self._synced_entity_kind_cache:
             self._synced_entity_kind_cache[entity_kind_name] = EntityKind.all_objects.upsert(
-                name=entity_kind_name, updates={'display_name': entity_kind_display_name})[0]
+                name=entity_kind_name,
+                updates={
+                    'display_name': entity_kind_display_name
+                }
+            )[0]
 
+        # Return the entity kind
         return self._synced_entity_kind_cache[entity_kind_name]
 
     def _sync_entity(self, model_obj, deep=True):
@@ -163,8 +179,8 @@ class EntitySyncer(object):
 
 def sync_entities(*model_objs):
     """
-    Sync the provided model objects. If there are no model objects, sync all models across the entire
-    project.
+    Sync the provided model objects.
+    If there are no model objects, sync all models across the entire project.
     """
     # Import entity syncer here to avoid circular import
     from entity.sync import EntitySyncer

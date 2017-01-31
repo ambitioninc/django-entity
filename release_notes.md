@@ -1,0 +1,22 @@
+## Release Notes
+
+- 1.15.0:
+    - Remove SyncEntitiesTask, this task should live within the main application that entities is installed within
+- 1.11.0:
+    - Added support for arbitrary groups of entities.
+- 1.10.0:
+    - Added Django 1.8 support.
+- 1.9.0:
+    - Updated Entity Kinds to be activatable models.
+- 1.8.2:
+    - Added sorting support for Entity Models in Python 3
+- 1.8.0:
+    - Added support for Django 1.7 and also backwards-compatible support for Django 1.6.
+- 1.7.1:
+    - Changed the ``is_entity_active`` function in the entity configuration to be named ``get_is_active`` for consistency with other functions.
+- 1.6.0:
+    - Made entities ``activatable``, i.e. they inherit the properties defined in [Django Activatable Model](https://github.com/ambitioninc/django-activatable-model)
+- 1.5.0:
+    - Added entity kinds to replace inadequacies of filtering by entity content types.
+    - Removed is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.
+    - Removed chainable entity filters. All entity filtering calls are now in the model manager.
