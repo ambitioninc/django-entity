@@ -7,6 +7,8 @@ Django Entity provides large-scale projects with the ability to better segregate
 
 What is an entity? An entity is any model in your Django project. For example, an entity could be a Django User model or a Group of Users. Similarly, an entity relationship defines a super and sub relationship among different types of entities. For example, a Group would be a super entity of a User. The Django Entity app allows you to easily express this relationship in your model definition and sync it to a centralized place that is accessible by any other app in your project.
 
+## [Release Notes](release_notes.md)
+
 ## A Use Case
 Imagine that you have a Django project that defines many types of groupings of your users. For example, let's say in your enterprise project, you allow users to define their manager, their company position, and their regional branch location. Similarly, let's say that you have an app that can email groups of users based on their manager (or anyone who is under the managers of that manager), their position, or their region. This email app would likely have to know application-specific modeling of these relationships in order to be built. Similarly, doing things like querying for all users under a manager hierachy can be an expensive lookup depending on how it is modeled.
 
@@ -380,9 +382,6 @@ Removes a number of entities or sub-entity groupings from the
 
 This method replaces all of the group members with a new set of group
 members. It has the same syntax as ``bulk_add_entities``.
-
-
-## [Release Notes](release_notes.md)
 
 ## License
 MIT License (see the LICENSE file for more info).
