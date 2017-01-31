@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/ambitioninc/django-entity.png)](https://travis-ci.org/ambitioninc/django-entity)
-Django Entity
-=============
+# Django Entity - [Release Notes](release_notes.md)
+
 Django Entity is an app that provides Django projects with the ability to mirror their entities and entity relationships in a separate, well-contained and easily-accessible table.
 
 Django Entity provides large-scale projects with the ability to better segregate their apps while minimizing the application-specific code in those apps that has to deal with entities and their relationships in the main project.
@@ -380,27 +380,6 @@ Removes a number of entities or sub-entity groupings from the
 
 This method replaces all of the group members with a new set of group
 members. It has the same syntax as ``bulk_add_entities``.
-
-
-## Release Notes
-- 1.11.0:
-    - Added support for arbitrary groups of entities.
-- 1.10.0:
-    - Added Django 1.8 support.
-- 1.9.0:
-    - Updated Entity Kinds to be activatable models.
-- 1.8.2:
-    - Added sorting support for Entity Models in Python 3
-- 1.8.0:
-    - Added support for Django 1.7 and also backwards-compatible support for Django 1.6.
-- 1.7.1:
-    - Changed the ``is_entity_active`` function in the entity configuration to be named ``get_is_active`` for consistency with other functions.
-- 1.6.0:
-    - Made entities ``activatable``, i.e. they inherit the properties defined in [Django Activatable Model](https://github.com/ambitioninc/django-activatable-model)
-- 1.5.0:
-    - Added entity kinds to replace inadequacies of filtering by entity content types.
-    - Removed is_any_type and is_not_any_type and replaced those methods with is_any_kind and is_not_any_kind in the model manager.
-    - Removed chainable entity filters. All entity filtering calls are now in the model manager.
 
 ## License
 MIT License (see the LICENSE file for more info).
