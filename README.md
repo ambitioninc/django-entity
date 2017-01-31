@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/ambitioninc/django-entity.png)](https://travis-ci.org/ambitioninc/django-entity)
-Django Entity ([Release Notes](release_notes.md))
-=============
+# Django Entity - [Release Notes](release_notes.md)
+
 Django Entity is an app that provides Django projects with the ability to mirror their entities and entity relationships in a separate, well-contained and easily-accessible table.
 
 Django Entity provides large-scale projects with the ability to better segregate their apps while minimizing the application-specific code in those apps that has to deal with entities and their relationships in the main project.
