@@ -18,6 +18,21 @@ def get_version():
         raise RuntimeError('Unable to find version string in {0}.'.format(VERSION_FILE))
 
 
+install_requires = [
+    'Django>=1.8',
+    'django-activatable-model>=0.7.3',
+    'django-manager-utils>=0.12.0',
+    'celery>=3.1,<4.0',
+    'jsonfield>=0.9.20',
+    'python3-utils>=0.3',
+]
+tests_require = [
+    'django-dynamic-fixture',
+    'django-nose>=1.4',
+    'mock>=1.0.1',
+    'psycopg2',
+]
+
 setup(
     name='django-entity',
     version=get_version(),
@@ -37,20 +52,9 @@ setup(
         'Operating System :: OS Independent',
         'Framework :: Django',
     ],
-    install_requires=[
-        'Django>=1.8',
-        'django-activatable-model>=0.7.3',
-        'django-manager-utils>=0.12.0',
-        'celery>=3.1,<4.0',
-        'jsonfield>=0.9.20',
-        'python3-utils>=0.3',
-    ],
-    tests_require=[
-        'django-dynamic-fixture',
-        'django-nose>=1.4',
-        'mock>=1.0.1',
-        'psycopg2',
-    ],
+    install_requires=install_requires,
+    tests_require=tests_require,
+    extras_require={'dev': tests_require},
     test_suite='run_tests.run_tests',
     include_package_data=True,
     zip_safe=False,
