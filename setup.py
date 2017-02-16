@@ -26,6 +26,7 @@ install_requires = [
     'jsonfield>=0.9.20',
     'python3-utils>=0.3',
 ]
+
 tests_require = [
     'django-dynamic-fixture',
     'django-nose>=1.4',
