@@ -1,5 +1,10 @@
 ## Release Notes
 
+- 1.17.0:
+    - Drop Django 1.8 support
+    - Add Django 1.10 support
+    - Add Django 1.11 support
+    - Add python 3.6 support
 - 1.15.0:
     - Remove SyncEntitiesTask, this task should live within the main application that entities is installed within
 - 1.11.0:
