@@ -1,9 +1,14 @@
 from django.contrib.contenttypes.models import ContentType
 from django_dynamic_fixture import G, N
-from entity.models import Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership
+from django.test import TestCase
+from entity.sync import sync_entities
 
-from .models import Account, Team, TeamGroup, Competitor
-from .utils import EntityTestCase
+from entity.signal_handlers import turn_off_syncing, turn_on_syncing
+
+from entity.models import Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_group_cache, get_entities_by_kind
+
+from entity.tests.models import Account, Team, TeamGroup, Competitor
+from entity.tests.utils import EntityTestCase
 
 
 class EntityKindManagerTest(EntityTestCase):
@@ -826,7 +831,7 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         G(EntityGroupMembership, entity_group=self.group,
           entity=e2, sub_entity_kind=self.kind2)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             list(self.group.all_entities())
 
 
@@ -924,3 +929,86 @@ class EntityGroupBulkOverwriteEntitiesTest(EntityTestCase):
         group.bulk_overwrite([(None, self.k)])
         count = EntityGroupMembership.objects.filter(entity_group=group).count()
         self.assertEqual(count, 1)
+
+
+class EntityGroupTest(TestCase):
+
+    def test_entity(self):
+        turn_off_syncing()
+
+        account_type = ContentType.objects.get_for_model(Account)
+        team_type = ContentType.objects.get_for_model(Team)
+
+        # Set up teams
+        teams = Team.objects.bulk_create([
+            Team()
+            for i in range(0, 3)
+        ])
+
+        # Set up accounts
+        accounts = Account.objects.bulk_create([
+            Account(team=teams[i % 3])
+            for i in range(0, 20)
+        ])
+
+        # Turn on syncing and do a sync
+        turn_on_syncing()
+
+        # TODO: optimize this
+        sync_entities()
+
+        account_entities = list(Entity.all_objects.filter(entity_type=account_type).order_by('entity_id'))
+        account_kind = account_entities[0].entity_kind
+
+        team_entities = list(Entity.all_objects.filter(entity_type=team_type).order_by('entity_id'))
+        team_kind = team_entities[0].entity_kind
+
+        # Create groups
+        entity_groups = EntityGroup.objects.bulk_create([
+            EntityGroup()
+            for i in range(0, 6)
+        ])
+
+        # Set up individual entity groups
+        entity_groups[0].bulk_add_entities([
+            [account_entities[0], None],
+            [account_entities[1], None],
+            [account_entities[2], None],
+            [account_entities[3], None],
+        ])
+        entity_groups[1].bulk_add_entities([
+            [account_entities[2], None],
+            [account_entities[3], None],
+            [account_entities[4], None],
+            [account_entities[5], None],
+        ])
+
+        # Set up sub entity kind of super entity groups
+        entity_groups[2].bulk_add_entities([
+            [team_entities[0], account_kind],
+            [team_entities[1], account_kind],
+        ])
+
+        entity_groups[3].bulk_add_entities([
+            [team_entities[0], account_kind],
+        ])
+
+        # Set up sub entity kind groups
+        # This group has two copies of the same set of all accounts as well as all teams
+        entity_groups[4].bulk_add_entities([
+            [None, account_kind],
+            [None, account_kind],
+            [None, team_kind],
+        ])
+
+        # This group has the same copy of all accounts
+        entity_groups[5].bulk_add_entities([
+            [None, account_kind],
+        ])
+
+        with self.assertNumQueries(3):
+            group_cache = get_group_cache()
+            entities_by_kind = get_entities_by_kind(group_cache=group_cache)
+
+            for entity_group in entity_groups:
+                entity_group.get_all_entities(group_cache, entities_by_kind)
