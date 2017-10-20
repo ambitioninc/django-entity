@@ -5,7 +5,9 @@ from entity.sync import sync_entities
 
 from entity.signal_handlers import turn_off_syncing, turn_on_syncing
 
-from entity.models import Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_group_cache, get_entities_by_kind
+from entity.models import (
+    Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_group_cache, get_entities_by_kind
+)
 
 from entity.tests.models import Account, Team, TeamGroup, Competitor
 from entity.tests.utils import EntityTestCase
@@ -946,7 +948,7 @@ class EntityGroupTest(TestCase):
         ])
 
         # Set up accounts
-        accounts = Account.objects.bulk_create([
+        Account.objects.bulk_create([
             Account(team=teams[i % 3])
             for i in range(0, 20)
         ])
