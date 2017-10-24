@@ -337,38 +337,24 @@ class EntityGroup(models.Model):
         """
         return self.get_all_entities(return_models=True)
 
-        # Get custom entity selection
-        all_entities_qs = Entity.objects.filter(
-            entitygroupmembership__entity_group=self, entitygroupmembership__sub_entity_kind__isnull=True)
-
-        # Get all entities of a kind
-        entity_kind_qs = EntityGroupMembership.objects.filter(
-            entity_group=self, entity__isnull=True).values_list('sub_entity_kind_id', flat=True)
-        all_entities_qs |= Entity.objects.filter(entity_kind_id__in=entity_kind_qs)
-
-        # Get all entities sub to another entity
-        memberships_qs = EntityGroupMembership.objects.filter(
-            entity_group=self, entity__isnull=False, sub_entity_kind__isnull=False
-        ).values('sub_entity_kind_id', 'entity_id')
-
-        # Build unique set of sub_entity_kind_id and entity_id
-        memberships = set([
-            (membership['sub_entity_kind_id'], membership['entity_id'])
-            for membership in memberships_qs
-        ])
-
-        # Union each type together
-        for membership in memberships:
-            all_entities_qs |= Entity.objects.filter(
-                entity_kind_id=membership[0], super_relationships__super_entity_id=membership[1])
-
-        return all_entities_qs.distinct('id')
-
     def get_all_entities(self, group_cache=None, entities_by_kind=None, return_models=False):
+        """
+        Returns a list of all entity ids in this group or optionally returns a queryset for all entity models.
+        In order to reduce queries for multiple group lookups, it is expected that the group_cache and
+        entities_by_kind are built outside of this method and passed in as arguments.
+        """
+        # If cache args were not passed, generate the cache
         group_cache = group_cache or get_group_cache([self.id])
         entities_by_kind = entities_by_kind or get_entities_by_kind(group_cache=group_cache)
 
+        # Build set of all entity ids for this group
         entity_ids = set()
+
+        # This group does not have any entities
+        if not group_cache.get(self.id):
+            return entity_ids
+
+        # Loop over each membership in this group
         for entity_id, entity_kind_id in group_cache[self.id]:
             if entity_id:
                 if entity_kind_id:
@@ -381,6 +367,7 @@ class EntityGroup(models.Model):
                 # All entities of this kind
                 entity_ids.update(entities_by_kind[entity_kind_id]['all'])
 
+        # Check if a queryset needs to be returned
         if return_models:
             return Entity.objects.filter(id__in=entity_ids)
 
@@ -510,14 +497,26 @@ class EntityGroupMembership(models.Model):
 
 
 def get_group_cache(group_ids=None):
+    """
+    Build a dict cache with the group membership info. Keyed off the group id and the values are
+    a 2 element list of entity id and entity kind id (same values as the membership model). If no group ids
+    are passed, then all groups will be fetched
 
+    :rtype: dict
+    """
+
+    # Build the base queryset
     membership_queryset = EntityGroupMembership.objects.all()
 
+    # Check if we need to filter by group
     if group_ids:
+        # Alter the queryset to filter memberships by specific groups
         membership_queryset = membership_queryset.filter(entity_group_id__in=group_ids)
 
+    # Only return the values
     membership_queryset = membership_queryset.values_list('entity_group_id', 'entity_id', 'sub_entity_kind_id')
 
+    # Iterate over the query results and build the cache dict
     group_cache = {}
     for entity_group_id, entity_id, sub_entity_kind_id in membership_queryset:
         group_cache.setdefault(entity_group_id, [])
@@ -527,6 +526,21 @@ def get_group_cache(group_ids=None):
 
 
 def get_entities_by_kind(group_cache=None):
+    """
+    Builds a dict with keys of entity kinds if and values are another dict. Each of these dicts are keyed
+    off of a super entity id and optional have an 'all' key for any group that has a null super entity.
+    Example structure:
+    {
+        entity_kind_id: {
+            entity1_id: [1, 2, 3],
+            entity2_id: [4, 5, 6],
+            'all': [1, 2, 3, 4, 5, 6]
+        }
+    }
+
+    :rtype: dict
+    """
+    # Accept an existing cache or build a new one
     group_cache = group_cache or get_group_cache()
 
     entities_by_kind = {}
@@ -534,20 +548,29 @@ def get_entities_by_kind(group_cache=None):
     kinds_with_supers = set()
     super_ids = set()
 
+    # Loop over each group
     for group_id, memberships in group_cache.items():
+
+        # Look at each membership
         for entity_id, entity_kind_id in memberships:
+
+            # Only care about memberships with entity kind
             if entity_kind_id:
+
+                # Make sure a dict exists for this kind
                 entities_by_kind.setdefault(entity_kind_id, {})
 
+                # Check if this is all entities of a kind under a specific entity
                 if entity_id:
                     entities_by_kind[entity_kind_id][entity_id] = []
                     kinds_with_supers.add(entity_kind_id)
                     super_ids.add(entity_id)
                 else:
+                    # This is all entities of this kind
                     entities_by_kind[entity_kind_id]['all'] = []
                     kinds_with_all.add(entity_kind_id)
 
-    # Get all entities that have all
+    # Get entities for 'all'
     all_entities_for_types = Entity.objects.filter(
         entity_kind_id__in=kinds_with_all
     ).values_list('id', 'entity_kind_id')
@@ -564,6 +587,7 @@ def get_entities_by_kind(group_cache=None):
         'super_entity_id', 'sub_entity_id', 'sub_entity__entity_kind_id'
     )
 
+    # Add entity ids to each super entity's list
     for super_entity_id, sub_entity_id, sub_entity__entity_kind_id in relationships:
         entities_by_kind[sub_entity__entity_kind_id].setdefault(super_entity_id, [])
         entities_by_kind[sub_entity__entity_kind_id][super_entity_id].append(sub_entity_id)
