@@ -935,7 +935,7 @@ class EntityGroupBulkOverwriteEntitiesTest(EntityTestCase):
 
 class EntityGroupTest(TestCase):
 
-    def test_entity(self):
+    def test_get_all_entities(self):
         turn_off_syncing()
 
         account_type = ContentType.objects.get_for_model(Account)
@@ -956,7 +956,6 @@ class EntityGroupTest(TestCase):
         # Turn on syncing and do a sync
         turn_on_syncing()
 
-        # TODO: optimize this
         sync_entities()
 
         account_entities = list(Entity.all_objects.filter(entity_type=account_type).order_by('entity_id'))
@@ -966,10 +965,13 @@ class EntityGroupTest(TestCase):
         team_kind = team_entities[0].entity_kind
 
         # Create groups
-        entity_groups = EntityGroup.objects.bulk_create([
+        EntityGroup.objects.bulk_create([
             EntityGroup()
             for i in range(0, 6)
         ])
+
+        # Refresh for django 1.9 because bulk create does not return ids
+        entity_groups = list(EntityGroup.objects.order_by('id'))
 
         # Set up individual entity groups
         entity_groups[0].bulk_add_entities([
