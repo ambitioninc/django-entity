@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 1.18.1:
+    - Reduce number of queries and data selected
 - 1.18.0:
     - Optimize entity group queries by providing cache building functions
 - 1.17.0:
