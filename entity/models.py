@@ -331,9 +331,8 @@ class EntityGroupManager(models.Manager):
         # Iterate over the query results and build the cache dict
         membership_cache = {}
         for entity_group_id, entity_id, sub_entity_kind_id in membership_queryset:
-            if entity_id or sub_entity_kind_id:
-                membership_cache.setdefault(entity_group_id, [])
-                membership_cache[entity_group_id].append([entity_id, sub_entity_kind_id])
+            membership_cache.setdefault(entity_group_id, [])
+            membership_cache[entity_group_id].append([entity_id, sub_entity_kind_id])
 
         return membership_cache
 
