@@ -6,7 +6,7 @@ from entity.sync import sync_entities
 from entity.signal_handlers import turn_off_syncing, turn_on_syncing
 
 from entity.models import (
-    Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_group_cache, get_entities_by_kind
+    Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_entities_by_kind
 )
 
 from entity.tests.models import Account, Team, TeamGroup, Competitor
@@ -1011,11 +1011,11 @@ class EntityGroupTest(TestCase):
         ])
 
         with self.assertNumQueries(3):
-            group_cache = get_group_cache()
-            entities_by_kind = get_entities_by_kind(group_cache=group_cache)
+            membership_cache = EntityGroup.objects.get_membership_cache()
+            entities_by_kind = get_entities_by_kind(membership_cache=membership_cache)
 
             for entity_group in entity_groups:
-                entity_group.get_all_entities(group_cache, entities_by_kind)
+                entity_group.get_all_entities(membership_cache, entities_by_kind)
 
         # Make sure to hit the no group cache case
-        self.assertEqual(entity_groups[0].get_all_entities(group_cache={1000: []}), set())
+        self.assertEqual(entity_groups[0].get_all_entities(membership_cache={1000: []}), set())

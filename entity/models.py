@@ -311,6 +311,35 @@ class EntityRelationship(models.Model):
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
+class EntityGroupQuerySet(models.QuerySet):
+
+    def get_membership_cache(self, group_ids=None):
+        """
+        Build a dict cache with the group membership info. Keyed off the group id and the values are
+        a 2 element list of entity id and entity kind id (same values as the membership model). If no group ids
+        are passed, then all groups will be fetched
+
+        :rtype: dict
+        """
+        membership_queryset = EntityGroupMembership.objects.all()
+
+        # Check if we need to filter by group
+        if group_ids:
+            # Alter the queryset to filter memberships by specific groups
+            membership_queryset = membership_queryset.filter(entity_group_id__in=self)
+
+        # Only return the values
+        membership_queryset = membership_queryset.values_list('entity_group_id', 'entity_id', 'sub_entity_kind_id')
+
+        # Iterate over the query results and build the cache dict
+        membership_cache = {}
+        for entity_group_id, entity_id, sub_entity_kind_id in membership_queryset:
+            membership_cache.setdefault(entity_group_id, [])
+            membership_cache[entity_group_id].append([entity_id, sub_entity_kind_id])
+
+        return membership_cache
+
+
 class EntityGroup(models.Model):
     """
     An arbitrary group of entities and sub-entity groups.
@@ -327,6 +356,8 @@ class EntityGroup(models.Model):
     return all of the individual entities in a given group.
     """
 
+    objects = EntityGroupQuerySet.as_manager()
+
     def all_entities(self):
         """
         Return all the entities in the group.
@@ -337,31 +368,31 @@ class EntityGroup(models.Model):
         """
         return self.get_all_entities(return_models=True)
 
-    def get_all_entities(self, group_cache=None, entities_by_kind=None, return_models=False):
+    def get_all_entities(self, membership_cache=None, entities_by_kind=None, return_models=False):
         """
         Returns a list of all entity ids in this group or optionally returns a queryset for all entity models.
-        In order to reduce queries for multiple group lookups, it is expected that the group_cache and
+        In order to reduce queries for multiple group lookups, it is expected that the membership_cache and
         entities_by_kind are built outside of this method and passed in as arguments.
-        :param group_cache: A group cache dict generated from the `get_group_cache` function
-        :type group_cache: dict
+        :param membership_cache: A group cache dict generated from `EntityGroup.objects.get_membership_cache()`
+        :type membership_cache: dict
         :param entities_by_kind: An entities by kind dict generated from the `get_entities_by_kind` function
         :type entities_by_kind: dict
         :param return_models: If True, returns an Entity queryset, if False, returns a set of entity ids
         :type return_models: bool
         """
         # If cache args were not passed, generate the cache
-        group_cache = group_cache or get_group_cache([self.id])
-        entities_by_kind = entities_by_kind or get_entities_by_kind(group_cache=group_cache)
+        membership_cache = membership_cache or EntityGroup.objects.get_membership_cache([self.id])
+        entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
 
         # Build set of all entity ids for this group
         entity_ids = set()
 
         # This group does not have any entities
-        if not group_cache.get(self.id):
+        if not membership_cache.get(self.id):
             return entity_ids
 
         # Loop over each membership in this group
-        for entity_id, entity_kind_id in group_cache[self.id]:
+        for entity_id, entity_kind_id in membership_cache[self.id]:
             if entity_id:
                 if entity_kind_id:
                     # All sub entities of this kind under this entity
@@ -502,36 +533,7 @@ class EntityGroupMembership(models.Model):
     sub_entity_kind = models.ForeignKey(EntityKind, null=True)
 
 
-def get_group_cache(group_ids=None):
-    """
-    Build a dict cache with the group membership info. Keyed off the group id and the values are
-    a 2 element list of entity id and entity kind id (same values as the membership model). If no group ids
-    are passed, then all groups will be fetched
-
-    :rtype: dict
-    """
-
-    # Build the base queryset
-    membership_queryset = EntityGroupMembership.objects.all()
-
-    # Check if we need to filter by group
-    if group_ids:
-        # Alter the queryset to filter memberships by specific groups
-        membership_queryset = membership_queryset.filter(entity_group_id__in=group_ids)
-
-    # Only return the values
-    membership_queryset = membership_queryset.values_list('entity_group_id', 'entity_id', 'sub_entity_kind_id')
-
-    # Iterate over the query results and build the cache dict
-    group_cache = {}
-    for entity_group_id, entity_id, sub_entity_kind_id in membership_queryset:
-        group_cache.setdefault(entity_group_id, [])
-        group_cache[entity_group_id].append([entity_id, sub_entity_kind_id])
-
-    return group_cache
-
-
-def get_entities_by_kind(group_cache=None):
+def get_entities_by_kind(membership_cache=None):
     """
     Builds a dict with keys of entity kinds if and values are another dict. Each of these dicts are keyed
     off of a super entity id and optional have an 'all' key for any group that has a null super entity.
@@ -547,7 +549,7 @@ def get_entities_by_kind(group_cache=None):
     :rtype: dict
     """
     # Accept an existing cache or build a new one
-    group_cache = group_cache or get_group_cache()
+    membership_cache = membership_cache or EntityGroup.objects.get_membership_cache()
 
     entities_by_kind = {}
     kinds_with_all = set()
@@ -555,7 +557,7 @@ def get_entities_by_kind(group_cache=None):
     super_ids = set()
 
     # Loop over each group
-    for group_id, memberships in group_cache.items():
+    for group_id, memberships in membership_cache.items():
 
         # Look at each membership
         for entity_id, entity_kind_id in memberships:
