@@ -1017,5 +1017,8 @@ class EntityGroupTest(TestCase):
             for entity_group in entity_groups:
                 entity_group.get_all_entities(membership_cache, entities_by_kind)
 
+        with self.assertNumQueries(3):
+            get_entities_by_kind()
+
         # Make sure to hit the no group cache case
         self.assertEqual(entity_groups[0].get_all_entities(membership_cache={1000: []}), set())
