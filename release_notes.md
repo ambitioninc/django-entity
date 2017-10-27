@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 1.18.0:
+    - Optimize entity group queries by providing cache building functions
 - 1.17.0:
     - Drop Django 1.8 support
     - Add Django 1.10 support
