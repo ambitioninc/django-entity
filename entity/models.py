@@ -342,6 +342,12 @@ class EntityGroup(models.Model):
         Returns a list of all entity ids in this group or optionally returns a queryset for all entity models.
         In order to reduce queries for multiple group lookups, it is expected that the group_cache and
         entities_by_kind are built outside of this method and passed in as arguments.
+        :param group_cache: A group cache dict generated from the `get_group_cache` function
+        :type group_cache: dict
+        :param entities_by_kind: An entities by kind dict generated from the `get_entities_by_kind` function
+        :type entities_by_kind: dict
+        :param return_models: If True, returns an Entity queryset, if False, returns a set of entity ids
+        :type return_models: bool
         """
         # If cache args were not passed, generate the cache
         group_cache = group_cache or get_group_cache([self.id])
