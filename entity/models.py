@@ -379,8 +379,11 @@ class EntityGroup(models.Model):
         :type return_models: bool
         """
         # If cache args were not passed, generate the cache
-        membership_cache = membership_cache or EntityGroup.objects.get_membership_cache([self.id])
-        entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
+        if membership_cache is None:
+            membership_cache = EntityGroup.objects.get_membership_cache([self.id])
+
+        if entities_by_kind is None:
+            entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
 
         # Build set of all entity ids for this group
         entity_ids = set()
@@ -547,7 +550,8 @@ def get_entities_by_kind(membership_cache=None):
     :rtype: dict
     """
     # Accept an existing cache or build a new one
-    membership_cache = membership_cache or EntityGroup.objects.get_membership_cache()
+    if membership_cache is None:
+        membership_cache = EntityGroup.objects.get_membership_cache()
 
     entities_by_kind = {}
     kinds_with_all = set()
