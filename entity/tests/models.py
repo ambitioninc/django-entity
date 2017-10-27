@@ -63,7 +63,7 @@ class Account(BaseEntityModel):
     team2 = models.ForeignKey(Team, null=True, related_name='+')
     # The team group
     team_group = models.ForeignKey(TeamGroup, null=True)
-    # The comptetitor group
+    # The competitor group
     competitor = models.ForeignKey(Competitor, null=True)
 
     def __str__(self):

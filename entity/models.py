@@ -311,8 +311,32 @@ class EntityRelationship(models.Model):
     super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
 
 
+class EntityGroupQuerySet(models.QuerySet):
+
+    def get_membership_cache(self):
+        """
+        Build a dict cache with the group membership info. Keyed off the group id and the values are
+        a 2 element list of entity id and entity kind id (same values as the membership model). If no group ids
+        are passed, then all groups will be fetched
+
+        :rtype: dict
+        """
+        membership_queryset = self.values_list(
+            'id', 'entitygroupmembership__entity_id', 'entitygroupmembership__sub_entity_kind_id'
+        )
+
+        # Iterate over the query results and build the cache dict
+        membership_cache = {}
+        for entity_group_id, entity_id, sub_entity_kind_id in membership_queryset:
+            membership_cache.setdefault(entity_group_id, [])
+            membership_cache[entity_group_id].append([entity_id, sub_entity_kind_id])
+
+        return membership_cache
+
+
 class EntityGroup(models.Model):
-    """An arbitrary group of entities and sub-entity groups.
+    """
+    An arbitrary group of entities and sub-entity groups.
 
     Members can be added to the group through the ``add_entity`` and
     ``bulk_add_entities`` methods, removed with the ``remove_entity``
@@ -324,45 +348,65 @@ class EntityGroup(models.Model):
     of the individual entities in the group could be challenging. For
     this reason the ``all_entities`` method is included, which will
     return all of the individual entities in a given group.
-
     """
 
+    objects = EntityGroupQuerySet.as_manager()
+
     def all_entities(self):
-        """Return all the entities in the group.
+        """
+        Return all the entities in the group.
 
         Because groups can contain both individual entities, as well
         as whole groups of entities, this method acts as a convenient
         way to get a queryset of all the entities in the group.
         """
-        # Get custom entity selection
-        all_entities_qs = Entity.objects.filter(
-            entitygroupmembership__entity_group=self, entitygroupmembership__sub_entity_kind__isnull=True)
+        return self.get_all_entities(return_models=True)
 
-        # Get all entities of a kind
-        entity_kind_qs = EntityGroupMembership.objects.filter(
-            entity_group=self, entity__isnull=True).values_list('sub_entity_kind_id', flat=True)
-        all_entities_qs |= Entity.objects.filter(entity_kind_id__in=entity_kind_qs)
+    def get_all_entities(self, membership_cache=None, entities_by_kind=None, return_models=False):
+        """
+        Returns a list of all entity ids in this group or optionally returns a queryset for all entity models.
+        In order to reduce queries for multiple group lookups, it is expected that the membership_cache and
+        entities_by_kind are built outside of this method and passed in as arguments.
+        :param membership_cache: A group cache dict generated from `EntityGroup.objects.get_membership_cache()`
+        :type membership_cache: dict
+        :param entities_by_kind: An entities by kind dict generated from the `get_entities_by_kind` function
+        :type entities_by_kind: dict
+        :param return_models: If True, returns an Entity queryset, if False, returns a set of entity ids
+        :type return_models: bool
+        """
+        # If cache args were not passed, generate the cache
+        membership_cache = membership_cache or EntityGroup.objects.filter(id=self.id).get_membership_cache()
+        entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
 
-        # Get all entities sub to another entity
-        memberships_qs = EntityGroupMembership.objects.filter(
-            entity_group=self, entity__isnull=False, sub_entity_kind__isnull=False
-        ).values('sub_entity_kind_id', 'entity_id')
+        # Build set of all entity ids for this group
+        entity_ids = set()
 
-        # Build unique set of sub_entity_kind_id and entity_id
-        memberships = set([
-            (membership['sub_entity_kind_id'], membership['entity_id'])
-            for membership in memberships_qs
-        ])
+        # This group does not have any entities
+        if not membership_cache.get(self.id):
+            return entity_ids
 
-        # Union each type together
-        for membership in memberships:
-            all_entities_qs |= Entity.objects.filter(
-                entity_kind_id=membership[0], super_relationships__super_entity_id=membership[1])
+        # Loop over each membership in this group
+        for entity_id, entity_kind_id in membership_cache[self.id]:
+            if entity_id:
+                if entity_kind_id:
+                    # All sub entities of this kind under this entity
+                    entity_ids.update(entities_by_kind[entity_kind_id][entity_id])
+                else:
+                    # Individual entity
+                    entity_ids.add(entity_id)
+            else:
+                # All entities of this kind
+                entity_ids.update(entities_by_kind[entity_kind_id]['all'])
 
-        return all_entities_qs.distinct('id')
+        # Check if a queryset needs to be returned
+        if return_models:
+            return Entity.objects.filter(id__in=entity_ids)
+
+        return entity_ids
 
     def add_entity(self, entity, sub_entity_kind=None):
-        """Add an entity, or sub-entity group to this EntityGroup.
+        """
+        Add an entity, or sub-entity group to this EntityGroup.
 
         :type entity: Entity
         :param entity: The entity to add.
@@ -380,7 +424,8 @@ class EntityGroup(models.Model):
         return membership
 
     def bulk_add_entities(self, entities_and_kinds):
-        """Add many entities and sub-entity groups to this EntityGroup.
+        """
+        Add many entities and sub-entity groups to this EntityGroup.
 
         :type entities_and_kinds: List of (Entity, EntityKind) pairs.
         :param entities_and_kinds: A list of entity, entity-kind pairs
@@ -397,7 +442,8 @@ class EntityGroup(models.Model):
         return created
 
     def remove_entity(self, entity, sub_entity_kind=None):
-        """Remove an entity, or sub-entity group to this EntityGroup.
+        """
+        Remove an entity, or sub-entity group to this EntityGroup.
 
         :type entity: Entity
         :param entity: The entity to remove.
@@ -414,7 +460,8 @@ class EntityGroup(models.Model):
         ).delete()
 
     def bulk_remove_entities(self, entities_and_kinds):
-        """Remove many entities and sub-entity groups to this EntityGroup.
+        """
+        Remove many entities and sub-entity groups to this EntityGroup.
 
         :type entities_and_kinds: List of (Entity, EntityKind) pairs.
         :param entities_and_kinds: A list of entity, entity-kind pairs
@@ -431,7 +478,8 @@ class EntityGroup(models.Model):
             criteria, entity_group=self).delete()
 
     def bulk_overwrite(self, entities_and_kinds):
-        """Update the group to the given entities and sub-entity groups.
+        """
+        Update the group to the given entities and sub-entity groups.
 
         After this operation, the only members of this EntityGroup
         will be the given entities, and sub-entity groups.
@@ -463,7 +511,8 @@ class AllEntityProxy(Entity):
 
 
 class EntityGroupMembership(models.Model):
-    """Membership information for entity groups.
+    """
+    Membership information for entity groups.
 
     This model should usually not be queried/updated directly, but
     accessed through the EntityGroup api.
@@ -476,3 +525,73 @@ class EntityGroupMembership(models.Model):
     entity_group = models.ForeignKey(EntityGroup)
     entity = models.ForeignKey(Entity, null=True)
     sub_entity_kind = models.ForeignKey(EntityKind, null=True)
+
+
+def get_entities_by_kind(membership_cache=None):
+    """
+    Builds a dict with keys of entity kinds if and values are another dict. Each of these dicts are keyed
+    off of a super entity id and optional have an 'all' key for any group that has a null super entity.
+    Example structure:
+    {
+        entity_kind_id: {
+            entity1_id: [1, 2, 3],
+            entity2_id: [4, 5, 6],
+            'all': [1, 2, 3, 4, 5, 6]
+        }
+    }
+
+    :rtype: dict
+    """
+    # Accept an existing cache or build a new one
+    membership_cache = membership_cache or EntityGroup.objects.get_membership_cache()
+
+    entities_by_kind = {}
+    kinds_with_all = set()
+    kinds_with_supers = set()
+    super_ids = set()
+
+    # Loop over each group
+    for group_id, memberships in membership_cache.items():
+
+        # Look at each membership
+        for entity_id, entity_kind_id in memberships:
+
+            # Only care about memberships with entity kind
+            if entity_kind_id:
+
+                # Make sure a dict exists for this kind
+                entities_by_kind.setdefault(entity_kind_id, {})
+
+                # Check if this is all entities of a kind under a specific entity
+                if entity_id:
+                    entities_by_kind[entity_kind_id][entity_id] = []
+                    kinds_with_supers.add(entity_kind_id)
+                    super_ids.add(entity_id)
+                else:
+                    # This is all entities of this kind
+                    entities_by_kind[entity_kind_id]['all'] = []
+                    kinds_with_all.add(entity_kind_id)
+
+    # Get entities for 'all'
+    all_entities_for_types = Entity.objects.filter(
+        entity_kind_id__in=kinds_with_all
+    ).values_list('id', 'entity_kind_id')
+
+    # Add entity ids to entity kind's all list
+    for id, entity_kind_id in all_entities_for_types:
+        entities_by_kind[entity_kind_id]['all'].append(id)
+
+    # Get relationships
+    relationships = EntityRelationship.objects.filter(
+        super_entity_id__in=super_ids,
+        sub_entity__entity_kind_id__in=kinds_with_supers
+    ).values_list(
+        'super_entity_id', 'sub_entity_id', 'sub_entity__entity_kind_id'
+    )
+
+    # Add entity ids to each super entity's list
+    for super_entity_id, sub_entity_id, sub_entity__entity_kind_id in relationships:
+        entities_by_kind[sub_entity__entity_kind_id].setdefault(super_entity_id, [])
+        entities_by_kind[sub_entity__entity_kind_id][super_entity_id].append(sub_entity_id)
+
+    return entities_by_kind
