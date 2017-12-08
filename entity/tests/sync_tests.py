@@ -3,7 +3,6 @@ Provides tests for the syncing functionalities in django entity.
 """
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
-from django.test.utils import override_settings
 from django_dynamic_fixture import G, F
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
@@ -177,22 +176,6 @@ class SyncAllEntitiesTest(EntityTestCase):
         # Test that the management command syncs all five entities
         self.assertEquals(Entity.objects.all().count(), 0)
         call_command('sync_entities')
-        self.assertEquals(Entity.objects.all().count(), 5)
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_ALWAYS_EAGER=True, BROKER_BACKEND='memory')
-    def test_async_sync_entities_management_command(self):
-        """
-        Tests that the sync_entities command works with the asynchronous option.
-        """
-        # Create five test accounts without syncing on
-        turn_off_syncing()
-        for i in range(5):
-            Account.objects.create()
-        turn_on_syncing()
-
-        # Test that the management command syncs all five entities
-        self.assertEquals(Entity.objects.all().count(), 0)
-        call_command('sync_entities', async=True)
         self.assertEquals(Entity.objects.all().count(), 5)
 
     def test_sync_dummy_data(self):

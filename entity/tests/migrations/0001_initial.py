@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
+import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
@@ -48,7 +49,7 @@ class Migration(migrations.Migration):
             name='EntityPointer',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('entity', models.ForeignKey(to='entity.Entity')),
+                ('entity', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='entity.Entity')),
             ],
             options={
                 'abstract': False,
@@ -77,7 +78,7 @@ class Migration(migrations.Migration):
             name='PointsToAccount',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('account', models.ForeignKey(to='tests.Account')),
+                ('account', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tests.Account')),
             ],
             options={
                 'abstract': False,
@@ -87,7 +88,7 @@ class Migration(migrations.Migration):
             name='PointsToM2mEntity',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('m2m_entity', models.OneToOneField(to='tests.M2mEntity')),
+                ('m2m_entity', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to='tests.M2mEntity')),
             ],
             options={
                 'abstract': False,
@@ -117,7 +118,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='team',
             name='team_group',
-            field=models.ForeignKey(to='tests.TeamGroup', null=True),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tests.TeamGroup', null=True),
         ),
         migrations.AddField(
             model_name='m2mentity',
@@ -127,21 +128,21 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='account',
             name='competitor',
-            field=models.ForeignKey(to='tests.Competitor', null=True),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tests.Competitor', null=True),
         ),
         migrations.AddField(
             model_name='account',
             name='team',
-            field=models.ForeignKey(to='tests.Team', null=True),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tests.Team', null=True),
         ),
         migrations.AddField(
             model_name='account',
             name='team2',
-            field=models.ForeignKey(related_name='+', to='tests.Team', null=True),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='+', to='tests.Team', null=True),
         ),
         migrations.AddField(
             model_name='account',
             name='team_group',
-            field=models.ForeignKey(to='tests.TeamGroup', null=True),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tests.TeamGroup', null=True),
         ),
     ]
