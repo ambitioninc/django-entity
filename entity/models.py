@@ -303,12 +303,12 @@ class EntityRelationship(models.Model):
     # The sub entity. The related name is called super_relationships since
     # querying this reverse relationship returns all of the relationships
     # super to an entity
-    sub_entity = models.ForeignKey(Entity, related_name='super_relationships')
+    sub_entity = models.ForeignKey(Entity, related_name='super_relationships', on_delete=models.CASCADE)
 
     # The super entity. The related name is called sub_relationships since
     # querying this reverse relationships returns all of the relationships
     # sub to an entity
-    super_entity = models.ForeignKey(Entity, related_name='sub_relationships')
+    super_entity = models.ForeignKey(Entity, related_name='sub_relationships', on_delete=models.CASCADE)
 
 
 class EntityGroupManager(models.Manager):
@@ -528,9 +528,9 @@ class EntityGroupMembership(models.Model):
     When entity and sub_entity_kind are both not null, it means all sub entities below 'entity'
     with a kind of 'sub_entity_kind' will be selected.
     """
-    entity_group = models.ForeignKey(EntityGroup)
-    entity = models.ForeignKey(Entity, null=True)
-    sub_entity_kind = models.ForeignKey(EntityKind, null=True)
+    entity_group = models.ForeignKey(EntityGroup, on_delete=models.CASCADE)
+    entity = models.ForeignKey(Entity, null=True, on_delete=models.CASCADE)
+    sub_entity_kind = models.ForeignKey(EntityKind, null=True, on_delete=models.CASCADE)
 
 
 def get_entities_by_kind(membership_cache=None):

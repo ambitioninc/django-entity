@@ -19,9 +19,9 @@ def get_version():
 
 
 install_requires = [
-    'Django>=1.9',
-    'django-activatable-model>=0.9.0',
-    'django-manager-utils>=0.13.0',
+    'Django>=1.11',
+    'django-activatable-model>=1.0.0',
+    'django-manager-utils>=1.0.0',
     'celery>=3.1,<4.0',
     'jsonfield>=0.9.20',
     'python3-utils>=0.3',
@@ -45,8 +45,6 @@ setup(
     packages=find_packages(),
     classifiers=[
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Intended Audience :: Developers',

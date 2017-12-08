@@ -44,7 +44,7 @@ class Team(BaseEntityModel):
     # Used for testing if the entity is active
     is_active = models.BooleanField(default=True)
     # Used for additional super entity tests
-    team_group = models.ForeignKey(TeamGroup, null=True)
+    team_group = models.ForeignKey(TeamGroup, null=True, on_delete=models.CASCADE)
 
 
 @python_2_unicode_compatible
@@ -56,15 +56,15 @@ class Account(BaseEntityModel):
     # Used for testing if the entity is active
     is_active = models.BooleanField(default=True)
     # Team is a super entity for an account
-    team = models.ForeignKey(Team, null=True)
+    team = models.ForeignKey(Team, null=True, on_delete=models.CASCADE)
     # True if the account is a captain of its team
     is_captain = models.BooleanField(default=False)
     # The second team that the account is on
-    team2 = models.ForeignKey(Team, null=True, related_name='+')
+    team2 = models.ForeignKey(Team, null=True, related_name='+', on_delete=models.CASCADE)
     # The team group
-    team_group = models.ForeignKey(TeamGroup, null=True)
+    team_group = models.ForeignKey(TeamGroup, null=True, on_delete=models.CASCADE)
     # The competitor group
-    competitor = models.ForeignKey(Competitor, null=True)
+    competitor = models.ForeignKey(Competitor, null=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.email
@@ -82,11 +82,11 @@ class PointsToM2mEntity(BaseEntityModel):
     A model that points to an m2mentity. Used to recreate the scenario when an account
     points to a user that is included in a group.
     """
-    m2m_entity = models.OneToOneField(M2mEntity)
+    m2m_entity = models.OneToOneField(M2mEntity, on_delete=models.CASCADE)
 
 
 class PointsToAccount(BaseEntityModel):
-    account = models.ForeignKey(Account)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
 
 
 class EntityPointer(BaseEntityModel):
@@ -95,7 +95,7 @@ class EntityPointer(BaseEntityModel):
     that syncing entities doesn't perform any Entity deletes (causing models like
     this to be cascade deleted)
     """
-    entity = models.ForeignKey(Entity)
+    entity = models.ForeignKey(Entity, on_delete=models.CASCADE)
 
 
 class DummyModel(BaseEntityModel):
