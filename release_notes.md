@@ -1,5 +1,11 @@
 ## Release Notes
 
+- 2.0.0:
+    - Remove python 2.7 support
+    - Remove python 3.4 support
+    - Remove Django 1.9 support
+    - Remove Django 1.10 support
+    - Add Django 2.0 support
 - 1.18.0:
     - Optimize entity group queries by providing cache building functions
 - 1.17.0:
