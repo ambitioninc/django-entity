@@ -6,6 +6,8 @@
     - Remove Django 1.9 support
     - Remove Django 1.10 support
     - Add Django 2.0 support
+- 1.18.1:
+    - Reduce number of queries and data selected
 - 1.18.0:
     - Optimize entity group queries by providing cache building functions
 - 1.17.0:
