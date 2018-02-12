@@ -1030,7 +1030,6 @@ class EntityGroupTest(TestCase):
         turn_off_syncing()
 
         account_type = ContentType.objects.get_for_model(Account)
-        team_type = ContentType.objects.get_for_model(Team)
 
         # Set up teams
         teams = Team.objects.bulk_create([
