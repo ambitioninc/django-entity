@@ -1045,8 +1045,6 @@ class EntityGroupTest(TestCase):
         ])
         accounts[0].is_active = False
         accounts[0].save()
-        accounts[1].is_active = False
-        accounts[1].save()
 
         # Turn on syncing and do a sync
         turn_on_syncing()
@@ -1071,3 +1069,7 @@ class EntityGroupTest(TestCase):
             [account_entities[2], None],
             [account_entities[3], None],
         ])
+
+        self.assertEqual(len(entity_groups[0].get_all_entities()), 3)
+        self.assertEqual(len(entity_groups[0].get_all_entities(is_active=False)), 1)
+        self.assertEqual(len(entity_groups[0].get_all_entities(is_active=None)), 4)
