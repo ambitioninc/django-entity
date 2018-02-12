@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 2.0.1:
+    - Return only active entities by default in membership cache method
 - 2.0.0:
     - Remove python 2.7 support
     - Remove python 3.4 support
