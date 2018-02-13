@@ -313,15 +313,21 @@ class EntityRelationship(models.Model):
 
 class EntityGroupManager(models.Manager):
 
-    def get_membership_cache(self, group_ids=None):
+    def get_membership_cache(self, group_ids=None, is_active=True):
         """
         Build a dict cache with the group membership info. Keyed off the group id and the values are
         a 2 element list of entity id and entity kind id (same values as the membership model). If no group ids
         are passed, then all groups will be fetched
 
+        :param is_active: Flag indicating whether to filter on entity active status. None will not filter.
         :rtype: dict
         """
-        membership_queryset = EntityGroupMembership.objects.all()
+        membership_queryset = EntityGroupMembership.objects.filter(
+            Q(entity__isnull=True) |
+            (Q(entity__isnull=False) & Q(entity__is_active=is_active))
+        )
+        if is_active is None:
+            membership_queryset = EntityGroupMembership.objects.all()
 
         if group_ids:
             membership_queryset = membership_queryset.filter(entity_group_id__in=group_ids)
@@ -355,7 +361,7 @@ class EntityGroup(models.Model):
 
     objects = EntityGroupManager()
 
-    def all_entities(self):
+    def all_entities(self, is_active=True):
         """
         Return all the entities in the group.
 
@@ -363,9 +369,9 @@ class EntityGroup(models.Model):
         as whole groups of entities, this method acts as a convenient
         way to get a queryset of all the entities in the group.
         """
-        return self.get_all_entities(return_models=True)
+        return self.get_all_entities(return_models=True, is_active=is_active)
 
-    def get_all_entities(self, membership_cache=None, entities_by_kind=None, return_models=False):
+    def get_all_entities(self, membership_cache=None, entities_by_kind=None, return_models=False, is_active=True):
         """
         Returns a list of all entity ids in this group or optionally returns a queryset for all entity models.
         In order to reduce queries for multiple group lookups, it is expected that the membership_cache and
@@ -376,10 +382,12 @@ class EntityGroup(models.Model):
         :type entities_by_kind: dict
         :param return_models: If True, returns an Entity queryset, if False, returns a set of entity ids
         :type return_models: bool
+        :param is_active: Flag to control entities being returned. Defaults to True for active entities only
+        :type is_active: bool
         """
         # If cache args were not passed, generate the cache
         if membership_cache is None:
-            membership_cache = EntityGroup.objects.get_membership_cache([self.id])
+            membership_cache = EntityGroup.objects.get_membership_cache([self.id], is_active=is_active)
 
         if entities_by_kind is None:
             entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
@@ -387,22 +395,21 @@ class EntityGroup(models.Model):
         # Build set of all entity ids for this group
         entity_ids = set()
 
-        # This group does not have any entities
-        if not membership_cache.get(self.id):
-            return entity_ids
+        # This group does have entities
+        if membership_cache.get(self.id):
 
-        # Loop over each membership in this group
-        for entity_id, entity_kind_id in membership_cache[self.id]:
-            if entity_id:
-                if entity_kind_id:
-                    # All sub entities of this kind under this entity
-                    entity_ids.update(entities_by_kind[entity_kind_id][entity_id])
+            # Loop over each membership in this group
+            for entity_id, entity_kind_id in membership_cache[self.id]:
+                if entity_id:
+                    if entity_kind_id:
+                        # All sub entities of this kind under this entity
+                        entity_ids.update(entities_by_kind[entity_kind_id][entity_id])
+                    else:
+                        # Individual entity
+                        entity_ids.add(entity_id)
                 else:
-                    # Individual entity
-                    entity_ids.add(entity_id)
-            else:
-                # All entities of this kind
-                entity_ids.update(entities_by_kind[entity_kind_id]['all'])
+                    # All entities of this kind
+                    entity_ids.update(entities_by_kind[entity_kind_id]['all'])
 
         # Check if a queryset needs to be returned
         if return_models:
@@ -533,7 +540,7 @@ class EntityGroupMembership(models.Model):
     sub_entity_kind = models.ForeignKey(EntityKind, null=True, on_delete=models.CASCADE)
 
 
-def get_entities_by_kind(membership_cache=None):
+def get_entities_by_kind(membership_cache=None, is_active=True):
     """
     Builds a dict with keys of entity kinds if and values are another dict. Each of these dicts are keyed
     off of a super entity id and optional have an 'all' key for any group that has a null super entity.
@@ -550,7 +557,7 @@ def get_entities_by_kind(membership_cache=None):
     """
     # Accept an existing cache or build a new one
     if membership_cache is None:
-        membership_cache = EntityGroup.objects.get_membership_cache()
+        membership_cache = EntityGroup.objects.get_membership_cache(is_active=is_active)
 
     entities_by_kind = {}
     kinds_with_all = set()
