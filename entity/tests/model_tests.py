@@ -1022,3 +1022,53 @@ class EntityGroupTest(TestCase):
 
         # Make sure to hit the no group cache case
         self.assertEqual(entity_groups[0].get_all_entities(membership_cache={1000: []}), set())
+
+    def test_get_all_entities_active(self):
+        """
+        Makes sure only active entity ids are returned
+        """
+        turn_off_syncing()
+
+        account_type = ContentType.objects.get_for_model(Account)
+
+        # Set up teams
+        teams = Team.objects.bulk_create([
+            Team()
+            for i in range(0, 3)
+        ])
+
+        # Set up accounts
+        accounts = Account.objects.bulk_create([
+            Account(team=teams[i % 3])
+            for i in range(0, 20)
+        ])
+        accounts[0].is_active = False
+        accounts[0].save()
+
+        # Turn on syncing and do a sync
+        turn_on_syncing()
+
+        sync_entities()
+
+        account_entities = list(Entity.all_objects.filter(entity_type=account_type).order_by('entity_id'))
+
+        # Create groups
+        EntityGroup.objects.bulk_create([
+            EntityGroup()
+            for i in range(0, 6)
+        ])
+
+        # Refresh for django 1.9 because bulk create does not return ids
+        entity_groups = list(EntityGroup.objects.order_by('id'))
+
+        # Set up individual entity groups
+        entity_groups[0].bulk_add_entities([
+            [account_entities[0], None],
+            [account_entities[1], None],
+            [account_entities[2], None],
+            [account_entities[3], None],
+        ])
+
+        self.assertEqual(len(entity_groups[0].get_all_entities()), 3)
+        self.assertEqual(len(entity_groups[0].get_all_entities(is_active=False)), 1)
+        self.assertEqual(len(entity_groups[0].get_all_entities(is_active=None)), 4)
