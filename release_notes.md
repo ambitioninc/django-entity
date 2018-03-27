@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 2.0.2:
+    - Removed celery requirement
 - 2.0.1:
     - Return only active entities by default in membership cache method
 - 2.0.0:
