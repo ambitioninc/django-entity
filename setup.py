@@ -22,7 +22,6 @@ install_requires = [
     'Django>=1.11',
     'django-activatable-model>=1.0.0',
     'django-manager-utils>=1.0.0',
-    'celery>=3.1,<4.0',
     'jsonfield>=0.9.20',
     'python3-utils>=0.3',
 ]
