@@ -1,6 +1,5 @@
 import os
 
-from celery import Celery
 from django.conf import settings
 
 
@@ -9,9 +8,6 @@ def configure_settings():
     Configures settings for manage.py and for run_tests.py.
     """
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
-    app = Celery('entity')
-    app.config_from_object('django.conf:settings')
-    app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
     if not settings.configured:
         # Determine the database settings depending on if a test_db var is set in CI mode or not
@@ -19,9 +15,9 @@ def configure_settings():
         if test_db is None:
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql_psycopg2',
-                'NAME': 'ambition_test',
-                'USER': 'postgres',
-                'PASSWORD': '',
+                'NAME': 'ambition',
+                'USER': 'ambition',
+                'PASSWORD': 'ambition',
                 'HOST': 'db',
                 'TEST': {
                     'CHARSET': 'UTF8',
@@ -41,7 +37,6 @@ def configure_settings():
             'django.contrib.contenttypes',
             'django.contrib.sessions',
             'django.contrib.admin',
-            'celery',
             'entity',
             'entity.tests',
         ]

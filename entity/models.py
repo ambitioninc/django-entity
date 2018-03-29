@@ -3,10 +3,10 @@ from itertools import compress
 from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import Count, Q
 from django.utils.encoding import python_2_unicode_compatible
-from jsonfield import JSONField
 from python3_utils import compare_on_attr
 from six.moves import reduce
 
