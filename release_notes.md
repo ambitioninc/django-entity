@@ -1,5 +1,8 @@
 ## Release Notes
 
+- 3.0.0:
+    - Add tox to support more versions
+    - Switch to django's JSONField
 - 2.0.2:
     - Removed celery requirement
 - 2.0.1:

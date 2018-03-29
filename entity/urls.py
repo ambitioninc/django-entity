@@ -1,0 +1,1 @@
+urlpatterns = []  # pragma: no cover

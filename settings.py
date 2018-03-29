@@ -15,9 +15,9 @@ def configure_settings():
         if test_db is None:
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql_psycopg2',
-                'NAME': 'ambition_test',
-                'USER': 'postgres',
-                'PASSWORD': '',
+                'NAME': 'ambition',
+                'USER': 'ambition',
+                'PASSWORD': 'ambition',
                 'HOST': 'db',
                 'TEST': {
                     'CHARSET': 'UTF8',
