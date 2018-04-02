@@ -4,6 +4,7 @@ from activatable_model.models import BaseActivatableModel, ActivatableManager, A
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import JSONField
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Count, Q
 from django.utils.encoding import python_2_unicode_compatible
@@ -259,7 +260,7 @@ class Entity(BaseActivatableModel):
     entity_kind = models.ForeignKey(EntityKind, on_delete=models.PROTECT)
 
     # Metadata about the entity, stored as JSON
-    entity_meta = JSONField(null=True)
+    entity_meta = JSONField(null=True, encoder=DjangoJSONEncoder)
 
     # True if this entity is active
     is_active = models.BooleanField(default=True, db_index=True)
