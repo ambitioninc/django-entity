@@ -10,7 +10,6 @@ python:
 
 env:
   matrix:
-    - DJANGO=1.10
     - DJANGO=1.11
     - DJANGO=2.0
     - DJANGO=master
@@ -26,7 +25,6 @@ matrix:
     - { python: "2.7", env: DJANGO=master }
     - { python: "2.7", env: DJANGO=2.0 }
     - { python: "3.4", env: DJANGO=master }
-    - { python: "3.6", env: DJANGO=1.10 }
 
   allow_failures:
     - env: DJANGO=master
