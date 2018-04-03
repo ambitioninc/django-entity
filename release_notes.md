@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 3.1.1:
+    - Remove 1.10 from setup file
 - 3.1.0:
     - Add jsonfield encoder (drop support for 1.10)
 - 3.0.0:
