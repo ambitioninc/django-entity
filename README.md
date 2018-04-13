@@ -17,7 +17,7 @@ Using Django Entity, the email app could be written to take an Entity model rath
 Similar to Django's model admin, entities are configured by registering them with the Entity registry as follows:
 
 ```python
-from entity import entity_registry
+from entity.config import entity_registry
 
 class Account(Model):
     email = models.CharField(max_length=64)
@@ -31,7 +31,7 @@ And just like that, the ``Account`` model is now synced to the ``Entity`` table 
 Django Entity would not be much if it only synced objects to a single ``Entity`` table. In order to take advantage of the power of mirroring relationships, the user must define a configuration for the entity that inherits ``EntityConfig``. A small example of this is below and extends our account model to have a ``Group`` foreign key.
 
 ```python
-from entity import register_entity, EntityConfig, entity_registry
+from entity.config import register_entity, EntityConfig, entity_registry
 
 class Account(Model):
     email = models.CharField(max_length=64)
@@ -172,7 +172,7 @@ python manage.py sync_entities
 Similarly, you can directly call the function to sync entities in a celery processing job or in your own application code.
 
 ```python
-from entity import sync_entities
+from entity.sync import sync_entities
 
 # Sync all entities
 sync_entities()
@@ -181,7 +181,7 @@ sync_entities()
 Note that the ``sync_entities()`` function takes a variable length list of model objects if the user wishes to sync individual entities:
 
 ```python
-from entity import sync_entities
+from entity.sync import sync_entities
 
 # Sync three specific models
 sync_entities(account_model_obj, group_model_obj, another_model_obj)
@@ -190,7 +190,8 @@ sync_entities(account_model_obj, group_model_obj, another_model_obj)
 Entity syncing can be costly depending on the amount of relationships mirrored. If the user is going to be updating many models in a row that are mirrored as entities, it is recommended to turn syncing off, explicitly sync all updated entities, and then turn syncing back on. This can be accomplished as follows:
 
 ```python
-from entity import turn_on_syncing, turn_off_syncing, sync_entities
+from entity.signal_handlers import turn_on_syncing, turn_off_syncing
+from entity.sync import sync_entities
 
 
 # Turn off syncing since we're going to be updating many different accounts
