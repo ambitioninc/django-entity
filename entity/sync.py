@@ -120,20 +120,26 @@ class EntitySyncer(object):
             entity_qset = entity_qset if entity_qset is not None else entity_model.objects
 
             # Iterate over all the entity items in this models queryset
-            entity_ids = []
             paginator = Paginator(entity_qset.order_by('pk').all(), 1000)
             for page in range(1, paginator.num_pages + 1):
                 for model_obj in paginator.page(page).object_list:
-                    # Add a reference to the entity ids list
-                    entity_ids.append(model_obj.id)
-
                     # Sync the entity
                     self._sync_entity(model_obj)
 
-            # Delete any existing entities that are not in the model obj table
-            Entity.all_objects.filter(entity_type=ContentType.objects.get_for_model(
-                entity_model, for_concrete_model=False)).exclude(
-                entity_id__in=entity_ids).delete(force=True)
+            # Get the content type
+            content_type = ContentType.objects.get_for_model(
+                entity_model,
+                for_concrete_model=False
+            )
+
+            # Delete any existing entities that no longer exist in the model object table
+            Entity.all_objects.filter(
+                entity_type=content_type
+            ).exclude(
+                entity_id__in=entity_qset.all().values_list('pk', flat=True)
+            ).delete(
+                force=True
+            )
 
     def _sync_select_entities(self, *model_objs):
         """

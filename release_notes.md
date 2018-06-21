@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 3.1.2:
+    - Fix hole in deletion where a model could be added during syncing
 - 3.1.1:
     - Remove 1.10 from setup file
 - 3.1.0:
