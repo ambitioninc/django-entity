@@ -62,19 +62,14 @@ class EntityConfig(object):
         """
         return True
 
-    def bulk_get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs):
+        """
+        Retrieves a dictionary of entity relationships. The dictionary is keyed
+        on the model class of the super entity and each value of the dictionary
+        is a list of tuples. The tuples specify the ID of the sub entity and
+        the ID of the super entity.
+        """
         return {}
-
-    def get_super_entities(self, model_obj):
-        """
-        Retrieves a list of all entities that have a "super" relationship with the
-        entity.
-
-        Returns:
-            A list of models. If there are no super entities, return a empty list.
-            Defaults to returning an empty list.
-        """
-        return []
 
 
 class EntityRegistry(object):

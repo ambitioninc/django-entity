@@ -144,7 +144,7 @@ class AccountConfig(EntityConfig):
             'team_is_active': model_obj.team.is_active if model_obj.team else None,
         }
 
-    def bulk_get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs):
         """
         Gets the super entities this entity belongs to.
         """
@@ -158,35 +158,16 @@ class AccountConfig(EntityConfig):
             Competitor: [(a.id, a.competitor_id) for a in model_objs if a.competitor_id]
         }
 
-    def get_super_entities(self, model_obj):
-        """
-        Gets the super entities this entity belongs to.
-        """
-        super_entities = []
-        if model_obj.team is not None:
-            super_entities.append(model_obj.team)
-        if model_obj.team2 is not None:
-            super_entities.append(model_obj.team2)
-        if model_obj.team_group is not None:
-            super_entities.append(model_obj.team_group)
-        if model_obj.competitor is not None and model_obj.competitor.is_active:
-            super_entities.append(model_obj.competitor)
-
-        return super_entities
-
 
 @register_entity(Team.objects.select_related('team_group'))
 class TeamConfig(EntityConfig):
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
-    def bulk_get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs):
         return {
             TeamGroup: [(t.id, t.team_group_id) for t in model_objs if t.team_group_id]
         }
-
-    def get_super_entities(self, model_obj):
-        return [model_obj.team_group] if model_obj.team_group is not None else []
 
     def get_display_name(self, model_obj):
         return 'team'
@@ -194,7 +175,7 @@ class TeamConfig(EntityConfig):
 
 @register_entity(M2mEntity.objects.prefetch_related('teams'))
 class M2mEntityConfig(EntityConfig):
-    def bulk_get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs):
         return {
             Team: [
                 (m.id, t.id)
@@ -203,9 +184,6 @@ class M2mEntityConfig(EntityConfig):
             ]
         }
 
-    def get_super_entities(self, model_obj):
-        return model_obj.teams.all()
-
 
 @register_entity(PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams'))
 class PointsToM2mEntityConfig(EntityConfig):
@@ -213,7 +191,7 @@ class PointsToM2mEntityConfig(EntityConfig):
         (M2mEntity, lambda m2m_entity_obj: PointsToM2mEntity.objects.filter(m2m_entity=m2m_entity_obj)),
     ]
 
-    def bulk_get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs):
         return {
             Team: [
                 (p.id, t.id)
@@ -221,9 +199,6 @@ class PointsToM2mEntityConfig(EntityConfig):
                 for t in p.m2m_entity.teams.all()
             ]
         }
-
-    def get_super_entities(self, model_obj):
-        return model_obj.m2m_entity.teams.all()
 
 
 @register_entity(PointsToAccount)

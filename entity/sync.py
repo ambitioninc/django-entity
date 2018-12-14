@@ -46,7 +46,7 @@ def sync(*orig_model_objs):
         entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
         super_entities_by_ctype[ctype] = {
             ContentType.objects.get_for_model(model_class, for_concrete_model=False): relationships
-            for model_class, relationships in entity_config.bulk_get_super_entities(model_objs_for_ctype).items()
+            for model_class, relationships in entity_config.get_super_entities(model_objs_for_ctype).items()
         }
 
         # Continue adding to the set of entities that need to be synced
