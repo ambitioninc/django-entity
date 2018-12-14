@@ -10,6 +10,7 @@ from django.core.paginator import Paginator
 import manager_utils
 
 from entity.config import entity_registry
+import entity.db as entity_db
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
@@ -54,6 +55,24 @@ def sync(*model_objs):
         entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
         for model_obj in model_objs_to_sync_for_ctype:
             entity_kind_tuples_to_sync.add(entity_config.get_entity_kind(model_obj))
+
+    # Upsert all entity kinds and obtain the map of them
+    entity_kind_model_objs = [
+        EntityKind(name=name, display_name=display_name)
+        for name, display_name in entity_kind_tuples_to_sync
+    ]
+    created_entity_kinds, updated_entity_kinds, _ = entity_db.upsert(
+        EntityKind.all_objects.all(),
+        entity_kind_model_objs,
+        ['name'],
+        ['display_name'],
+        returning=True)
+    entity_kinds_map = {
+        entity_kind.name: entity_kind
+        for entity_kind in chain(created_entity_kinds, updated_entity_kinds)
+    }
+
+    print('usperted', entity_kinds_map)
 
 
 class EntitySyncer(object):
