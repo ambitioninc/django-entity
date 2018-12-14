@@ -13,6 +13,49 @@ from entity.config import entity_registry
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
+def sync(*model_objs):
+    # Organize by content type
+    model_objs_by_ctype = defaultdict(list)
+    for model_obj in model_objs:
+        ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
+        model_objs_by_ctype[ctype].append(model_obj)
+
+    # Build a dict of all entities that need to be synced. These include the original models
+    # and any super entities from super_entities_by_ctype. This dict is keyed on ctype with
+    # a list of IDs of each model
+    model_ids_to_sync = defaultdict(set)
+    for model_obj in model_objs:
+        ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
+        model_ids_to_sync[ctype].add(model_obj.id)
+
+    # For each ctype, obtain super entities. This is a dict keyed on ctype. Each value
+    # is a dict keyed on the ctype of the super entity with a list of tuples for
+    # IDs of sub/super entity relationships
+    super_entities_by_ctype = defaultdict(lambda: defaultdict(list))
+    for ctype, model_objs_for_ctype in model_objs_by_ctype.items():
+        entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
+        super_entities_by_ctype[ctype] = entity_config.bulk_get_super_entities(model_objs_for_ctype)
+
+        # Continue adding to the set of entities that need to be synced
+        for super_entity_ctype, super_entity_ids in super_entities_by_ctype[ctype].items():
+            for super_entity_id in super_entity_ids:
+                model_ids_to_sync[ctype].add(super_entity_id)
+
+    # Now that we have all models we need to sync, fetch them so that we can extract
+    # metadata and entity kinds.
+    model_objs_to_sync = {}
+    for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
+        model_qset = entity_registry.entity_registry.get(ctype.model_class())[0] or ctype.model_class().objects
+        model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
+
+    # Obtain all entity kind tuples associated with the models
+    entity_kind_tuples_to_sync = set()
+    for ctype, model_objs_to_sync_for_ctype in model_objs_to_sync.items():
+        entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
+        for model_obj in model_objs_to_sync_for_ctype:
+            entity_kind_tuples_to_sync.add(entity_config.get_entity_kind(model_obj))
+
+
 class EntitySyncer(object):
     """
     Responsible for syncing entities.
@@ -188,6 +231,9 @@ def sync_entities(*model_objs):
     Sync the provided model objects.
     If there are no model objects, sync all models across the entire project.
     """
+    if model_objs:
+        sync(*model_objs)
+
     # Import entity syncer here to avoid circular import
     from entity.sync import EntitySyncer
     EntitySyncer().sync_entities_and_relationships(*model_objs)

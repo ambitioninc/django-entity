@@ -144,6 +144,16 @@ class AccountConfig(EntityConfig):
             'team_is_active': model_obj.team.is_active if model_obj.team else None,
         }
 
+    def bulk_get_super_entities(self, model_objs):
+        """
+        Gets the super entities this entity belongs to.
+        """
+        return {
+            Team: [],
+            TeamGroup: [],
+            Competitor: []
+        }
+
     def get_super_entities(self, model_obj):
         """
         Gets the super entities this entity belongs to.
@@ -166,6 +176,11 @@ class TeamConfig(EntityConfig):
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
+    def bulk_get_super_entities(self, model_objs):
+        return {
+            TeamGroup: []
+        }
+
     def get_super_entities(self, model_obj):
         return [model_obj.team_group] if model_obj.team_group is not None else []
 
@@ -175,6 +190,11 @@ class TeamConfig(EntityConfig):
 
 @register_entity(M2mEntity.objects.prefetch_related('teams'))
 class M2mEntityConfig(EntityConfig):
+    def bulk_get_super_entities(self, model_objs):
+        return {
+            Team: []
+        }
+
     def get_super_entities(self, model_obj):
         return model_obj.teams.all()
 

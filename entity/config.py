@@ -62,6 +62,9 @@ class EntityConfig(object):
         """
         return True
 
+    def bulk_get_super_entities(self, model_objs):
+        return {}
+
     def get_super_entities(self, model_obj):
         """
         Retrieves a list of all entities that have a "super" relationship with the
