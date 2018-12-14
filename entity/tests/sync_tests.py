@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django_dynamic_fixture import G, F
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
-from entity.sync import EntitySyncer, sync_entities
+from entity.sync import sync_entities
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
 from mock import patch
 
@@ -789,21 +789,6 @@ class TestCachingAndCascading(EntityTestCase):
         G(Account, team=team)
         self.assertEquals(Entity.objects.count(), 2)
         self.assertEquals(EntityRelationship.objects.count(), 1)
-
-    def test_no_cascade_if_super_entity_exists(self):
-        """
-        Tests that super entities arent synced again if they have already been synced.
-        """
-        account = G(Account, team=F(team_group=F()))
-        self.assertTrue(Account.objects.exists())
-        self.assertTrue(Team.objects.exists())
-        self.assertTrue(TeamGroup.objects.exists())
-
-        entity_syncer = EntitySyncer()
-        entity_syncer.sync_entities_and_relationships(account)
-        # Verify that only the account and team reside in the entity syncer cache. This means that
-        # the syncing didnt percolate all the way to the team group
-        self.assertEquals(len(entity_syncer._synced_entity_cache), 2)
 
     def test_optimal_queries_registered_entity_with_no_qset(self):
         """
