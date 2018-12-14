@@ -12,21 +12,21 @@ import entity.db as entity_db
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
-def sync(*orig_model_objs):
-    model_objs = {
-        model_obj.id: model_obj for model_obj in orig_model_objs
+def sync(*model_objs):
+    model_objs_map = {
+        model_obj.id: model_obj for model_obj in model_objs
     }
-    if not model_objs:
+    if not model_objs_map:
         # Sync everything
         for model_class, (model_qset, entity_config) in entity_registry.entity_registry.items():
             model_qset = model_qset if model_qset is not None else model_class.objects
-            model_objs.update({
+            model_objs_map.update({
                 model_obj.id: model_obj for model_obj in model_qset.all()
             })
 
     # Organize by content type
     model_objs_by_ctype = defaultdict(list)
-    for model_obj in model_objs.values():
+    for model_obj in model_objs_map.values():
         ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
         model_objs_by_ctype[ctype].append(model_obj)
 
@@ -34,7 +34,7 @@ def sync(*orig_model_objs):
     # and any super entities from super_entities_by_ctype. This dict is keyed on ctype with
     # a list of IDs of each model
     model_ids_to_sync = defaultdict(set)
-    for model_obj in model_objs.values():
+    for model_obj in model_objs_map.values():
         ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
         model_ids_to_sync[ctype].add(model_obj.id)
 
@@ -61,11 +61,11 @@ def sync(*orig_model_objs):
     model_objs_to_sync = {}
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
         model_qset = entity_registry.entity_registry.get(ctype.model_class())[0] or ctype.model_class().objects
-        if orig_model_objs:
+        if model_objs:
             model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
         else:
             model_objs_to_sync[ctype] = [
-                model_objs[model_id] for model_id in model_ids_to_sync_for_ctype
+                model_objs_map[model_id] for model_id in model_ids_to_sync_for_ctype
             ]
 
     # Obtain all entity kind tuples associated with the models
@@ -114,7 +114,7 @@ def sync(*orig_model_objs):
         ['entity_type_id', 'entity_id'],
         ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
         returning=True,
-        sync=not orig_model_objs)
+        sync=not model_objs)
     entities_map = {
         (entity.entity_type_id, entity.entity_id): entity
         for entity in chain(created_entities, updated_entities)
@@ -134,11 +134,11 @@ def sync(*orig_model_objs):
     # are needed to properly sync entity relationships
     original_entity_ids = [
         entities_map[ctype.id, model_obj.id]
-        for ctype, model_objs in model_objs_by_ctype.items()
-        for model_obj in model_objs
+        for ctype, model_objs_for_ctype in model_objs_by_ctype.items()
+        for model_obj in model_objs_for_ctype
     ]
 
-    if not orig_model_objs:
+    if not model_objs:
         # If we're syncing everything, just sync against the entire entity relationship
         # table instead of doing a complex __in query
         sync_against = EntityRelationship.objects.all()
