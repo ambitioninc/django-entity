@@ -14,10 +14,53 @@ import entity.db as entity_db
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
-def sync(*model_objs):
+def _sync_all_entities(self):
+    """
+    Syncs all entities across the project.
+    """
+    # Loop through all entities that inherit EntityModelMixin and sync the entity.
+    for entity_model, (entity_qset, entity_config) in entity_registry.entity_registry.items():
+        # Get the queryset to use
+        entity_qset = entity_qset if entity_qset is not None else entity_model.objects
+
+        # Iterate over all the entity items in this models queryset
+        paginator = Paginator(entity_qset.order_by('pk').all(), 1000)
+        for page in range(1, paginator.num_pages + 1):
+            for model_obj in paginator.page(page).object_list:
+                # Sync the entity
+                self._sync_entity(model_obj)
+
+        # Get the content type
+        content_type = ContentType.objects.get_for_model(
+            entity_model,
+            for_concrete_model=False
+        )
+
+        # Delete any existing entities that no longer exist in the model object table
+        Entity.all_objects.filter(
+            entity_type=content_type
+        ).exclude(
+            entity_id__in=entity_qset.all().values_list('pk', flat=True)
+        ).delete(
+            force=True
+        )
+
+
+def sync(*orig_model_objs):
+    model_objs = {
+        model_obj.id: model_obj for model_obj in orig_model_objs
+    }
+    if not model_objs:
+        # Sync everything
+        for model_class, (model_qset, entity_config) in entity_registry.entity_registry.items():
+            model_qset = model_qset if model_qset is not None else model_class.objects
+            model_objs.update({
+                model_obj.id: model_obj for model_obj in model_qset.all()
+            })
+
     # Organize by content type
     model_objs_by_ctype = defaultdict(list)
-    for model_obj in model_objs:
+    for model_obj in model_objs.values():
         ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
         model_objs_by_ctype[ctype].append(model_obj)
 
@@ -25,7 +68,7 @@ def sync(*model_objs):
     # and any super entities from super_entities_by_ctype. This dict is keyed on ctype with
     # a list of IDs of each model
     model_ids_to_sync = defaultdict(set)
-    for model_obj in model_objs:
+    for model_obj in model_objs.values():
         ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
         model_ids_to_sync[ctype].add(model_obj.id)
 
@@ -47,12 +90,17 @@ def sync(*model_objs):
                 model_ids_to_sync[super_entity_ctype].add(super_entity_id)
 
     # Now that we have all models we need to sync, fetch them so that we can extract
-    # metadata and entity kinds.
+    # metadata and entity kinds. If we are syncing all entities, we've already fetched
+    # everything and can fill in this data struct without doing another DB hit
     model_objs_to_sync = {}
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
-
         model_qset = entity_registry.entity_registry.get(ctype.model_class())[0] or ctype.model_class().objects
-        model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
+        if orig_model_objs:
+            model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
+        else:
+            model_objs_to_sync[ctype] = [
+                model_objs[model_id] for model_id in model_ids_to_sync_for_ctype
+            ]
 
     # Obtain all entity kind tuples associated with the models
     entity_kind_tuples_to_sync = set()
@@ -92,12 +140,15 @@ def sync(*model_objs):
             )
             for model_obj in model_objs_to_sync_for_ctype
         ])
+
+    # Upsert entities (or do a sync if we are updating all entities)
     created_entities, updated_entities, _ = entity_db.upsert(
         Entity.all_objects.all(),
         entities_to_upsert,
         ['entity_type_id', 'entity_id'],
         ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-        returning=True)
+        returning=True,
+        sync=not orig_model_objs)
     entities_map = {
         (entity.entity_type_id, entity.entity_id): entity
         for entity in chain(created_entities, updated_entities)
@@ -120,8 +171,16 @@ def sync(*model_objs):
         for ctype, model_objs in model_objs_by_ctype.items()
         for model_obj in model_objs
     ]
+
+    if not orig_model_objs:
+        # If we're syncing everything, just sync against the entire entity relationship
+        # table instead of doing a complex __in query
+        sync_against = EntityRelationship.objects.all()
+    else:
+        sync_against = EntityRelationship.objects.filter(sub_entity__in=original_entity_ids)
+
     entity_db.upsert(
-        EntityRelationship.objects.filter(sub_entity__in=original_entity_ids),
+        sync_against,
         entity_relationships_to_sync,
         ['sub_entity_id', 'super_entity_id'],
         sync=True
@@ -303,12 +362,7 @@ def sync_entities(*model_objs):
     Sync the provided model objects.
     If there are no model objects, sync all models across the entire project.
     """
-    if model_objs:
-        sync(*model_objs)
-    else:
-        # Import entity syncer here to avoid circular import
-        from entity.sync import EntitySyncer
-        EntitySyncer().sync_entities_and_relationships(*model_objs)
+    sync(*model_objs)
 
 
 def sync_entities_watching(instance):
@@ -322,4 +376,4 @@ def sync_entities_watching(instance):
 
         model_objs = list(entity_model_getter(instance))
         if model_objs:
-            sync_entities(*model_objs)
+            sync(*model_objs)
