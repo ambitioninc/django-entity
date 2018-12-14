@@ -148,10 +148,14 @@ class AccountConfig(EntityConfig):
         """
         Gets the super entities this entity belongs to.
         """
+        account_qset = Account.objects.filter(id__in=[m.id for m in model_objs])
         return {
-            Team: [],
-            TeamGroup: [],
-            Competitor: []
+            Team: (
+                list(account_qset.filter(team__isnull=False).values_list('id', 'team_id')) +
+                list(account_qset.filter(team2__isnull=False).values_list('id', 'team2_id'))
+            ),
+            TeamGroup: account_qset.filter(team_group__isnull=False).values_list('id', 'team_group_id'),
+            Competitor: account_qset.filter(competitor__isnull=False).values_list('id', 'competitor_id')
         }
 
     def get_super_entities(self, model_obj):
@@ -177,8 +181,9 @@ class TeamConfig(EntityConfig):
         return model_obj.is_active
 
     def bulk_get_super_entities(self, model_objs):
+        team_qset = Team.objects.filter(id__in=[m.id for m in model_objs])
         return {
-            TeamGroup: []
+            TeamGroup: team_qset.filter(team_group__isnull=False).values_list('id', 'team_group_id')
         }
 
     def get_super_entities(self, model_obj):
@@ -192,7 +197,6 @@ class TeamConfig(EntityConfig):
 class M2mEntityConfig(EntityConfig):
     def bulk_get_super_entities(self, model_objs):
         return {
-            Team: []
         }
 
     def get_super_entities(self, model_obj):
@@ -204,6 +208,11 @@ class PointsToM2mEntityConfig(EntityConfig):
     watching = [
         (M2mEntity, lambda m2m_entity_obj: PointsToM2mEntity.objects.filter(m2m_entity=m2m_entity_obj)),
     ]
+
+    def bulk_get_super_entities(self, model_objs):
+        return {
+            Team: []
+        }
 
     def get_super_entities(self, model_obj):
         return model_obj.m2m_entity.teams.all()

@@ -269,7 +269,7 @@ class Entity(BaseActivatableModel):
     all_objects = AllEntityManager()
 
     class Meta:
-        unique_together = ('entity_id', 'entity_type', 'entity_kind')
+        unique_together = ('entity_id', 'entity_type')
 
     def get_sub_entities(self):
         """
