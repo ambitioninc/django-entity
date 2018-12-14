@@ -148,14 +148,14 @@ class AccountConfig(EntityConfig):
         """
         Gets the super entities this entity belongs to.
         """
-        account_qset = Account.objects.filter(id__in=[m.id for m in model_objs])
         return {
-            Team: (
-                list(account_qset.filter(team__isnull=False).values_list('id', 'team_id')) +
-                list(account_qset.filter(team2__isnull=False).values_list('id', 'team2_id'))
-            ),
-            TeamGroup: account_qset.filter(team_group__isnull=False).values_list('id', 'team_group_id'),
-            Competitor: account_qset.filter(competitor__isnull=False).values_list('id', 'competitor_id')
+            Team: [
+                (a.id, a.team_id) for a in model_objs if a.team_id
+            ] + [
+                (a.id, a.team2_id) for a in model_objs if a.team2_id
+            ],
+            TeamGroup: [(a.id, a.team_group_id) for a in model_objs if a.team_group_id],
+            Competitor: [(a.id, a.competitor_id) for a in model_objs if a.competitor_id]
         }
 
     def get_super_entities(self, model_obj):
@@ -181,9 +181,8 @@ class TeamConfig(EntityConfig):
         return model_obj.is_active
 
     def bulk_get_super_entities(self, model_objs):
-        team_qset = Team.objects.filter(id__in=[m.id for m in model_objs])
         return {
-            TeamGroup: team_qset.filter(team_group__isnull=False).values_list('id', 'team_group_id')
+            TeamGroup: [(t.id, t.team_group_id) for t in model_objs if t.team_group_id]
         }
 
     def get_super_entities(self, model_obj):
@@ -197,6 +196,11 @@ class TeamConfig(EntityConfig):
 class M2mEntityConfig(EntityConfig):
     def bulk_get_super_entities(self, model_objs):
         return {
+            Team: [
+                (m.id, t.id)
+                for m in model_objs
+                for t in m.teams.all()
+            ]
         }
 
     def get_super_entities(self, model_obj):
@@ -211,7 +215,11 @@ class PointsToM2mEntityConfig(EntityConfig):
 
     def bulk_get_super_entities(self, model_objs):
         return {
-            Team: []
+            Team: [
+                (p.id, t.id)
+                for p in model_objs
+                for t in p.m2m_entity.teams.all()
+            ]
         }
 
     def get_super_entities(self, model_obj):

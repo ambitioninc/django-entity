@@ -113,11 +113,15 @@ def sync(*model_objs):
         for super_ctype, relationships in super_entities_by_sub_ctype.items()
         for sub_entity_id, super_entity_id in relationships
     ]
+    # Find the entities of the original model objects we were syncing. These
+    # are needed to properly sync entity relationships
+    original_entity_ids = [
+        entities_map[ctype.id, model_obj.id]
+        for ctype, model_objs in model_objs_by_ctype.items()
+        for model_obj in model_objs
+    ]
     entity_db.upsert(
-        EntityRelationship.objects.filter(sub_entity_id__in={
-            entity_relationship.sub_entity_id
-            for entity_relationship in entity_relationships_to_sync
-        }),
+        EntityRelationship.objects.filter(sub_entity__in=original_entity_ids),
         entity_relationships_to_sync,
         ['sub_entity_id', 'super_entity_id'],
         sync=True
