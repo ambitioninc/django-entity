@@ -14,28 +14,26 @@ from entity.models import Entity, EntityRelationship, EntityKind
 
 def sync(*model_objs):
     model_objs_map = {
-        model_obj.id: model_obj for model_obj in model_objs
+        (ContentType.objects.get_for_model(model_obj, for_concrete_model=False), model_obj.id): model_obj for model_obj in model_objs
     }
     if not model_objs_map:
         # Sync everything
         for model_class, (model_qset, entity_config) in entity_registry.entity_registry.items():
             model_qset = model_qset if model_qset is not None else model_class.objects
             model_objs_map.update({
-                model_obj.id: model_obj for model_obj in model_qset.all()
+                (ContentType.objects.get_for_model(model_class, for_concrete_model=False), model_obj.id): model_obj for model_obj in model_qset.all()
             })
 
     # Organize by content type
     model_objs_by_ctype = defaultdict(list)
-    for model_obj in model_objs_map.values():
-        ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
+    for (ctype, model_id), model_obj in model_objs_map.items():
         model_objs_by_ctype[ctype].append(model_obj)
 
     # Build a dict of all entities that need to be synced. These include the original models
     # and any super entities from super_entities_by_ctype. This dict is keyed on ctype with
     # a list of IDs of each model
     model_ids_to_sync = defaultdict(set)
-    for model_obj in model_objs_map.values():
-        ctype = ContentType.objects.get_for_model(model_obj, for_concrete_model=False)
+    for (ctype, model_id), model_obj in model_objs_map.items():
         model_ids_to_sync[ctype].add(model_obj.id)
 
     # For each ctype, obtain super entities. This is a dict keyed on ctype. Each value
@@ -65,7 +63,7 @@ def sync(*model_objs):
             model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
         else:
             model_objs_to_sync[ctype] = [
-                model_objs_map[model_id] for model_id in model_ids_to_sync_for_ctype
+                model_objs_map[ctype, model_id] for model_id in model_ids_to_sync_for_ctype
             ]
 
     # Obtain all entity kind tuples associated with the models
