@@ -58,7 +58,10 @@ def sync(*model_objs):
     # everything and can fill in this data struct without doing another DB hit
     model_objs_to_sync = {}
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
-        model_qset = entity_registry.entity_registry.get(ctype.model_class())[0] or ctype.model_class().objects
+        model_qset = entity_registry.entity_registry.get(ctype.model_class())[0]
+        if model_qset is None:  # Check for None in order to not evaluate the queryset
+            model_qset = ctype.model_class().objects
+
         if model_objs:
             model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
         else:
