@@ -6,22 +6,24 @@ from collections import defaultdict
 from itertools import chain
 
 from django.contrib.contenttypes.models import ContentType
+import manager_utils
 
 from entity.config import entity_registry
-import entity.db as entity_db
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
 def sync(*model_objs):
     model_objs_map = {
-        (ContentType.objects.get_for_model(model_obj, for_concrete_model=False), model_obj.id): model_obj for model_obj in model_objs
+        (ContentType.objects.get_for_model(model_obj, for_concrete_model=False), model_obj.id): model_obj
+        for model_obj in model_objs
     }
     if not model_objs_map:
         # Sync everything
         for model_class, entity_config in entity_registry.entity_registry.items():
             model_qset = entity_config.queryset
             model_objs_map.update({
-                (ContentType.objects.get_for_model(model_class, for_concrete_model=False), model_obj.id): model_obj for model_obj in model_qset.all()
+                (ContentType.objects.get_for_model(model_class, for_concrete_model=False), model_obj.id): model_obj
+                for model_obj in model_qset.all()
             })
 
     # Organize by content type
@@ -42,9 +44,10 @@ def sync(*model_objs):
     super_entities_by_ctype = defaultdict(lambda: defaultdict(list))  # pragma: no cover
     for ctype, model_objs_for_ctype in model_objs_by_ctype.items():
         entity_config = entity_registry.entity_registry.get(ctype.model_class())
+        super_entities = entity_config.get_super_entities(model_objs_for_ctype, not model_objs)
         super_entities_by_ctype[ctype] = {
             ContentType.objects.get_for_model(model_class, for_concrete_model=False): relationships
-            for model_class, relationships in entity_config.get_super_entities(model_objs_for_ctype).items()
+            for model_class, relationships in super_entities.items()
         }
 
         # Continue adding to the set of entities that need to be synced
@@ -79,7 +82,7 @@ def sync(*model_objs):
         EntityKind(name=name, display_name=display_name)
         for name, display_name in entity_kind_tuples_to_sync
     ]
-    created_entity_kinds, updated_entity_kinds, _ = entity_db.upsert(
+    created_entity_kinds, updated_entity_kinds = manager_utils.bulk_upsert2(
         EntityKind.all_objects.all(),
         entity_kinds_to_upsert,
         ['name'],
@@ -107,13 +110,21 @@ def sync(*model_objs):
         ])
 
     # Upsert entities (or do a sync if we are updating all entities)
-    created_entities, updated_entities, _ = entity_db.upsert(
-        Entity.all_objects.all(),
-        entities_to_upsert,
-        ['entity_type_id', 'entity_id'],
-        ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-        returning=True,
-        sync=not model_objs)
+    if model_objs:
+        created_entities, updated_entities = manager_utils.bulk_upsert2(
+            Entity.all_objects.all(),
+            entities_to_upsert,
+            ['entity_type_id', 'entity_id'],
+            ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
+            returning=True)
+    else:
+        created_entities, updated_entities, _ = manager_utils.sync2(
+            Entity.all_objects.all(),
+            entities_to_upsert,
+            ['entity_type_id', 'entity_id'],
+            ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
+            returning=True)
+
     entities_map = {
         (entity.entity_type_id, entity.entity_id): entity
         for entity in chain(created_entities, updated_entities)
@@ -144,11 +155,10 @@ def sync(*model_objs):
     else:
         sync_against = EntityRelationship.objects.filter(sub_entity__in=original_entity_ids)
 
-    entity_db.upsert(
+    manager_utils.sync2(
         sync_against,
         entity_relationships_to_sync,
-        ['sub_entity_id', 'super_entity_id'],
-        sync=True
+        ['sub_entity_id', 'super_entity_id']
     )
 
 

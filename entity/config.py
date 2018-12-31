@@ -65,12 +65,14 @@ class EntityConfig(object):
         """
         return True
 
-    def get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs, sync_all):
         """
         Retrieves a dictionary of entity relationships. The dictionary is keyed
         on the model class of the super entity and each value of the dictionary
         is a list of tuples. The tuples specify the ID of the sub entity and
         the ID of the super entity.
+
+        If sync_all is True, it means all models are currently being synced
         """
         return {}
 

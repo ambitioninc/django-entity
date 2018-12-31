@@ -146,7 +146,7 @@ class AccountConfig(EntityConfig):
             'team_is_active': model_obj.team.is_active if model_obj.team else None,
         }
 
-    def get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs, sync_all):
         """
         Gets the super entities this entity belongs to.
         """
@@ -168,7 +168,7 @@ class TeamConfig(EntityConfig):
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
-    def get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs, sync_all):
         return {
             TeamGroup: [(t.id, t.team_group_id) for t in model_objs if t.team_group_id]
         }
@@ -181,7 +181,7 @@ class TeamConfig(EntityConfig):
 class M2mEntityConfig(EntityConfig):
     queryset = M2mEntity.objects.prefetch_related('teams')
 
-    def get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs, sync_all):
         return {
             Team: [
                 (m.id, t.id)
@@ -199,7 +199,7 @@ class PointsToM2mEntityConfig(EntityConfig):
         (M2mEntity, lambda m2m_entity_obj: PointsToM2mEntity.objects.filter(m2m_entity=m2m_entity_obj)),
     ]
 
-    def get_super_entities(self, model_objs):
+    def get_super_entities(self, model_objs, sync_all):
         return {
             Team: [
                 (p.id, t.id)
