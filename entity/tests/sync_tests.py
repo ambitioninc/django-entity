@@ -831,15 +831,13 @@ class TestCachingAndCascading(EntityTestCase):
         # Use an entity registry that only has accounts and teams. This ensures that other registered
         # entity models dont pollute the test case
         new_registry = EntityRegistry()
-        new_registry.register_entity(
-            Account.objects.select_related('team', 'team2', 'team_group', 'competitor'), AccountConfig)
-        new_registry.register_entity(
-            Team.objects.select_related('team_group'), TeamConfig)
+        new_registry.register_entity(AccountConfig)
+        new_registry.register_entity(TeamConfig)
 
         with patch('entity.sync.entity_registry') as mock_entity_registry:
             mock_entity_registry.entity_registry = new_registry.entity_registry
             ContentType.objects.clear_cache()
-            with self.assertNumQueries(13):
+            with self.assertNumQueries(11):
                 sync_entities()
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)

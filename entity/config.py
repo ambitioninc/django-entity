@@ -27,6 +27,9 @@ class EntityConfig(object):
     #
     watching = []
 
+    # The queryset to fetch when syncing the entity
+    queryset = None
+
     def get_display_name(self, model_obj):
         """
         Returns a human-readable string for the entity.
@@ -91,54 +94,40 @@ class EntityRegistry(object):
     def entity_watching(self):
         return self._entity_watching
 
-    def register_entity(self, model_or_qset, entity_config=None):
+    def register_entity(self, entity_config):
         """
-        Registers a model or queryset with an entity config. If the entity config is None, it defaults
-        to registering the model/qset to EntityConfig.
+        Registers an entity config
         """
-        if inspect.isclass(model_or_qset) and issubclass(model_or_qset, Model):
-            # If the provided parameter is a model, convert it to a queryset
-            model = model_or_qset
-            qset = None
-        elif issubclass(model_or_qset.__class__, (Manager, QuerySet)):
-            model = model_or_qset.model
-            qset = model_or_qset.all()
-        else:
-            raise ValueError('Must register a model class or queryset instance with an entity config')
-
-        entity_config = entity_config if entity_config is not None else EntityConfig
         if not issubclass(entity_config, EntityConfig):
             raise ValueError('Must register entity config class of subclass EntityConfig')
 
-        if model not in self._entity_registry:
-            self._entity_registry[model] = (qset, entity_config())
+        if entity_config.queryset is None:
+            raise ValueError('Entity config must define queryset')
 
-            # Add watchers to the global look up table
-            for watching_model, entity_model_getter in entity_config.watching:
-                self._entity_watching[watching_model].append((model, entity_model_getter))
+        model = entity_config.queryset.model
+
+        self._entity_registry[model] = entity_config()
+
+        # Add watchers to the global look up table
+        for watching_model, entity_model_getter in entity_config.watching:
+            self._entity_watching[watching_model].append((model, entity_model_getter))
 
 
 # Define the global registry variable
 entity_registry = EntityRegistry()
 
 
-def register_entity(model_or_qset):
+def register_entity():
     """
-    Registers the given model (or queryset) class and wrapped EntityConfig class with
+    Registers the EntityConfig class with
     django entity:
 
-    @register_entity(Author)
+    @register_entity()
     class AuthorConfig(EntityConfig):
-        pass
-
-
-    The user can similarly explicitly call register with
-
-    from django.registry import registry
-    entity_registry.register_entity(model_or_qset, entity_config)
+        queryset = Author.objects.all()
     """
     def _entity_config_wrapper(entity_config_class):
-        entity_registry.register_entity(model_or_qset, entity_config=entity_config_class)
+        entity_registry.register_entity(entity_config_class)
         return entity_config_class
 
     return _entity_config_wrapper

@@ -18,8 +18,8 @@ def sync(*model_objs):
     }
     if not model_objs_map:
         # Sync everything
-        for model_class, (model_qset, entity_config) in entity_registry.entity_registry.items():
-            model_qset = model_qset if model_qset is not None else model_class.objects
+        for model_class, entity_config in entity_registry.entity_registry.items():
+            model_qset = entity_config.queryset
             model_objs_map.update({
                 (ContentType.objects.get_for_model(model_class, for_concrete_model=False), model_obj.id): model_obj for model_obj in model_qset.all()
             })
@@ -39,9 +39,9 @@ def sync(*model_objs):
     # For each ctype, obtain super entities. This is a dict keyed on ctype. Each value
     # is a dict keyed on the ctype of the super entity with a list of tuples for
     # IDs of sub/super entity relationships
-    super_entities_by_ctype = defaultdict(lambda: defaultdict(list))
+    super_entities_by_ctype = defaultdict(lambda: defaultdict(list))  # pragma: no cover
     for ctype, model_objs_for_ctype in model_objs_by_ctype.items():
-        entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
+        entity_config = entity_registry.entity_registry.get(ctype.model_class())
         super_entities_by_ctype[ctype] = {
             ContentType.objects.get_for_model(model_class, for_concrete_model=False): relationships
             for model_class, relationships in entity_config.get_super_entities(model_objs_for_ctype).items()
@@ -58,9 +58,7 @@ def sync(*model_objs):
     # everything and can fill in this data struct without doing another DB hit
     model_objs_to_sync = {}
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
-        model_qset = entity_registry.entity_registry.get(ctype.model_class())[0]
-        if model_qset is None:  # Check for None in order to not evaluate the queryset
-            model_qset = ctype.model_class().objects
+        model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
 
         if model_objs:
             model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
@@ -72,7 +70,7 @@ def sync(*model_objs):
     # Obtain all entity kind tuples associated with the models
     entity_kind_tuples_to_sync = set()
     for ctype, model_objs_to_sync_for_ctype in model_objs_to_sync.items():
-        entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
+        entity_config = entity_registry.entity_registry.get(ctype.model_class())
         for model_obj in model_objs_to_sync_for_ctype:
             entity_kind_tuples_to_sync.add(entity_config.get_entity_kind(model_obj))
 
@@ -95,7 +93,7 @@ def sync(*model_objs):
     # Now that we have all entity kinds, build all entities that need to be synced
     entities_to_upsert = []
     for ctype, model_objs_to_sync_for_ctype in model_objs_to_sync.items():
-        entity_config = entity_registry.entity_registry.get(ctype.model_class())[1]
+        entity_config = entity_registry.entity_registry.get(ctype.model_class())
         entities_to_upsert.extend([
             Entity(
                 entity_id=model_obj.id,
@@ -167,10 +165,6 @@ def sync_entities_watching(instance):
     Syncs entities watching changes of a model instance.
     """
     for entity_model, entity_model_getter in entity_registry.entity_watching[instance.__class__]:
-        entity_model_qset, entity_config = entity_registry.entity_registry[entity_model]
-        if entity_model_qset is None:
-            entity_model_qset = entity_model.objects.all()
-
         model_objs = list(entity_model_getter(instance))
         if model_objs:
             sync(*model_objs)

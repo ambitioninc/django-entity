@@ -124,11 +124,13 @@ class MultiInheritEntity(BaseEntityClass):
     data = models.CharField(max_length=64)
 
 
-@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor'))
+@register_entity()
 class AccountConfig(EntityConfig):
     """
     Entity configuration for the account model
     """
+    queryset = Account.objects.select_related('team', 'team2', 'team_group', 'competitor')
+
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
@@ -159,8 +161,10 @@ class AccountConfig(EntityConfig):
         }
 
 
-@register_entity(Team.objects.select_related('team_group'))
+@register_entity()
 class TeamConfig(EntityConfig):
+    queryset = Team.objects.select_related('team_group')
+
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
@@ -173,8 +177,10 @@ class TeamConfig(EntityConfig):
         return 'team'
 
 
-@register_entity(M2mEntity.objects.prefetch_related('teams'))
+@register_entity()
 class M2mEntityConfig(EntityConfig):
+    queryset = M2mEntity.objects.prefetch_related('teams')
+
     def get_super_entities(self, model_objs):
         return {
             Team: [
@@ -185,8 +191,10 @@ class M2mEntityConfig(EntityConfig):
         }
 
 
-@register_entity(PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams'))
+@register_entity()
 class PointsToM2mEntityConfig(EntityConfig):
+    queryset = PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams')
+
     watching = [
         (M2mEntity, lambda m2m_entity_obj: PointsToM2mEntity.objects.filter(m2m_entity=m2m_entity_obj)),
     ]
@@ -201,8 +209,10 @@ class PointsToM2mEntityConfig(EntityConfig):
         }
 
 
-@register_entity(PointsToAccount)
+@register_entity()
 class PointsToAccountConfig(EntityConfig):
+    queryset = PointsToAccount.objects.all()
+
     watching = [
         (Competitor, lambda competitor_obj: PointsToAccount.objects.filter(account__competitor=competitor_obj)),
         (Team, lambda team_obj: PointsToAccount.objects.filter(account__team=team_obj)),
@@ -215,8 +225,16 @@ class PointsToAccountConfig(EntityConfig):
         }
 
 
-# Register the test models here. TODO - figure out why django does not like having these functions in
-# the tests/models.py file
-entity_registry.register_entity(TeamGroup)
-entity_registry.register_entity(Competitor)
-entity_registry.register_entity(MultiInheritEntity)
+@register_entity()
+class TeamGroupConfig(EntityConfig):
+    queryset = TeamGroup.objects.all()
+
+
+@register_entity()
+class CompetitorConfig(EntityConfig):
+    queryset = Competitor.objects.all()
+
+
+@register_entity()
+class MultiInheritEntityConfig(EntityConfig):
+    queryset = MultiInheritEntity.objects.all()
