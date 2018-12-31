@@ -42,7 +42,7 @@ class EntityConfig(object):
         By default, uses the app_label and model of the model object's content
         type as the kind.
         """
-        model_obj_ctype = ContentType.objects.get_for_model(model_obj)
+        model_obj_ctype = ContentType.objects.get_for_model(self.queryset.model)
         return (u'{0}.{1}'.format(model_obj_ctype.app_label, model_obj_ctype.model), u'{0}'.format(model_obj_ctype))
 
     def get_entity_meta(self, model_obj):
