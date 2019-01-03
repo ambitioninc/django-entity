@@ -12,11 +12,18 @@ from entity.config import entity_registry
 from entity.models import Entity, EntityRelationship, EntityKind
 
 
-def _get_super_entities_by_ctype(model_objs, model_ids_to_sync, model_objs_by_ctype):
+def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all):
+    """
+    Given model objects organized by content type and a dictionary of all model IDs that need
+    to be synced, organize all super entity relationships that need to be synced.
+
+    Ensure that the model_ids_to_sync dict is updated with any new super entities
+    that need to be part of the overall entity sync
+    """
     super_entities_by_ctype = defaultdict(lambda: defaultdict(list))  # pragma: no cover
     for ctype, model_objs_for_ctype in model_objs_by_ctype.items():
         entity_config = entity_registry.entity_registry.get(ctype.model_class())
-        super_entities = entity_config.get_super_entities(model_objs_for_ctype, not model_objs)
+        super_entities = entity_config.get_super_entities(model_objs_for_ctype, sync_all)
         super_entities_by_ctype[ctype] = {
             ContentType.objects.get_for_model(model_class, for_concrete_model=False): relationships
             for model_class, relationships in super_entities.items()
@@ -31,12 +38,15 @@ def _get_super_entities_by_ctype(model_objs, model_ids_to_sync, model_objs_by_ct
     return super_entities_by_ctype
 
 
-def _get_model_objs_to_sync(model_objs, model_ids_to_sync, model_objs_map):
+def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all):
+    """
+    Given the model IDs to sync, fetch all model objects to sync
+    """
     model_objs_to_sync = {}
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
         model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
 
-        if model_objs:
+        if not sync_all:
             model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
         else:
             model_objs_to_sync[ctype] = [
@@ -46,7 +56,14 @@ def _get_model_objs_to_sync(model_objs, model_ids_to_sync, model_objs_map):
     return model_objs_to_sync
 
 
-def sync(*model_objs):
+def sync_entities(*model_objs):
+    """
+    Syncs entities
+
+    Args:
+        model_objs (List[Model]): The model objects to sync. If empty, all entities will be synced
+    """
+    sync_all = not model_objs
     model_objs_map = {
         (ContentType.objects.get_for_model(model_obj, for_concrete_model=False), model_obj.id): model_obj
         for model_obj in model_objs
@@ -75,12 +92,12 @@ def sync(*model_objs):
     # For each ctype, obtain super entities. This is a dict keyed on ctype. Each value
     # is a dict keyed on the ctype of the super entity with a list of tuples for
     # IDs of sub/super entity relationships
-    super_entities_by_ctype = _get_super_entities_by_ctype(model_objs, model_ids_to_sync, model_objs_by_ctype)
+    super_entities_by_ctype = _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all)
 
     # Now that we have all models we need to sync, fetch them so that we can extract
     # metadata and entity kinds. If we are syncing all entities, we've already fetched
     # everything and can fill in this data struct without doing another DB hit
-    model_objs_to_sync = _get_model_objs_to_sync(model_objs, model_ids_to_sync, model_objs_map)
+    model_objs_to_sync = _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all)
 
     # Obtain all entity kind tuples associated with the models
     entity_kind_tuples_to_sync = set()
@@ -174,14 +191,6 @@ def sync(*model_objs):
     )
 
 
-def sync_entities(*model_objs):
-    """
-    Sync the provided model objects.
-    If there are no model objects, sync all models across the entire project.
-    """
-    sync(*model_objs)
-
-
 def sync_entities_watching(instance):
     """
     Syncs entities watching changes of a model instance.
@@ -189,4 +198,4 @@ def sync_entities_watching(instance):
     for entity_model, entity_model_getter in entity_registry.entity_watching[instance.__class__]:
         model_objs = list(entity_model_getter(instance))
         if model_objs:
-            sync(*model_objs)
+            sync_entities(*model_objs)
