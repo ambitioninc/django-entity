@@ -3,7 +3,7 @@ Provides tests for the syncing functionalities in django entity.
 """
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
-from django_dynamic_fixture import G, F
+from django_dynamic_fixture import G
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
 from entity.sync import sync_entities

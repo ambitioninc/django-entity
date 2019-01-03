@@ -324,8 +324,7 @@ class EntityGroupManager(models.Manager):
         :rtype: dict
         """
         membership_queryset = EntityGroupMembership.objects.filter(
-            Q(entity__isnull=True) |
-            (Q(entity__isnull=False) & Q(entity__is_active=is_active))
+            Q(entity__isnull=True) | (Q(entity__isnull=False) & Q(entity__is_active=is_active))
         )
         if is_active is None:
             membership_queryset = EntityGroupMembership.objects.all()
