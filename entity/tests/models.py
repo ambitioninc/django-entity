@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 
-from entity.config import EntityConfig, entity_registry, register_entity
+from entity.config import EntityConfig, register_entity
 from entity.models import Entity
 from manager_utils import ManagerUtilsManager
 

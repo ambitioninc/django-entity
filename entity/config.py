@@ -1,9 +1,6 @@
 from collections import defaultdict
-import inspect
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Manager, Model
-from django.db.models.query import QuerySet
 
 
 class EntityConfig(object):
