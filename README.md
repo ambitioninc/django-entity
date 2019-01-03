@@ -17,12 +17,16 @@ Using Django Entity, the email app could be written to take an Entity model rath
 Similar to Django's model admin, entities are configured by registering them with the Entity registry as follows:
 
 ```python
-from entity.config import entity_registry
+from entity.config import EntityConfig, register_entity
+
 
 class Account(Model):
     email = models.CharField(max_length=64)
 
-entity_registry.register_entity(Account)
+
+@register_entity()
+class AccountConfig(EntityConfig):
+    queryset = Account.objects.all()
 ```
 
 And just like that, the ``Account`` model is now synced to the ``Entity`` table every time an account is saved, deleted, or has any of its M2M fields updated.
@@ -31,18 +35,27 @@ And just like that, the ``Account`` model is now synced to the ``Entity`` table 
 Django Entity would not be much if it only synced objects to a single ``Entity`` table. In order to take advantage of the power of mirroring relationships, the user must define a configuration for the entity that inherits ``EntityConfig``. A small example of this is below and extends our account model to have a ``Group`` foreign key.
 
 ```python
-from entity.config import register_entity, EntityConfig, entity_registry
+from entity.config import register_entity, EntityConfig
+
 
 class Account(Model):
     email = models.CharField(max_length=64)
     group = models.ForeignKey(Group)
 
-entity_registry.register_entity(Group)
 
-@register_entity(Account)
+@register_entity()
+class GroupConfig(EntityConfig):
+    queryset = Group.objects.all()
+
+
+@register_entity()
 class AccountConfig(EntityConfig):
-    def get_super_entities(self, model_obj):
-        return [model_obj.group]
+    queryset = Account.objects.all()
+
+    def get_super_entities(self, model_objs):
+        return {
+            Group: [(model_obj.id, model_obj.group_id) for model_obj in model_objs]
+        }
 ```
 
 In the above scenario, we mirrored the ``Group`` model using the default entity configuration. However, the ``Account`` model now uses a special configuration that inherits ``EntityConfig``. It overrides the ``get_super_entities`` function to return a list of all model objects that are super entities to the account. Once the account is synced, the user may then do various filtering on the relationships of accounts to groups (more on that later).
@@ -52,10 +65,14 @@ Note - in the above example, we also used the ``register_entity`` decorator, whi
 Along with the ability to mirror relationships, the entity configuration can be extended to mirror metadata about an entity. For example, using the ``Account`` model in the previous example:
 
 ```python
-@register_entity(Account)
+@register_entity()
 class AccountConfig(EntityConfig):
-    def get_super_entities(self, model_obj):
-        return [model_obj.group]
+    queryset = Account.objects.all()
+
+    def get_super_entities(self, model_objs):
+        return {
+            Group: [(model_obj.id, model_obj.group_id) for model_obj in model_objs]
+        }
 
     def get_entity_meta(self, model_obj):
         return {
@@ -76,8 +93,10 @@ Entities have the ability to be labeled with their "kind" for advanced filtering
 By default, Django Entity will mirror the content type of the entity as its kind. The name field will be the ``app_label`` of the content type followed by a dot followed by the ``model`` of the content type. For cases where this name is not descriptive enough for the kind of the entity, the user has the ability to override the ``get_entity_kind`` function in the entity config. For example:
 
 ```python
-@register_entity(Account)
+@register_entity()
 class AccountConfig(EntityConfig):
+    queryset = Account.objects.all()
+
     def get_entity_kind(self, model_obj):
         return (model_obj.email_domain, 'Email domain {0}'.format(model_obj.email_domain))
 ```
@@ -105,27 +124,48 @@ class Account(models.Model):
 Now, assume that the ``Account`` model wants to add every ``Group`` model in the many to many of the ``User`` model as its super entity. This would be set up with the following config:
 
 ```python
-entity_registry.register_entity(Group)
+@register_entity()
+class GroupConfig(EntityConfig):
+    queryset = Group.objects.all()
 
-@register_entity(Account):
+
+@register_entity()
 class AccountConfig(EntityConfig):
-    def get_super_entities(self, model_obj):
-        return model_obj.user.groups.all()
+    queryset = Account.objects.all()
+
+    def get_super_entities(self, model_objs):
+        return {
+            Group: [
+                (model_obj.id, group.id)
+                for model_obj in model_objs
+                for group in model_obj.user.groups.all()
+            ]
+        }
 ```
 
 Although it would be nice if this worked out of the box, Django Entity has no way of knowing that the ``Account`` model needs to be updated when the fields in its associated ``User`` model change. In order to ensure the ``Account`` model is mirrored properly, add a ``watching`` class variable to the entity config as follows:
 
 ```python
-entity_registry.register_entity(Group)
+@register_entity()
+class GroupConfig(EntityConfig):
+    queryset = Group.objects.all()
 
-@register_entity(Account):
+
+@register_entity()
 class AccountConfig(EntityConfig):
+    queryset = Account.objects.all()
     watching = [
         (User, lambda user_obj: Account.objects.filter(user=user_obj)),
     ]
 
-    def get_super_entities(self, model_obj):
-        return model_obj.user.groups.all()
+    def get_super_entities(self, model_objs):
+        return {
+            Group: [
+                (model_obj.id, group.id)
+                for model_obj in model_objs
+                for group in model_obj.user.groups.all()
+            ]
+        }
 ```
 
 The ``watching`` field defines a list of tuples. The first element in each tuple represents the model to watch. The second element in the tuple describes the function used to access the entity models that are related to the changed watching model.
@@ -140,8 +180,9 @@ class Address(models.Model):
 To make the Address model sync when the ``User`` model of the ``Account`` model is changed, define an entity configuration like so:
 
 ```python
-@register_entity(Address):
+@register_entity()
 class AddressConfig(EntityConfig):
+    queryset = Address.objects.all()
     watching = [
         (User, lambda user_model_obj: Address.objects.fitler(account__user=user_model_obj)),
     ]
@@ -150,15 +191,15 @@ class AddressConfig(EntityConfig):
 Again, all that is happening under the hood is that when a ``User`` model is changed, all entity models related to that changed user model are returned so that they can be sycned.
 
 ### Ensuring Entity Syncing Optimal Queries
-Since a user may need to mirror many different super entities from many different foreign keys, it is beneficial for them to provide caching hints to Django Entity. This can be done by simply providing a Django QuerySet as an argument when registering entities rather than a model class. For example, our previous account entity config would want to do the following:
+Since a user may need to mirror many different super entities from many different foreign keys, it is beneficial for them to provide caching hints to Django Entity. This can be done by simply providing a prefetched Django QuerySet to the ``queryset`` attribute in the entity config. For example, our previous account entity config would want to do the following:
 
 ```python
-@register_entity(Account.objects.prefetch_related('user__groups'))
+@register_entity()
 class AccountConfig(EntityConfig):
-    ...
+    queryset = Account.objects.prefetch_related('user__groups')
 ```
 
-When invididual entities or all entities are synced, the QuerySet will be used to access the ``Account`` models.
+When invididual entities or all entities are synced, the QuerySet will be used to access the ``Account`` models and passed to relevent methods of the entity config.
 
 
 ## Syncing Entities

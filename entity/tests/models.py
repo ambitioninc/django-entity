@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 
-from entity.config import EntityConfig, entity_registry, register_entity
+from entity.config import EntityConfig, register_entity
 from entity.models import Entity
 from manager_utils import ManagerUtilsManager
 
@@ -124,11 +124,13 @@ class MultiInheritEntity(BaseEntityClass):
     data = models.CharField(max_length=64)
 
 
-@register_entity(Account.objects.select_related('team', 'team2', 'team_group', 'competitor'))
+@register_entity()
 class AccountConfig(EntityConfig):
     """
     Entity configuration for the account model
     """
+    queryset = Account.objects.select_related('team', 'team2', 'team_group', 'competitor')
+
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
@@ -144,53 +146,73 @@ class AccountConfig(EntityConfig):
             'team_is_active': model_obj.team.is_active if model_obj.team else None,
         }
 
-    def get_super_entities(self, model_obj):
+    def get_super_entities(self, model_objs, sync_all):
         """
         Gets the super entities this entity belongs to.
         """
-        super_entities = []
-        if model_obj.team is not None:
-            super_entities.append(model_obj.team)
-        if model_obj.team2 is not None:
-            super_entities.append(model_obj.team2)
-        if model_obj.team_group is not None:
-            super_entities.append(model_obj.team_group)
-        if model_obj.competitor is not None and model_obj.competitor.is_active:
-            super_entities.append(model_obj.competitor)
-
-        return super_entities
+        return {
+            Team: [
+                (a.id, a.team_id) for a in model_objs if a.team_id
+            ] + [
+                (a.id, a.team2_id) for a in model_objs if a.team2_id
+            ],
+            TeamGroup: [(a.id, a.team_group_id) for a in model_objs if a.team_group_id],
+            Competitor: [(a.id, a.competitor_id) for a in model_objs if a.competitor_id]
+        }
 
 
-@register_entity(Team.objects.select_related('team_group'))
+@register_entity()
 class TeamConfig(EntityConfig):
+    queryset = Team.objects.select_related('team_group')
+
     def get_is_active(self, model_obj):
         return model_obj.is_active
 
-    def get_super_entities(self, model_obj):
-        return [model_obj.team_group] if model_obj.team_group is not None else []
+    def get_super_entities(self, model_objs, sync_all):
+        return {
+            TeamGroup: [(t.id, t.team_group_id) for t in model_objs if t.team_group_id]
+        }
 
     def get_display_name(self, model_obj):
         return 'team'
 
 
-@register_entity(M2mEntity.objects.prefetch_related('teams'))
+@register_entity()
 class M2mEntityConfig(EntityConfig):
-    def get_super_entities(self, model_obj):
-        return model_obj.teams.all()
+    queryset = M2mEntity.objects.prefetch_related('teams')
+
+    def get_super_entities(self, model_objs, sync_all):
+        return {
+            Team: [
+                (m.id, t.id)
+                for m in model_objs
+                for t in m.teams.all()
+            ]
+        }
 
 
-@register_entity(PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams'))
+@register_entity()
 class PointsToM2mEntityConfig(EntityConfig):
+    queryset = PointsToM2mEntity.objects.prefetch_related('m2m_entity__teams')
+
     watching = [
         (M2mEntity, lambda m2m_entity_obj: PointsToM2mEntity.objects.filter(m2m_entity=m2m_entity_obj)),
     ]
 
-    def get_super_entities(self, model_obj):
-        return model_obj.m2m_entity.teams.all()
+    def get_super_entities(self, model_objs, sync_all):
+        return {
+            Team: [
+                (p.id, t.id)
+                for p in model_objs
+                for t in p.m2m_entity.teams.all()
+            ]
+        }
 
 
-@register_entity(PointsToAccount)
+@register_entity()
 class PointsToAccountConfig(EntityConfig):
+    queryset = PointsToAccount.objects.all()
+
     watching = [
         (Competitor, lambda competitor_obj: PointsToAccount.objects.filter(account__competitor=competitor_obj)),
         (Team, lambda team_obj: PointsToAccount.objects.filter(account__team=team_obj)),
@@ -203,8 +225,16 @@ class PointsToAccountConfig(EntityConfig):
         }
 
 
-# Register the test models here. TODO - figure out why django does not like having these functions in
-# the tests/models.py file
-entity_registry.register_entity(TeamGroup)
-entity_registry.register_entity(Competitor)
-entity_registry.register_entity(MultiInheritEntity)
+@register_entity()
+class TeamGroupConfig(EntityConfig):
+    queryset = TeamGroup.objects.all()
+
+
+@register_entity()
+class CompetitorConfig(EntityConfig):
+    queryset = Competitor.objects.all()
+
+
+@register_entity()
+class MultiInheritEntityConfig(EntityConfig):
+    queryset = MultiInheritEntity.objects.all()

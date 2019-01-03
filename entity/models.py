@@ -269,7 +269,7 @@ class Entity(BaseActivatableModel):
     all_objects = AllEntityManager()
 
     class Meta:
-        unique_together = ('entity_id', 'entity_type', 'entity_kind')
+        unique_together = ('entity_id', 'entity_type')
 
     def get_sub_entities(self):
         """
@@ -324,8 +324,7 @@ class EntityGroupManager(models.Manager):
         :rtype: dict
         """
         membership_queryset = EntityGroupMembership.objects.filter(
-            Q(entity__isnull=True) |
-            (Q(entity__isnull=False) & Q(entity__is_active=is_active))
+            Q(entity__isnull=True) | (Q(entity__isnull=False) & Q(entity__is_active=is_active))
         )
         if is_active is None:
             membership_queryset = EntityGroupMembership.objects.all()
