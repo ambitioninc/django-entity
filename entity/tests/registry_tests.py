@@ -1,7 +1,6 @@
-from django.db.models import Model, Manager
-from django.db.models.query import QuerySet
+from django.db.models import Model
 from django.test import TestCase
-from mock import patch, Mock
+from mock import patch
 
 from entity.config import EntityConfig, entity_registry, EntityRegistry, register_entity
 
@@ -27,86 +26,6 @@ class EntityRegistryTest(TestCase):
         with self.assertRaises(ValueError):
             EntityRegistry().register_entity(InvalidEntityObject)
 
-    def test_register_model(self):
-        """
-        Tests registering a model class.
-        """
-        class ValidRegistryModel(Model):
-            pass
-
-        entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel)
-        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], None)
-        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
-
-    def test_register_twice(self):
-        """
-        Tests that registering a model twice causes no harm.
-        """
-        class ValidRegistryModel(Model):
-            pass
-
-        entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel)
-        entity_registry.register_entity(ValidRegistryModel)
-        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], None)
-        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
-
-    def test_register_inherited_model(self):
-        """
-        Tests registering a model class that extends an abstract model.
-        """
-        class BaseModel(Model):
-            class Meta:
-                abstract = True
-
-        class ValidRegistryModel(BaseModel):
-            pass
-
-        entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel)
-        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], None)
-        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
-
-    def test_register_manager(self):
-        """
-        Tests registering a manager class.
-        """
-        class ValidRegistryManager(Manager):
-            pass
-
-        class ValidRegistryModel(Model):
-            objects = ValidRegistryManager()
-
-        entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel.objects)
-        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertTrue(isinstance(entity_registry_info[0], QuerySet))
-        self.assertEquals(entity_registry_info[0].model, ValidRegistryModel)
-        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
-
-    def test_register_inherited_manager(self):
-        """
-        Tests registering a manager class that extends another manager.
-        """
-        class BaseManager(Manager):
-            pass
-
-        class ValidRegistryManager(BaseManager):
-            pass
-
-        class ValidRegistryModel(Model):
-            objects = ValidRegistryManager()
-
-        entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel.objects)
-        entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertTrue(isinstance(entity_registry_info[0], QuerySet))
-        self.assertTrue(isinstance(entity_registry_info[1], EntityConfig))
-
     def test_register_valid_entity_config(self):
         """
         Tests registering an entity config with a model.
@@ -115,17 +34,16 @@ class EntityRegistryTest(TestCase):
             pass
 
         class ValidEntityConfig(EntityConfig):
-            pass
+            queryset = ValidRegistryModel.objects.all()
 
         entity_registry = EntityRegistry()
-        entity_registry.register_entity(ValidRegistryModel, ValidEntityConfig)
+        entity_registry.register_entity(ValidEntityConfig)
         entity_registry_info = entity_registry._entity_registry[ValidRegistryModel]
-        self.assertEquals(entity_registry_info[0], None)
-        self.assertTrue(isinstance(entity_registry_info[1], ValidEntityConfig))
+        self.assertTrue(isinstance(entity_registry_info, ValidEntityConfig))
 
     def test_register_invalid_entity_config(self):
         """
-        Tests registering an invalid entity config with a model.
+        Tests registering an invalid entity config that does not inherit EntityConfig
         """
         class ValidRegistryModel(Model):
             pass
@@ -135,7 +53,21 @@ class EntityRegistryTest(TestCase):
 
         entity_registry = EntityRegistry()
         with self.assertRaises(ValueError):
-            entity_registry.register_entity(ValidRegistryModel, InvalidEntityConfig)
+            entity_registry.register_entity(InvalidEntityConfig)
+
+    def test_register_invalid_entity_config_no_qset(self):
+        """
+        Tests registering an invalid entity config that does not have queryset
+        """
+        class ValidRegistryModel(Model):
+            pass
+
+        class InvalidEntityConfig(EntityConfig):
+            pass
+
+        entity_registry = EntityRegistry()
+        with self.assertRaises(ValueError):
+            entity_registry.register_entity(InvalidEntityConfig)
 
     @patch.object(EntityRegistry, 'register_entity')
     def test_decorator(self, register_mock):
@@ -145,11 +77,11 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             pass
 
-        @register_entity(ValidRegistryModel)
+        @register_entity()
         class ValidEntityConfig(EntityConfig):
-            pass
+            queryset = ValidRegistryModel.objects.all()
 
-        register_mock.assert_called_once_with(ValidRegistryModel, entity_config=ValidEntityConfig)
+        register_mock.assert_called_once_with(ValidEntityConfig)
 
     @patch.object(EntityRegistry, 'register_entity')
     def test_decorator_qset(self, register_mock):
@@ -159,10 +91,8 @@ class EntityRegistryTest(TestCase):
         class ValidRegistryModel(Model):
             pass
 
-        qset = Mock(ValidRegistryModel.objects)
-
-        @register_entity(qset)
+        @register_entity()
         class ValidEntityConfig(EntityConfig):
-            pass
+            queryset = ValidRegistryModel.objects.all()
 
-        register_mock.assert_called_once_with(qset, entity_config=ValidEntityConfig)
+        register_mock.assert_called_once_with(ValidEntityConfig)

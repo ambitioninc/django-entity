@@ -3,10 +3,10 @@ Provides tests for the syncing functionalities in django entity.
 """
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
-from django_dynamic_fixture import G, F
+from django_dynamic_fixture import G
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
-from entity.sync import EntitySyncer, sync_entities
+from entity.sync import sync_entities
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
 from mock import patch
 
@@ -790,21 +790,6 @@ class TestCachingAndCascading(EntityTestCase):
         self.assertEquals(Entity.objects.count(), 2)
         self.assertEquals(EntityRelationship.objects.count(), 1)
 
-    def test_no_cascade_if_super_entity_exists(self):
-        """
-        Tests that super entities arent synced again if they have already been synced.
-        """
-        account = G(Account, team=F(team_group=F()))
-        self.assertTrue(Account.objects.exists())
-        self.assertTrue(Team.objects.exists())
-        self.assertTrue(TeamGroup.objects.exists())
-
-        entity_syncer = EntitySyncer()
-        entity_syncer.sync_entities_and_relationships(account)
-        # Verify that only the account and team reside in the entity syncer cache. This means that
-        # the syncing didnt percolate all the way to the team group
-        self.assertEquals(len(entity_syncer._synced_entity_cache), 2)
-
     def test_optimal_queries_registered_entity_with_no_qset(self):
         """
         Tests that the optimal number of queries are performed when syncing a single entity that
@@ -813,7 +798,7 @@ class TestCachingAndCascading(EntityTestCase):
         team_group = G(TeamGroup)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             team_group.save()
 
     def test_optimal_queries_registered_entity_w_qset(self):
@@ -823,7 +808,7 @@ class TestCachingAndCascading(EntityTestCase):
         account = G(Account)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(9):
             account.save()
 
     def test_sync_all_optimal_queries(self):
@@ -846,15 +831,13 @@ class TestCachingAndCascading(EntityTestCase):
         # Use an entity registry that only has accounts and teams. This ensures that other registered
         # entity models dont pollute the test case
         new_registry = EntityRegistry()
-        new_registry.register_entity(
-            Account.objects.select_related('team', 'team2', 'team_group', 'competitor'), AccountConfig)
-        new_registry.register_entity(
-            Team.objects.select_related('team_group'), TeamConfig)
+        new_registry.register_entity(AccountConfig)
+        new_registry.register_entity(TeamConfig)
 
         with patch('entity.sync.entity_registry') as mock_entity_registry:
             mock_entity_registry.entity_registry = new_registry.entity_registry
             ContentType.objects.clear_cache()
-            with self.assertNumQueries(20):
+            with self.assertNumQueries(11):
                 sync_entities()
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
