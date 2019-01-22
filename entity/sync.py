@@ -189,7 +189,7 @@ def sync_entities(*model_objs):
         # table instead of doing a complex __in query
         sync_against = EntityRelationship.objects.all()
     else:
-        sync_against = EntityRelationship.objects.filter(sub_entity__id__in=original_entity_ids)
+        sync_against = EntityRelationship.objects.filter(sub_entity_id__in=original_entity_ids)
 
     manager_utils.sync2(
         sync_against,

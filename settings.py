@@ -18,7 +18,7 @@ def configure_settings():
                 'NAME': 'ambition',
                 'USER': 'ambition',
                 'PASSWORD': 'ambition',
-                'HOST': 'db',
+                'HOST': 'localhost',
                 'TEST': {
                     'CHARSET': 'UTF8',
                 }
