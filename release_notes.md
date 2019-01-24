@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.0.2:
+    - Fix a bug where the is_active flag for entity kinds was being updated during syncing
 - 4.0.1:
     - Upgrade manager utils for faster syncs
 - 4.0.0:
