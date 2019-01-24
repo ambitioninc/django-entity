@@ -115,7 +115,7 @@ def sync_entities(*model_objs):
         EntityKind.all_objects.all(),
         entity_kinds_to_upsert,
         ['name'],
-        ['display_name', 'is_active'],
+        ['display_name'],
         returning=['id', 'name'],
         ignore_duplicate_updates=True,
         return_untouched=True)
