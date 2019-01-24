@@ -111,15 +111,17 @@ def sync_entities(*model_objs):
         EntityKind(name=name, display_name=display_name)
         for name, display_name in entity_kind_tuples_to_sync
     ]
-    created_entity_kinds, updated_entity_kinds = manager_utils.bulk_upsert2(
+    upserted_entity_kinds = manager_utils.bulk_upsert2(
         EntityKind.all_objects.all(),
         entity_kinds_to_upsert,
         ['name'],
-        ['display_name'],
-        returning=True)
+        ['display_name', 'is_active'],
+        returning=['id', 'name'],
+        ignore_duplicate_updates=True,
+        return_untouched=True)
     entity_kinds_map = {
         entity_kind.name: entity_kind
-        for entity_kind in chain(created_entity_kinds, updated_entity_kinds)
+        for entity_kind in upserted_entity_kinds
     }
 
     # Now that we have all entity kinds, build all entities that need to be synced
@@ -140,23 +142,28 @@ def sync_entities(*model_objs):
 
     # Upsert entities (or do a sync if we are updating all entities)
     if model_objs:
-        created_entities, updated_entities = manager_utils.bulk_upsert2(
+        upserted_entities = manager_utils.bulk_upsert2(
             Entity.all_objects.all(),
             entities_to_upsert,
             ['entity_type_id', 'entity_id'],
             ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-            returning=True)
+            returning=['id', 'entity_type_id', 'entity_id'],
+            ignore_duplicate_updates=True,
+            return_untouched=True)
     else:
-        created_entities, updated_entities, _ = manager_utils.sync2(
+        upserted_entities = manager_utils.sync2(
             Entity.all_objects.all(),
             entities_to_upsert,
             ['entity_type_id', 'entity_id'],
             ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-            returning=True)
+            returning=['id', 'entity_type_id', 'entity_id'],
+            ignore_duplicate_updates=True)
 
     entities_map = {
         (entity.entity_type_id, entity.entity_id): entity
-        for entity in chain(created_entities, updated_entities)
+        for entity in chain(
+            upserted_entities.updated, upserted_entities.created, upserted_entities.untouched
+        )
     }
 
     # Now that all entities are upserted, sync entity relationships
@@ -172,7 +179,7 @@ def sync_entities(*model_objs):
     # Find the entities of the original model objects we were syncing. These
     # are needed to properly sync entity relationships
     original_entity_ids = [
-        entities_map[ctype.id, model_obj.id]
+        entities_map[ctype.id, model_obj.id].id
         for ctype, model_objs_for_ctype in model_objs_by_ctype.items()
         for model_obj in model_objs_for_ctype
     ]
@@ -182,12 +189,14 @@ def sync_entities(*model_objs):
         # table instead of doing a complex __in query
         sync_against = EntityRelationship.objects.all()
     else:
-        sync_against = EntityRelationship.objects.filter(sub_entity__in=original_entity_ids)
+        sync_against = EntityRelationship.objects.filter(sub_entity_id__in=original_entity_ids)
 
     manager_utils.sync2(
         sync_against,
         entity_relationships_to_sync,
-        ['sub_entity_id', 'super_entity_id']
+        ['sub_entity_id', 'super_entity_id'],
+        [],
+        ignore_duplicate_updates=True
     )
 
 

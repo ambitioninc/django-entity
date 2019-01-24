@@ -1,5 +1,9 @@
 ## Release Notes
 
+- 4.0.1:
+    - Upgrade manager utils for faster syncs
+- 4.0.0:
+    - Optimize entity syncing and change syncing interface
 - 3.1.2:
     - Fix hole in deletion where a model could be added during syncing
 - 3.1.1:
