@@ -2,6 +2,7 @@
 Provides functions for syncing entities and their relationships to the
 Entity and EntityRelationship tables.
 """
+import logging
 import sys
 
 import wrapt
@@ -14,6 +15,9 @@ from django.db import transaction, connection
 
 from entity.config import entity_registry
 from entity.models import Entity, EntityRelationship, EntityKind
+
+
+LOG = logging.getLogger(__name__)
 
 
 @wrapt.decorator
@@ -180,7 +184,8 @@ def sync_entities(*model_objs):
         # Return false that we did not do anything
         return False
 
-    print('sync_entities', model_objs)
+    # Log what we are syncing
+    LOG.debug('sync_entities', model_objs)
 
     # Determine if we are syncing all
     sync_all = not model_objs
