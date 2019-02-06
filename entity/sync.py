@@ -79,7 +79,7 @@ class SyncLock(object):
         self._transaction = transaction.atomic()
 
         lock_sql = (
-            'SELECT ' 
+            'SELECT '
             'pg_advisory_xact_lock(\'{table_name}\'::regclass::integer, hashtext(\'{lock_name}\'));'
         ).format(
             table_name=self._model._meta.db_table,
@@ -112,7 +112,7 @@ class SyncLock(object):
         try:
             if self._transaction:
                 self._transaction.__exit__(*args, **kwargs)
-        except:
+        finally:
             pass
 
 
@@ -172,13 +172,10 @@ def sync_entities(*model_objs):
     if sync_entities.defer:
         # If we dont have any model objects passed add a none to let us know that we need to sync all
         if not model_objs:
-            model_objs = [None]
-
-        # Add each model obj to the buffer
-        for model_obj in model_objs:
-            if model_obj is None:
-                sync_entities.buffer[model_obj] = model_obj
-            else:
+            sync_entities.buffer[None] = None
+        else:
+            # Add each model obj to the buffer
+            for model_obj in model_objs:
                 sync_entities.buffer[(model_obj.__class__, model_obj.pk)] = model_obj
 
         # Return false that we did not do anything
