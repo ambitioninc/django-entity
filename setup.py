@@ -24,6 +24,7 @@ install_requires = [
     'django-manager-utils>=1.3.0',
     'jsonfield>=0.9.20',
     'python3-utils>=0.3',
+    'wrapt>=1.10.5'
 ]
 
 tests_require = [
