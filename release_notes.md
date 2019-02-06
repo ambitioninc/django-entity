@@ -1,5 +1,8 @@
 ## Release Notes
 
+- 4.0.3:
+    - Add locking during sync method
+    - Add support for deferring entity syncing using a decorator
 - 4.0.2:
     - Fix a bug where the is_active flag for entity kinds was being updated during syncing
 - 4.0.1:

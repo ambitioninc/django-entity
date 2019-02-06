@@ -112,7 +112,7 @@ class SyncLock(object):
         try:
             if self._transaction:
                 self._transaction.__exit__(*args, **kwargs)
-        finally:
+        except:
             pass
 
 
