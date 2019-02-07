@@ -6,9 +6,9 @@ from django.core.management import call_command
 from django_dynamic_fixture import G
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
-from entity.sync import sync_entities
+from entity.sync import sync_entities, SyncLock, defer_entity_syncing
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
-from mock import patch
+from mock import patch, MagicMock
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
@@ -798,7 +798,7 @@ class TestCachingAndCascading(EntityTestCase):
         team_group = G(TeamGroup)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(15):
             team_group.save()
 
     def test_optimal_queries_registered_entity_w_qset(self):
@@ -808,7 +808,7 @@ class TestCachingAndCascading(EntityTestCase):
         account = G(Account)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(18):
             account.save()
 
     def test_sync_all_optimal_queries(self):
@@ -837,7 +837,7 @@ class TestCachingAndCascading(EntityTestCase):
         with patch('entity.sync.entity_registry') as mock_entity_registry:
             mock_entity_registry.entity_registry = new_registry.entity_registry
             ContentType.objects.clear_cache()
-            with self.assertNumQueries(11):
+            with self.assertNumQueries(20):
                 sync_entities()
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
@@ -846,3 +846,122 @@ class TestCachingAndCascading(EntityTestCase):
 
         # There should be four entity relationships since four accounts have teams
         self.assertEquals(EntityRelationship.objects.all().count(), 4)
+
+
+class SyncLockTests(EntityTestCase):
+    """
+    Tests for the sync lock context manager
+    """
+
+    def test_init(self):
+        # Create a lock
+        lock = SyncLock(Entity, 'test')
+
+        # Assert that we stored the model and name
+        self.assertEqual(lock._model, Entity)
+        self.assertEqual(lock._name, 'test')
+
+    @patch('entity.sync.connection')
+    @patch('entity.sync.transaction')
+    def test_enter(self, mock_transaction, mock_connection):
+        # Create a lock
+        lock = SyncLock(Entity, 'test')
+
+        # Call the method
+        lock.__enter__()
+
+        # Assert that we created a transaction
+        mock_transaction.atomic.assert_called_once_with()
+
+        # Assert that we entered the transaction
+        mock_transaction.atomic.return_value.__enter__.assert_called_once_with()
+
+        # Assert our lock query is correct
+        mock_connection.cursor.return_value.__enter__.return_value.execute.assert_called_once_with(
+            'SELECT pg_advisory_xact_lock(\'entity_entity\'::regclass::integer, hashtext(\'test\'));'
+        )
+
+    @patch('entity.sync.connection')
+    @patch('entity.sync.transaction')
+    def test_enter_exception(self, mock_transaction, mock_connection):
+        # Raise an exception
+        mock_connection.cursor.return_value.__enter__.return_value.execute.side_effect = Exception
+
+        # Create a lock
+        lock = SyncLock(Entity, 'test')
+
+        # Call the method
+        with self.assertRaises(Exception):
+            lock.__enter__()
+
+    def test_exit(self):
+        # Create a lock
+        lock = SyncLock(Entity, 'test')
+        lock._transaction = MagicMock()
+
+        # Call the method
+        lock.__exit__()
+
+        # Assert that the transaction was exited
+        lock._transaction.__exit__.assert_called_once_with()
+
+    def test_exit_exception(self):
+        # Create a lock
+        lock = SyncLock(Entity, 'test')
+        lock._transaction = MagicMock()
+
+        # Raise an exception
+        lock._transaction.__exit__.side_effect = Exception
+
+        # Call the method
+        lock.__exit__()
+
+        # Assert that the transaction was exited
+        lock._transaction.__exit__.assert_called_once_with()
+
+    def test_exit_no_transaction(self):
+        # Create a lock
+        lock = SyncLock(Entity, 'test')
+
+        # Call the method
+        lock.__exit__()
+
+
+class DeferEntitySyncingTests(EntityTestCase):
+    """
+    Tests the defer entity syncing decorator
+    """
+
+    def test_defer(self):
+        @defer_entity_syncing
+        def test_method(test, count=5, sync_all=False):
+            # Create some entities
+            for i in range(count):
+                Account.objects.create()
+
+            if sync_all:
+                sync_entities()
+
+            # Assert that we do not have any entities
+            test.assertEquals(Entity.objects.all().count(), 0)
+
+        # Call the test method
+        test_method(self, count=5)
+
+        # Assert that after the method was run we did sync the entities
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+        # Delete all entities
+        Entity.all_objects.all()._raw_delete(Entity.objects.db)
+
+        # Call the method again syncing all
+        test_method(self, count=0, sync_all=True)
+
+        # Assert that after the method was run we did sync the entities
+        self.assertEquals(Entity.objects.all().count(), 5)
+
+        # Assert that we restored the defer flag
+        self.assertFalse(sync_entities.defer)
+
+        # Assert that we cleared the buffer
+        self.assertEqual(sync_entities.buffer, {})
