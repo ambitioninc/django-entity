@@ -182,8 +182,8 @@ def sync_entities(*model_objs):
         return False
 
     # Log what we are syncing
-    LOG.info('sync_entities')
-    LOG.info(model_objs)
+    LOG.debug('sync_entities')
+    LOG.debug(model_objs)
 
     # Determine if we are syncing all
     sync_all = not model_objs
