@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.0.4:
+    - Update logging to be debug instead of info
 - 4.0.3:
     - Add locking during sync method
     - Add support for deferring entity syncing using a decorator
