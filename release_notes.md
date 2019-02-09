@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.0.5:
+    - Add retry logic, and select for update calls during entity syncing
 - 4.0.4:
     - Update logging to be debug instead of info
 - 4.0.3:

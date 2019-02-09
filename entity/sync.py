@@ -2,19 +2,17 @@
 Provides functions for syncing entities and their relationships to the
 Entity and EntityRelationship tables.
 """
-import itertools
 import logging
-import sys
-import traceback
 from time import sleep
 
 import wrapt
 from collections import defaultdict
 from itertools import chain
 
+from django import db
 from django.contrib.contenttypes.models import ContentType
 import manager_utils
-from django.db import transaction, connection
+from django.db import transaction
 
 from entity.config import entity_registry
 from entity.models import Entity, EntityRelationship, EntityKind
@@ -24,6 +22,14 @@ LOG = logging.getLogger(__name__)
 
 
 def transaction_atomic_with_retry(num_retries=5, backoff=0.1):
+    """
+    This is a decorator that will wrap the decorated method in an atomic transaction and
+    retry the transaction a given number of times
+
+    :param num_retries: How many times should we retry before we give up
+    :param backoff: How long should we wait after each try
+    """
+
     # Create the decorator
     @wrapt.decorator
     def wrapper(wrapped, instance, args, kwargs):
@@ -32,16 +38,16 @@ def transaction_atomic_with_retry(num_retries=5, backoff=0.1):
         exception = None
 
         # Call the main sync entities method and catch any exceptions
-        while num_tries <= num_retries + 1:
+        while num_tries <= num_retries:
+            # Try running the transaction
             try:
                 with transaction.atomic():
                     return wrapped(*args, **kwargs)
-            except Exception as e:
+            # Catch any operation errors
+            except db.utils.OperationalError as e:
                 num_tries += 1
                 exception = e
                 sleep(backoff * num_tries)
-                print('GOT SYNC ENTITY EXCEPTION')
-                traceback.print_stack()
 
         # If we have an exception raise it
         raise exception
@@ -83,67 +89,6 @@ def defer_entity_syncing(wrapped, instance, args, kwargs):
 
         # Sync the entities that were deferred
         sync_entities(*model_objs)
-
-
-class SyncLock(object):
-    """
-    This will create a postgres advisory lock to be used during the syncing process
-    This is being introduced to help avoid deadlocks in the meantime as we attempt to better understand
-    why they are happening
-    """
-    def __init__(self, model, name):
-        # Save the model
-        self._model = model
-
-        # Save the name
-        self._name = name
-
-        # Create an empty transaction
-        self._transaction = None
-
-        # Call the parent
-        super(SyncLock, self).__init__()
-
-    def __enter__(self):
-        # Create the transaction
-        self._transaction = transaction.atomic()
-
-        lock_sql = (
-            'SELECT '
-            'pg_advisory_xact_lock(\'{table_name}\'::regclass::integer, hashtext(\'{lock_name}\'));'
-        ).format(
-            table_name=self._model._meta.db_table,
-            lock_name=self._name
-        )
-
-        # Start the transaction
-        self._transaction.__enter__()
-
-        # Keep a reference to the exception
-        exception = None
-
-        # Create the connection
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(lock_sql)
-        except Exception as e:
-            exception = e
-
-        # If we have an exception, raise it
-        if exception is not None:
-            self.__exit__(*sys.exc_info())
-            raise exception
-
-        # Return the transaction
-        return transaction
-
-    def __exit__(self, *args, **kwargs):
-        # Exit the transaction
-        try:
-            if self._transaction:
-                self._transaction.__exit__(*args, **kwargs)
-        except:
-            pass
 
 
 def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all):
@@ -375,13 +320,6 @@ class EntitySyncer(object):
             queryset=sync_against,
             entity_relationships=entity_relationships_to_sync
         )
-        manager_utils.sync2(
-            sync_against,
-            entity_relationships_to_sync,
-            ['sub_entity_id', 'super_entity_id'],
-            [],
-            ignore_duplicate_updates=True
-        )
 
     @transaction_atomic_with_retry()
     def upsert_entity_kinds(self, entity_kinds):
@@ -394,16 +332,18 @@ class EntitySyncer(object):
         """
 
         # Filter out unchanged entity kinds
-        unchanged_entity_kinds = {
-            (entity_kind.name, entity_kind.display_name): entity_kind
-            for entity_kind in EntityKind.objects.extra(
-                where=['(name, display_name) IN %s'],
-                params=[tuple(
-                    (entity_kind.name, entity_kind.display_name)
-                    for entity_kind in entity_kinds
-                )]
-            )
-        }
+        unchanged_entity_kinds = {}
+        if entity_kinds:
+            unchanged_entity_kinds = {
+                (entity_kind.name, entity_kind.display_name): entity_kind
+                for entity_kind in EntityKind.objects.extra(
+                    where=['(name, display_name) IN %s'],
+                    params=[tuple(
+                        (entity_kind.name, entity_kind.display_name)
+                        for entity_kind in entity_kinds
+                    )]
+                )
+            }
 
         # Filter out the unchanged entity kinds
         changed_entity_kinds = [
@@ -423,7 +363,7 @@ class EntitySyncer(object):
             # Upsert the entity kinds
             upserted_enitity_kinds = manager_utils.bulk_upsert2(
                 EntityKind.all_objects.all(),
-                entity_kinds,
+                changed_entity_kinds,
                 ['name'],
                 ['display_name'],
                 returning=['id', 'name'],
