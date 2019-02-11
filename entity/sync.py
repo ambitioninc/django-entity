@@ -12,7 +12,7 @@ from itertools import chain
 from django import db
 from django.contrib.contenttypes.models import ContentType
 import manager_utils
-from django.db import transaction
+from django.db import transaction, connection
 
 from entity.config import entity_registry
 from entity.models import Entity, EntityRelationship, EntityKind
@@ -384,24 +384,29 @@ class EntitySyncer(object):
 
         # Select the entities we are upserting for update to reduce deadlocks
         if entities:
-            # Create the default select for update queryset
-            select_for_update_queryset = Entity.all_objects.extra(
-                where=['(entity_type_id, entity_id) IN %s'],
-                params=[tuple(
+            # Default select for update query when syncing all
+            select_for_update_query = (
+                'SELECT FROM {table_name} FOR NO KEY UPDATE'
+            ).format(
+                table_name=Entity._meta.db_table
+            )
+            select_for_update_query_params = []
+
+            # If we are not syncing all, only select those we are updating
+            if not sync:
+                select_for_update_query = (
+                    'SELECT FROM {table_name} WHERE (entity_type_id, entity_id) IN %s FOR NO KEY UPDATE'
+                ).format(
+                    table_name=Entity._meta.db_table
+                )
+                select_for_update_query_params = [tuple(
                     (entity.entity_type_id, entity.entity_id)
                     for entity in entities
                 )]
-            ).select_for_update()
-
-            # If we are syncing just select all
-            if sync:
-                select_for_update_queryset = Entity.all_objects.all().select_for_update()
 
             # Select the items for update
-            list(select_for_update_queryset.values_list(
-                'id',
-                flat=True
-            ))
+            with connection.cursor() as cursor:
+                cursor.execute(select_for_update_query, select_for_update_query_params)
 
         # If we are syncing run the sync logic
         if sync:
