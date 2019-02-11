@@ -81,14 +81,15 @@ def defer_entity_syncing(wrapped, instance, args, kwargs):
         model_objs = list(sync_entities.buffer.values())
 
         # If none is in the model objects we need to sync all
-        if None in model_objs:
+        if None in sync_entities.buffer:
             model_objs = list()
+
+        # Sync the entities that were deferred if any
+        if len(sync_entities.buffer):
+            sync_entities(*model_objs)
 
         # Clear the buffer
         sync_entities.buffer = {}
-
-        # Sync the entities that were deferred
-        sync_entities(*model_objs)
 
 
 def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all):
