@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.0.6:
+    - Relax entity update lock to be less aggressive by using `FOR NO KEY UPDATE` lock instead the `FOR UPDATE`. This will allow the updates to not block on other parts of the system that are foreign keyed to entity
 - 4.0.5:
     - Add retry logic, and select for update calls during entity syncing
 - 4.0.4:
