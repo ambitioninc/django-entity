@@ -888,6 +888,24 @@ class DeferEntitySyncingTests(EntityTestCase):
         # Assert that we cleared the buffer
         self.assertEqual(sync_entities.buffer, {})
 
+    def test_defer_nothing_synced(self):
+        """
+        Test the defer decorator when nothing is synced
+        """
+
+        @defer_entity_syncing
+        def test_method(test):
+            # Assert that we do not have any entities
+            test.assertEquals(Entity.objects.all().count(), 0)
+
+        # Call the test method
+        with patch('entity.sync.sync_entities') as mock_sync_entities:
+            # Call the method that does no syncing
+            test_method(self)
+
+            # Ensure that we did not call sync entities
+            self.assertFalse(mock_sync_entities.called)
+
 
 class TransactionAtomicWithRetryTests(EntityTestCase):
     """
