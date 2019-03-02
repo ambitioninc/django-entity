@@ -285,9 +285,7 @@ class EntitySyncer(object):
         # Create a map out of entities
         entities_map = {
             (entity.entity_type_id, entity.entity_id): entity
-            for entity in chain(
-                upserted_entities.updated, upserted_entities.created, upserted_entities.untouched
-            )
+            for entity in upserted_entities
         }
 
         # Now that all entities are upserted, sync entity relationships
@@ -362,14 +360,18 @@ class EntitySyncer(object):
             list(EntityKind.all_objects.all().select_for_update().values_list('id', flat=True))
 
             # Upsert the entity kinds
-            upserted_enitity_kinds = manager_utils.bulk_upsert2(
-                EntityKind.all_objects.all(),
-                changed_entity_kinds,
-                ['name'],
-                ['display_name'],
-                returning=['id', 'name'],
-                ignore_duplicate_updates=True,
-                return_untouched=True
+            upserted_enitity_kinds = manager_utils.bulk_upsert(
+                queryset=EntityKind.all_objects.extra(
+                    where=['(name, display_name) IN %s'],
+                    params=[tuple(
+                        (entity_kind.name, entity_kind.display_name)
+                        for entity_kind in changed_entity_kinds
+                    )]
+                ),
+                model_objs=changed_entity_kinds,
+                unique_fields=['name'],
+                update_fields=['display_name'],
+                return_upserts=True
             )
 
         # Return all the entity kinds
@@ -411,24 +413,27 @@ class EntitySyncer(object):
 
         # If we are syncing run the sync logic
         if sync:
-            upserted_entities = manager_utils.sync2(
-                Entity.all_objects.all(),
-                entities,
-                ['entity_type_id', 'entity_id'],
-                ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-                returning=['id', 'entity_type_id', 'entity_id'],
-                ignore_duplicate_updates=True
+            upserted_entities = manager_utils.sync(
+                queryset=Entity.all_objects.all(),
+                model_objs=entities,
+                unique_fields=['entity_type_id', 'entity_id'],
+                update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
+                return_upserts=True
             )
         # Otherwise we want to upsert our entities
         else:
-            upserted_entities = manager_utils.bulk_upsert2(
-                Entity.all_objects.all(),
-                entities,
-                ['entity_type_id', 'entity_id'],
-                ['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-                returning=['id', 'entity_type_id', 'entity_id'],
-                ignore_duplicate_updates=True,
-                return_untouched=True
+            upserted_entities = manager_utils.bulk_upsert(
+                queryset=Entity.all_objects.extra(
+                    where=['(entity_type_id, entity_id) IN %s'],
+                    params=[tuple(
+                        (entity.entity_type_id, entity.entity_id)
+                        for entity in entities
+                    )]
+                ),
+                model_objs=entities,
+                unique_fields=['entity_type_id', 'entity_id'],
+                update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
+                return_upserts=True
             )
 
         # Return the upserted entities
@@ -450,10 +455,10 @@ class EntitySyncer(object):
             ))
 
         # Sync the relationships
-        return manager_utils.sync2(
-            queryset,
-            entity_relationships,
-            ['sub_entity_id', 'super_entity_id'],
-            [],
-            ignore_duplicate_updates=True
+        return manager_utils.sync(
+            queryset=queryset,
+            model_objs=entity_relationships,
+            unique_fields=['sub_entity_id', 'super_entity_id'],
+            update_fields=[],
+            return_upserts=True
         )
