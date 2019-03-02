@@ -335,7 +335,7 @@ class EntitySyncer(object):
         if entity_kinds:
             unchanged_entity_kinds = {
                 (entity_kind.name, entity_kind.display_name): entity_kind
-                for entity_kind in EntityKind.objects.extra(
+                for entity_kind in EntityKind.all_objects.extra(
                     where=['(name, display_name) IN %s'],
                     params=[tuple(
                         (entity_kind.name, entity_kind.display_name)
@@ -361,12 +361,8 @@ class EntitySyncer(object):
 
             # Upsert the entity kinds
             upserted_enitity_kinds = manager_utils.bulk_upsert(
-                queryset=EntityKind.all_objects.extra(
-                    where=['(name, display_name) IN %s'],
-                    params=[tuple(
-                        (entity_kind.name, entity_kind.display_name)
-                        for entity_kind in changed_entity_kinds
-                    )]
+                queryset=EntityKind.all_objects.filter(
+                    name__in=[entity_kind.name for entity_kind in entity_kinds]
                 ),
                 model_objs=changed_entity_kinds,
                 unique_fields=['name'],
