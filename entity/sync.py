@@ -362,7 +362,7 @@ class EntitySyncer(object):
             # Upsert the entity kinds
             upserted_enitity_kinds = manager_utils.bulk_upsert(
                 queryset=EntityKind.all_objects.filter(
-                    name__in=[entity_kind.name for entity_kind in entity_kinds]
+                    name__in=[entity_kind.name for entity_kind in changed_entity_kinds]
                 ),
                 model_objs=changed_entity_kinds,
                 unique_fields=['name'],
