@@ -7,7 +7,6 @@ from time import sleep
 
 import wrapt
 from collections import defaultdict
-from itertools import chain
 
 from django import db
 from django.contrib.contenttypes.models import ContentType
