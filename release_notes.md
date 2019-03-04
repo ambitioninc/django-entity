@@ -1,6 +1,9 @@
 ## Release Notes
 
 - 4.0.7:
+    - Bump manager utils.
+    - Update upserts and syncs to be non native to save wasting auto incrementing ids
+- 4.0.7:
     - When using the defer entity syncing decorator, do not call sync if the buffer is empty
 - 4.0.6:
     - Relax entity update lock to be less aggressive by using `FOR NO KEY UPDATE` lock instead the `FOR UPDATE`. This will allow the updates to not block on other parts of the system that are foreign keyed to entity
