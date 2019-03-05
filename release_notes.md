@@ -1,8 +1,10 @@
 ## Release Notes
 
-- 4.0.7:
+- 4.0.9:
     - Bump manager utils.
     - Update upserts and syncs to be non native to save wasting auto incrementing ids
+- 4.0.8:
+    - BAD RELEASE DO NOT USE
 - 4.0.7:
     - When using the defer entity syncing decorator, do not call sync if the buffer is empty
 - 4.0.6:
