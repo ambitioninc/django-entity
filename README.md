@@ -184,7 +184,7 @@ To make the Address model sync when the ``User`` model of the ``Account`` model 
 class AddressConfig(EntityConfig):
     queryset = Address.objects.all()
     watching = [
-        (User, lambda user_model_obj: Address.objects.fitler(account__user=user_model_obj)),
+        (User, lambda user_model_obj: Address.objects.filter(account__user=user_model_obj)),
     ]
 ```
 
