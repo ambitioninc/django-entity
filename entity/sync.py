@@ -457,7 +457,8 @@ class EntitySyncer(object):
         all_entity_ids = set(initial_entity_activation_state.keys()) | set(current_entity_activation_state.keys())
         for entity_id in all_entity_ids:
             # Get the initial activation state of the entity
-            initial_activation_state = initial_entity_activation_state.get(entity_id)
+            # Default to false so we only detect when the model has actually changed
+            initial_activation_state = initial_entity_activation_state.get(entity_id, False)
 
             # Get the current state of the entity
             # Default to false here since the upserts do not return is_active=False due
