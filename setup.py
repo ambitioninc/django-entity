@@ -39,6 +39,7 @@ setup(
     version=get_version(),
     description='Entity relationship management for Django',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     url='http://github.com/ambitioninc/django-entity/',
     author='Wes Kendall',
     author_email='wesleykendall@gmail.com',
