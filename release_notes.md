@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.1.0:
+    - Add support for properly calling activation events when entities change
 - 4.0.9:
     - Bump manager utils.
     - Update upserts and syncs to be non native to save wasting auto incrementing ids
