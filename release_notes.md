@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.1.1:
+    - When calling the activation events, ignore entities that are initially inactive
 - 4.1.0:
     - Add support for properly calling activation events when entities change
 - 4.0.9:
