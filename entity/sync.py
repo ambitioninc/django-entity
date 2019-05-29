@@ -8,6 +8,7 @@ from time import sleep
 import wrapt
 from collections import defaultdict
 
+from activatable_model import model_activations_changed
 from django import db
 from django.contrib.contenttypes.models import ContentType
 import manager_utils
@@ -275,11 +276,14 @@ class EntitySyncer(object):
                 for model_obj in model_objs_to_sync_for_ctype
             ])
 
-        # Upsert entities (or do a sync if we are updating all entities)
-        upserted_entities = self.upsert_entities(
+        # Upsert the entities and get the upserted entities and the changed state
+        upserted_entities, changed_entity_activation_state = self.upsert_entities(
             entities=entities_to_upsert,
             sync=self.sync_all
         )
+
+        # Call the model activations changed signal manually since we have done a bulk operation
+        self.send_entity_activation_events(changed_entity_activation_state)
 
         # Create a map out of entities
         entities_map = {
@@ -406,10 +410,27 @@ class EntitySyncer(object):
             with connection.cursor() as cursor:
                 cursor.execute(select_for_update_query, select_for_update_query_params)
 
-        # If we are syncing run the sync logic
+        # Compute the initial queryset and the initial state of the entities we are syncing
+        # We need the initial state so we can compare it to the new state to determine any
+        # entities that were activated or deactivated
+        initial_queryset = Entity.all_objects.all()
+        if not sync:
+            initial_queryset = Entity.all_objects.extra(
+                where=['(entity_type_id, entity_id) IN %s'],
+                params=[tuple(
+                    (entity.entity_type_id, entity.entity_id)
+                    for entity in entities
+                )]
+            )
+        initial_entity_activation_state = {
+            entity[0]: entity[1]
+            for entity in initial_queryset.values_list('id', 'is_active')
+        }
+
+        # Sync all the entities if the sync flag is passed
         if sync:
             upserted_entities = manager_utils.sync(
-                queryset=Entity.all_objects.all(),
+                queryset=initial_queryset,
                 model_objs=entities,
                 unique_fields=['entity_type_id', 'entity_id'],
                 update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
@@ -418,21 +439,37 @@ class EntitySyncer(object):
         # Otherwise we want to upsert our entities
         else:
             upserted_entities = manager_utils.bulk_upsert(
-                queryset=Entity.all_objects.extra(
-                    where=['(entity_type_id, entity_id) IN %s'],
-                    params=[tuple(
-                        (entity.entity_type_id, entity.entity_id)
-                        for entity in entities
-                    )]
-                ),
+                queryset=initial_queryset,
                 model_objs=entities,
                 unique_fields=['entity_type_id', 'entity_id'],
                 update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
                 return_upserts=True
             )
 
+        # Compute the current state of the entities
+        current_entity_activation_state = {
+            entity.id: entity.is_active
+            for entity in upserted_entities
+        }
+
+        # Computed the changed activation state of the entities
+        changed_entity_activation_state = {}
+        all_entity_ids = set(initial_entity_activation_state.keys()) | set(current_entity_activation_state.keys())
+        for entity_id in all_entity_ids:
+            # Get the initial activation state of the entity
+            initial_activation_state = initial_entity_activation_state.get(entity_id)
+
+            # Get the current state of the entity
+            # Default to false here since the upserts do not return is_active=False due
+            # to the default object manager excluding these
+            current_activation_state = current_entity_activation_state.get(entity_id, False)
+
+            # Check if the state changed and at it to the changed entity state
+            if initial_activation_state != current_activation_state:
+                changed_entity_activation_state[entity_id] = current_activation_state
+
         # Return the upserted entities
-        return upserted_entities
+        return upserted_entities, changed_entity_activation_state
 
     @transaction_atomic_with_retry()
     def upsert_entity_relationships(self, queryset, entity_relationships):
@@ -457,3 +494,34 @@ class EntitySyncer(object):
             update_fields=[],
             return_upserts=True
         )
+
+    def send_entity_activation_events(self, changed_entity_activation_state):
+        """
+        Given a changed entity state dict, fire the appropriate signals
+        :param changed_entity_activation_state: The changed entity activation state {entity_id: is_active}
+        """
+
+        # Compute the activated and deactivated entities
+        activated_entities = set()
+        deactivated_entities = set()
+        for entity_id, is_active in changed_entity_activation_state.items():
+            if is_active:
+                activated_entities.add(entity_id)
+            else:
+                deactivated_entities.add(entity_id)
+
+        # If any entities were activated call the activation change event with the active flag
+        if activated_entities:
+            model_activations_changed.send(
+                sender=Entity,
+                instance_ids=sorted(list(activated_entities)),
+                is_active=True
+            )
+
+        # If any entities were deactivated call the activation change event with the active flag as false
+        if deactivated_entities:
+            model_activations_changed.send(
+                sender=Entity,
+                instance_ids=sorted(list(deactivated_entities)),
+                is_active=False
+            )
