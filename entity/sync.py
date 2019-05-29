@@ -502,19 +502,19 @@ class EntitySyncer(object):
         """
 
         # Compute the activated and deactivated entities
-        activated_entities = []
-        deactivated_entities = []
+        activated_entities = set()
+        deactivated_entities = set()
         for entity_id, is_active in changed_entity_activation_state.items():
             if is_active:
-                activated_entities.append(entity_id)
+                activated_entities.add(entity_id)
             else:
-                deactivated_entities.append(entity_id)
+                deactivated_entities.add(entity_id)
 
         # If any entities were activated call the activation change event with the active flag
         if activated_entities:
             model_activations_changed.send(
                 sender=Entity,
-                instance_ids=activated_entities,
+                instance_ids=sorted(list(activated_entities)),
                 is_active=True
             )
 
@@ -522,6 +522,6 @@ class EntitySyncer(object):
         if deactivated_entities:
             model_activations_changed.send(
                 sender=Entity,
-                instance_ids=deactivated_entities,
+                instance_ids=sorted(list(deactivated_entities)),
                 is_active=False
             )

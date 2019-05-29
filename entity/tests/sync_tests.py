@@ -305,7 +305,7 @@ class SyncSignalTests(EntityTestCase):
         initial_entity_ids = list(Entity.objects.all().values_list('id', flat=True))
         mock_model_activations_changed.send.assert_called_once_with(
             sender=Entity,
-            instance_ids=initial_entity_ids,
+            instance_ids=sorted(initial_entity_ids),
             is_active=True
         )
 
@@ -328,14 +328,14 @@ class SyncSignalTests(EntityTestCase):
             [
                 call(
                     sender=Entity,
-                    instance_ids=list(Entity.objects.filter(
+                    instance_ids=sorted(list(Entity.objects.filter(
                         entity_id__in=[account.id for account in new_accounts]
-                    ).values_list('id', flat=True)),
+                    ).values_list('id', flat=True))),
                     is_active=True
                 ),
                 call(
                     sender=Entity,
-                    instance_ids=initial_entity_ids,
+                    instance_ids=sorted(initial_entity_ids),
                     is_active=False
                 )
             ]
