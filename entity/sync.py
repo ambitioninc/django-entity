@@ -277,13 +277,13 @@ class EntitySyncer(object):
             ])
 
         # Upsert the entities and get the upserted entities and the changed state
-        upserted_entities, changed_entity_state = self.upsert_entities(
+        upserted_entities, changed_entity_activation_state = self.upsert_entities(
             entities=entities_to_upsert,
             sync=self.sync_all
         )
 
         # Call the model activations changed signal manually since we have done a bulk operation
-        self.send_entity_activation_events(changed_entity_state)
+        self.send_entity_activation_events(changed_entity_activation_state)
 
         # Create a map out of entities
         entities_map = {
@@ -422,7 +422,7 @@ class EntitySyncer(object):
                     for entity in entities
                 )]
             )
-        initial_entity_state = {
+        initial_entity_activation_state = {
             entity[0]: entity[1]
             for entity in initial_queryset.values_list('id', 'is_active')
         }
@@ -447,27 +447,27 @@ class EntitySyncer(object):
             )
 
         # Compute the current state of the entities
-        current_entity_state = {
+        current_entity_activation_state = {
             entity.id: entity.is_active
             for entity in upserted_entities
         }
 
-        # Computed the changed state of the entities
-        changed_entity_state = {}
-        all_entity_ids = set(list(initial_entity_state.keys()) + list(current_entity_state.keys()))
+        # Computed the changed activation state of the entities
+        changed_entity_activation_state = {}
+        all_entity_ids = set(initial_entity_activation_state.keys()) | set(current_entity_activation_state.keys())
         for entity_id in all_entity_ids:
-            # Get the initial state of the entity
-            initial_state = initial_entity_state.get(entity_id)
+            # Get the initial activation state of the entity
+            initial_activation_state = initial_entity_activation_state.get(entity_id)
 
             # Get the current state of the entity
-            current_state = current_entity_state.get(entity_id)
+            current_activation_state = current_entity_activation_state.get(entity_id)
 
             # Check if the state changed and at it to the changed entity state
-            if initial_state != current_state:
-                changed_entity_state[entity_id] = current_state
+            if initial_activation_state != current_activation_state:
+                changed_entity_activation_state[entity_id] = current_activation_state
 
         # Return the upserted entities
-        return upserted_entities, changed_entity_state
+        return upserted_entities, changed_entity_activation_state
 
     @transaction_atomic_with_retry()
     def upsert_entity_relationships(self, queryset, entity_relationships):
@@ -493,16 +493,16 @@ class EntitySyncer(object):
             return_upserts=True
         )
 
-    def send_entity_activation_events(self, changed_entity_state):
+    def send_entity_activation_events(self, changed_entity_activation_state):
         """
         Given a changed entity state dict, fire the appropriate signals
-        :param changed_entity_state: The changed entity state {entity_id: is_active}
+        :param changed_entity_activation_state: The changed entity activation state {entity_id: is_active}
         """
 
         # Compute the activated and deactivated entities
         activated_entities = []
         deactivated_entities = []
-        for entity_id, is_active in changed_entity_state.items():
+        for entity_id, is_active in changed_entity_activation_state.items():
             if is_active:
                 activated_entities.append(entity_id)
             else:
