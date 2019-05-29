@@ -9,7 +9,7 @@ from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
 from entity.sync import sync_entities, defer_entity_syncing, transaction_atomic_with_retry
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
@@ -278,6 +278,68 @@ class SyncAllEntitiesTest(EntityTestCase):
 
         # There should be four entity relationships since four accounts have teams
         self.assertEquals(EntityRelationship.objects.all().count(), 4)
+
+
+class SyncSignalTests(EntityTestCase):
+    """
+    Test that when we are syncing we are calling the proper signals
+    """
+
+    @patch('entity.sync.model_activations_changed')
+    def test_sync_all(self, mock_model_activations_changed):
+        """
+        Tests that when we sync all we fire the correct signals
+        """
+
+        # Create five test accounts
+        turn_off_syncing()
+        initial_accounts = []
+        for i in range(5):
+            initial_accounts.append(Account.objects.create())
+        turn_on_syncing()
+
+        # Test that the management command syncs all five entities
+        self.assertEquals(Entity.objects.all().count(), 0)
+        sync_entities()
+        self.assertEquals(Entity.objects.all().count(), 5)
+        initial_entity_ids = list(Entity.objects.all().values_list('id', flat=True))
+        mock_model_activations_changed.send.assert_called_once_with(
+            sender=Entity,
+            instance_ids=initial_entity_ids,
+            is_active=True
+        )
+
+        # Create five new test accounts, and deactivate our initial accounts
+        mock_model_activations_changed.reset_mock()
+        turn_off_syncing()
+        new_accounts = []
+        for i in range(5):
+            new_accounts.append(Account.objects.create())
+        for account in initial_accounts:
+            account.delete()
+        turn_on_syncing()
+
+        # Sync entities
+        sync_entities()
+
+        # Assert that the correct signals were called
+        self.assertEqual(
+            mock_model_activations_changed.send.mock_calls,
+            [
+                call(
+                    sender=Entity,
+                    instance_ids=list(Entity.objects.filter(
+                        entity_id__in=[account.id for account in new_accounts]
+                    ).values_list('id', flat=True)),
+                    is_active=True
+                ),
+                call(
+                    sender=Entity,
+                    instance_ids=initial_entity_ids,
+                    is_active=False
+                )
+            ]
+        )
 
 
 class TestEntityBulkSignalSync(EntityTestCase):
