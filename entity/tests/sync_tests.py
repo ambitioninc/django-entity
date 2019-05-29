@@ -341,6 +341,11 @@ class SyncSignalTests(EntityTestCase):
             ]
         )
 
+        # Test syncing all when nothing should have changed
+        mock_model_activations_changed.reset_mock()
+        sync_entities()
+        self.assertFalse(mock_model_activations_changed.send.called)
+
 
 class TestEntityBulkSignalSync(EntityTestCase):
     """

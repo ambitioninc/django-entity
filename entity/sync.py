@@ -460,7 +460,9 @@ class EntitySyncer(object):
             initial_activation_state = initial_entity_activation_state.get(entity_id)
 
             # Get the current state of the entity
-            current_activation_state = current_entity_activation_state.get(entity_id)
+            # Default to false here since the upserts do not return is_active=False due
+            # to the default object manager excluding these
+            current_activation_state = current_entity_activation_state.get(entity_id, False)
 
             # Check if the state changed and at it to the changed entity state
             if initial_activation_state != current_activation_state:
