@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 4.2.0:
+    - Python 3.7, Django 2.2
 - 4.1.1:
     - When calling the activation events, ignore entities that are initially inactive
 - 4.1.0:
