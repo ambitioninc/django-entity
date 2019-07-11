@@ -20,8 +20,8 @@ def get_version():
 
 install_requires = [
     'Django>=2.0',
-    'django-activatable-model>=1.1.0',
-    'django-manager-utils>=1.3.2',
+    'django-activatable-model>=1.2.1',
+    'django-manager-utils>=1.4.0',
     'jsonfield>=0.9.20',
     'python3-utils>=0.3',
     'wrapt>=1.10.5'
