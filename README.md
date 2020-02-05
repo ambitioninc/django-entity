@@ -14,6 +14,22 @@ Using Django Entity, the email app could be written to take an Entity model rath
 
 ## Getting Started - Configuring Entity Syncing
 ### Basic Use Case
+
+Install using `pip`:
+
+```python
+pip install django-entity
+```
+
+Add 'entity' to your INSTALLED_APPS setting:
+
+```python
+INSTALLED_APPS = [
+    ...
+    'entity',
+]
+```
+
 Similar to Django's model admin, entities are configured by registering them with the Entity registry as follows:
 
 ```python
