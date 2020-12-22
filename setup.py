@@ -19,7 +19,7 @@ def get_version():
 
 
 install_requires = [
-    'Django>=2.0,<3.0',
+    'Django>=2.2',
     'django-activatable-model>=1.2.1',
     'django-manager-utils>=1.4.0',
     'jsonfield>=0.9.20',
@@ -48,6 +48,7 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
