@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 
 from entity.config import EntityConfig, register_entity
 from entity.models import Entity
@@ -13,7 +12,6 @@ class BaseEntityModel(models.Model):
     objects = ManagerUtilsManager()
 
 
-@python_2_unicode_compatible
 class TeamGroup(BaseEntityModel):
     """
     A grouping of teams.
@@ -24,7 +22,6 @@ class TeamGroup(BaseEntityModel):
         return self.name
 
 
-@python_2_unicode_compatible
 class Competitor(BaseEntityModel):
     """
     An enclosing group for competitors
@@ -47,7 +44,6 @@ class Team(BaseEntityModel):
     team_group = models.ForeignKey(TeamGroup, null=True, on_delete=models.CASCADE)
 
 
-@python_2_unicode_compatible
 class Account(BaseEntityModel):
     """
     An account entity model
