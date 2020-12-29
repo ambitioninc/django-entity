@@ -1,0 +1,6 @@
+Django>=2.2
+django-activatable-model>=2.0.0
+django-manager-utils>=2.0.0
+jsonfield>=0.9.20
+python3-utils>=0.3
+wrapt>=1.10.5

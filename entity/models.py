@@ -7,7 +7,6 @@ from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Count, Q
-from django.utils.encoding import python_2_unicode_compatible
 from python3_utils import compare_on_attr
 from six.moves import reduce
 
@@ -27,7 +26,6 @@ class ActiveEntityKindManager(AllEntityKindManager):
         return super(ActiveEntityKindManager, self).get_queryset().filter(is_active=True)
 
 
-@python_2_unicode_compatible
 class EntityKind(BaseActivatableModel):
     """
     A kind for an Entity that is useful for filtering based on different types of entities.
@@ -242,7 +240,6 @@ class ActiveEntityManager(AllEntityManager):
 
 
 @compare_on_attr()
-@python_2_unicode_compatible
 class Entity(BaseActivatableModel):
     """
     Describes an entity and its relevant metadata. Also defines if the entity is active. Filtering functions

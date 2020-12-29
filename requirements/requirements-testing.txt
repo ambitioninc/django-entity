@@ -1,5 +1,5 @@
 coverage==4.5.1
 django-nose==1.4.5
-django-dynamic-fixture==2.0.0
+django-dynamic-fixture
 mock==2.0.0
-psycopg2==2.7.7
+psycopg2>=2.7.7
