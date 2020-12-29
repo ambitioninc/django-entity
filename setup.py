@@ -18,21 +18,13 @@ def get_version():
         raise RuntimeError('Unable to find version string in {0}.'.format(VERSION_FILE))
 
 
-install_requires = [
-    'Django>=2.0,<3.0',
-    'django-activatable-model>=1.2.1',
-    'django-manager-utils>=1.4.0',
-    'jsonfield>=0.9.20',
-    'python3-utils>=0.3',
-    'wrapt>=1.10.5'
-]
+def get_lines(file_path):
+    return open(file_path, 'r').read().split('\n')
 
-tests_require = [
-    'django-dynamic-fixture',
-    'django-nose>=1.4',
-    'mock>=1.0.1',
-    'psycopg2',
-]
+
+install_requires = get_lines('requirements/requirements.txt')
+tests_require = get_lines('requirements/requirements-testing.txt')
+
 
 setup(
     name='django-entity',
@@ -48,6 +40,7 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',

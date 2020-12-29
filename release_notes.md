@@ -1,5 +1,8 @@
 ## Release Notes
 
+- 5.0.0:
+    - Django 3.0, Django 3.1
+    - Drop Django 2.0, 2.1 support
 - 4.2.0:
     - Python 3.7, Django 2.2
 - 4.1.1:
