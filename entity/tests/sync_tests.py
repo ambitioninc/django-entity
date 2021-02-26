@@ -7,7 +7,7 @@ from django.core.management import call_command
 from django_dynamic_fixture import G
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
-from entity.sync import sync_entities, defer_entity_syncing, transaction_atomic_with_retry
+from entity.sync import sync_entities, defer_entity_syncing, transaction_atomic_with_retry, _get_super_entities_by_ctype
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
 from mock import patch, MagicMock, call
 
@@ -250,9 +250,86 @@ class SyncAllEntitiesTest(EntityTestCase):
         # There should be four entity relationships since four accounts have teams
         self.assertEquals(EntityRelationship.objects.all().count(), 4)
 
+    def test_sync_all_accounts_teams_new_account_during_sync(self):
+        """
+        Tests the scenario of a new account being created after account ids are fetched but before the super
+        entities are fetched
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        def wrapped_super_entities(*args, **kwargs):
+            if not Account.objects.filter(email='fake@fake.com').exists():
+                Account.objects.create(
+                    email='fake@fake.com',
+                    team=Team.objects.order_by('id')[0],
+                    team2=Team.objects.order_by('id')[1],
+                )
+
+            return _get_super_entities_by_ctype(*args, **kwargs)
+
+        # Sync all the entities. There should be 8 (6 accounts 2 teams)
+        with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
+            sync_entities()
+
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 6)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 8)
+
+        # There should be six entity relationships
+        self.assertEquals(EntityRelationship.objects.all().count(), 6)
+
+    def test_sync_all_accounts_teams_deleted_account_during_sync(self):
+        """
+        Tests the scenario of an account being deleted after account ids are fetched but before the super
+        entities are fetched
+        """
+        # Create five test accounts
+        accounts = [Account.objects.create() for i in range(5)]
+        # Create two teams to assign to some of the accounts
+        teams = [Team.objects.create() for i in range(2)]
+        accounts[0].team = teams[0]
+        accounts[0].email = 'fake@fake.com'
+        accounts[0].save()
+        accounts[1].team = teams[0]
+        accounts[1].save()
+        accounts[2].team = teams[1]
+        accounts[2].save()
+        accounts[3].team = teams[1]
+        accounts[3].save()
+
+        def wrapped_super_entities(*args, **kwargs):
+            if Account.objects.filter(email='fake@fake.com').exists():
+                Account.objects.filter(email='fake@fake.com').delete()
+
+            return _get_super_entities_by_ctype(*args, **kwargs)
+
+        # Sync all the entities. There should be 6 (4 accounts 2 teams)
+        with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
+            sync_entities(*accounts)
+            # Sync again to hit other wrapped function branch and make sure it doesn't error
+            sync_entities(*accounts)
+
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 4)
+        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEquals(Entity.objects.all().count(), 6)
+
+        # There should be six entity relationships
+        self.assertEquals(EntityRelationship.objects.all().count(), 3)
+
     def test_sync_all_accounts_teams_inactive_entity_kind(self):
         """
-        Tests syncing of all accounts when they have super entities and the entiity kind is inactive
+        Tests syncing of all accounts when they have super entities and the entity kind is inactive
         """
         # Create five test accounts
         accounts = [Account.objects.create() for i in range(5)]
@@ -905,7 +982,7 @@ class TestCachingAndCascading(EntityTestCase):
         with patch('entity.sync.entity_registry') as mock_entity_registry:
             mock_entity_registry.entity_registry = new_registry.entity_registry
             ContentType.objects.clear_cache()
-            with self.assertNumQueries(19):
+            with self.assertNumQueries(20):
                 sync_entities()
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)

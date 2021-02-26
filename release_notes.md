@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 5.0.1:
+    - Fix bug where an entity created or deleted during a sync would cause errors
 - 5.0.0:
     - Django 3.0, Django 3.1
     - Drop Django 2.0, 2.1 support
