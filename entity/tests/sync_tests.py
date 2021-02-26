@@ -317,6 +317,8 @@ class SyncAllEntitiesTest(EntityTestCase):
         # Sync all the entities. There should be 6 (4 accounts 2 teams)
         with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
             sync_entities(*accounts)
+            # Sync again to hit other wrapped function branch and make sure it doesn't error
+            sync_entities(*accounts)
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 4)
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
