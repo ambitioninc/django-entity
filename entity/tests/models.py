@@ -146,14 +146,19 @@ class AccountConfig(EntityConfig):
         """
         Gets the super entities this entity belongs to.
         """
+        if sync_all:
+            accounts = list(self.queryset.all())
+        if not sync_all:
+            accounts = model_objs
+
         return {
             Team: [
-                (a.id, a.team_id) for a in model_objs if a.team_id
+                (a.id, a.team_id) for a in accounts if a.team_id
             ] + [
-                (a.id, a.team2_id) for a in model_objs if a.team2_id
+                (a.id, a.team2_id) for a in accounts if a.team2_id
             ],
-            TeamGroup: [(a.id, a.team_group_id) for a in model_objs if a.team_group_id],
-            Competitor: [(a.id, a.competitor_id) for a in model_objs if a.competitor_id]
+            TeamGroup: [(a.id, a.team_group_id) for a in accounts if a.team_group_id],
+            Competitor: [(a.id, a.competitor_id) for a in accounts if a.competitor_id]
         }
 
 

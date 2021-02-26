@@ -231,6 +231,28 @@ class EntitySyncer(object):
         # IDs of sub/super entity relationships
         super_entities_by_ctype = _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all)
 
+        # Handle the case where accounts are created before _get_super_entities_by_ctype and
+        # the model_ids_to_sync do not match the model_objs_map
+        for ctype, model_ids in model_ids_to_sync.items():
+
+            # Build a set of ids of already fetched models
+            ids_of_fetched_models = {
+                model.id
+                for model in model_objs_by_ctype[ctype]
+            }
+
+            # Compute the set diff to see if any new records were created
+            created_model_ids = model_ids - ids_of_fetched_models
+
+            # Check if new records
+            if created_model_ids:
+
+                # Fetch the records and add them to the model_objs_map
+                new_records = ctype.model_class().objects.filter(id__in=created_model_ids)
+                for new_record in new_records:
+                    model_objs_by_ctype[ctype].append(new_record)
+                    model_objs_map[(ctype, new_record.id)] = new_record
+
         # Now that we have all models we need to sync, fetch them so that we can extract
         # metadata and entity kinds. If we are syncing all entities, we've already fetched
         # everything and can fill in this data struct without doing another DB hit
@@ -300,6 +322,7 @@ class EntitySyncer(object):
             for sub_ctype, super_entities_by_sub_ctype in super_entities_by_ctype.items()
             for super_ctype, relationships in super_entities_by_sub_ctype.items()
             for sub_entity_id, super_entity_id in relationships
+            if (sub_ctype.id, sub_entity_id) in entities_map and (super_ctype.id, super_entity_id) in entities_map
         ]
 
         # Find the entities of the original model objects we were syncing. These
@@ -308,6 +331,7 @@ class EntitySyncer(object):
             entities_map[ctype.id, model_obj.id].id
             for ctype, model_objs_for_ctype in model_objs_by_ctype.items()
             for model_obj in model_objs_for_ctype
+            if (ctype.id, model_obj.id) in entities_map
         ]
 
         if self.sync_all:
