@@ -118,9 +118,10 @@ def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_al
     return super_entities_by_ctype
 
 
-def _fetch_missing_entities(model_ids_to_sync, model_objs_map):
+def _fetch_entity_models(model_ids_to_sync, model_objs_map):
     """
-    Handle the case where accounts are created before _get_super_entities_by_ctype and
+    Fetch the entity models per content type. This will also handle the
+    case where accounts are created before _get_super_entities_by_ctype and
     the model_ids_to_sync do not match the model_objs_map
     """
     for ctype, model_ids in model_ids_to_sync.items():
@@ -138,7 +139,8 @@ def _fetch_missing_entities(model_ids_to_sync, model_objs_map):
         if created_model_ids:
 
             # Fetch the records and add them to the model_objs_map
-            new_records = ctype.model_class().objects.filter(id__in=created_model_ids)
+            model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
+            new_records = model_qset.filter(id__in=created_model_ids)
             for new_record in new_records:
                 model_objs_by_ctype[ctype].append(new_record)
                 model_objs_map[(ctype, new_record.id)] = new_record
@@ -150,14 +152,10 @@ def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all):
     """
     model_objs_to_sync = {}
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
-        model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
 
-        if not sync_all:
-            model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
-        else:
-            # Handle any newly created entities that were created after the initial fetch
-            _fetch_missing_entities(model_ids_to_sync, model_objs_map)
+        _fetch_entity_models(model_ids_to_sync, model_objs_map)
 
+        if sync_all:
             model_objs_to_sync[ctype] = [
                 model_objs_map[ctype, model_id] for model_id in model_ids_to_sync_for_ctype
             ]
