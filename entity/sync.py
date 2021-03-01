@@ -118,6 +118,32 @@ def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_al
     return super_entities_by_ctype
 
 
+def _fetch_missing_entities(model_ids_to_sync, model_objs_map):
+    """
+    Handle the case where accounts are created before _get_super_entities_by_ctype and
+    the model_ids_to_sync do not match the model_objs_map
+    """
+    for ctype, model_ids in model_ids_to_sync.items():
+
+        # Build a set of ids of already fetched models
+        ids_of_fetched_models = {
+            model.id
+            for model in model_objs_by_ctype[ctype]
+        }
+
+        # Compute the set diff to see if any new records were created
+        created_model_ids = model_ids - ids_of_fetched_models
+
+        # Check if new records
+        if created_model_ids:
+
+            # Fetch the records and add them to the model_objs_map
+            new_records = ctype.model_class().objects.filter(id__in=created_model_ids)
+            for new_record in new_records:
+                model_objs_by_ctype[ctype].append(new_record)
+                model_objs_map[(ctype, new_record.id)] = new_record
+
+
 def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all):
     """
     Given the model IDs to sync, fetch all model objects to sync
@@ -132,6 +158,9 @@ def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all):
             model_objs_to_sync[ctype] = [
                 model_objs_map[ctype, model_id] for model_id in model_ids_to_sync_for_ctype
             ]
+
+            # Handle any newly created entities that were created after the initial fetch
+            _fetch_missing_entities(model_ids_to_sync, model_objs_map)
 
     return model_objs_to_sync
 
@@ -230,29 +259,6 @@ class EntitySyncer(object):
         # is a dict keyed on the ctype of the super entity with a list of tuples for
         # IDs of sub/super entity relationships
         super_entities_by_ctype = _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all)
-
-        # Handle the case where accounts are created before _get_super_entities_by_ctype and
-        # the model_ids_to_sync do not match the model_objs_map
-        if sync_all:
-            for ctype, model_ids in model_ids_to_sync.items():
-
-                # Build a set of ids of already fetched models
-                ids_of_fetched_models = {
-                    model.id
-                    for model in model_objs_by_ctype[ctype]
-                }
-
-                # Compute the set diff to see if any new records were created
-                created_model_ids = model_ids - ids_of_fetched_models
-
-                # Check if new records
-                if created_model_ids:
-
-                    # Fetch the records and add them to the model_objs_map
-                    new_records = ctype.model_class().objects.filter(id__in=created_model_ids)
-                    for new_record in new_records:
-                        model_objs_by_ctype[ctype].append(new_record)
-                        model_objs_map[(ctype, new_record.id)] = new_record
 
         # Now that we have all models we need to sync, fetch them so that we can extract
         # metadata and entity kinds. If we are syncing all entities, we've already fetched
