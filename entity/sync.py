@@ -127,20 +127,20 @@ def _fetch_entity_models(model_ids_to_sync, model_objs_map):
     for ctype, model_ids in model_ids_to_sync.items():
 
         # Build a set of ids of already fetched models
-        ids_of_fetched_models = {
+        fetched_model_ids = {
             model.id
             for model in model_objs_by_ctype[ctype]
         }
 
-        # Compute the set diff to see if any new records were created
-        created_model_ids = model_ids - ids_of_fetched_models
+        # Compute the set diff to see if any records are missing
+        unfetched_model_ids = model_ids - fetched_model_ids
 
         # Check if new records
-        if created_model_ids:
+        if unfetched_model_ids:
 
             # Fetch the records and add them to the model_objs_map
             model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
-            new_records = model_qset.filter(id__in=created_model_ids)
+            new_records = model_qset.filter(id__in=unfetched_model_ids)
             for new_record in new_records:
                 model_objs_by_ctype[ctype].append(new_record)
                 model_objs_map[(ctype, new_record.id)] = new_record
