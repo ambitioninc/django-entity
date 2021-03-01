@@ -155,12 +155,12 @@ def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all):
         if not sync_all:
             model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
         else:
+            # Handle any newly created entities that were created after the initial fetch
+            _fetch_missing_entities(model_ids_to_sync, model_objs_map)
+
             model_objs_to_sync[ctype] = [
                 model_objs_map[ctype, model_id] for model_id in model_ids_to_sync_for_ctype
             ]
-
-            # Handle any newly created entities that were created after the initial fetch
-            _fetch_missing_entities(model_ids_to_sync, model_objs_map)
 
     return model_objs_to_sync
 
