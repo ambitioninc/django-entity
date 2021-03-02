@@ -384,7 +384,7 @@ class EntitySyncer(object):
             # Select all our existing entity kinds for update so we can do proper locking
             # We have to select all here for some odd reason, if we only select the ones
             # we are syncing we still run into deadlock issues
-            list(EntityKind.all_objects.all().select_for_update().values_list('id', flat=True))
+            list(EntityKind.all_objects.all().order_by('id').select_for_update().values_list('id', flat=True))
 
             # Upsert the entity kinds
             upserted_enitity_kinds = manager_utils.bulk_upsert(
@@ -412,7 +412,7 @@ class EntitySyncer(object):
         if entities:
             # Default select for update query when syncing all
             select_for_update_query = (
-                'SELECT FROM {table_name} FOR NO KEY UPDATE'
+                'SELECT FROM {table_name} ORDER BY id ASC FOR NO KEY UPDATE'
             ).format(
                 table_name=Entity._meta.db_table
             )
@@ -421,7 +421,10 @@ class EntitySyncer(object):
             # If we are not syncing all, only select those we are updating
             if not sync:
                 select_for_update_query = (
-                    'SELECT FROM {table_name} WHERE (entity_type_id, entity_id) IN %s FOR NO KEY UPDATE'
+                    'SELECT FROM {table_name} '
+                    'WHERE (entity_type_id, entity_id) IN %s '
+                    'ORDER BY id ASC '
+                    'FOR NO KEY UPDATE'
                 ).format(
                     table_name=Entity._meta.db_table
                 )
@@ -506,7 +509,7 @@ class EntitySyncer(object):
 
         # Select the relationships for update
         if entity_relationships:
-            list(queryset.select_for_update().values_list(
+            list(queryset.order_by('id').select_for_update().values_list(
                 'id',
                 flat=True
             ))
