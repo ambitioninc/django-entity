@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 5.0.2:
+    - Only fetch new entities on a sync_all
 - 5.0.1:
     - Fix bug where an entity created or deleted during a sync would cause errors
 - 5.0.0:

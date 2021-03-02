@@ -118,20 +118,51 @@ def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_al
     return super_entities_by_ctype
 
 
-def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all):
+def _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype, sync_all):
+    """
+    Fetch the entity models per content type. This will also handle the
+    case where accounts are created before _get_super_entities_by_ctype and
+    the model_ids_to_sync do not match the model_objs_map
+    """
+    for ctype, model_ids in model_ids_to_sync.items():
+
+        if sync_all:
+
+            # Build a set of ids of already fetched models
+            fetched_model_ids = {
+                model.id
+                for model in model_objs_by_ctype[ctype]
+            }
+
+            # Compute the set diff to see if any records are missing
+            unfetched_model_ids = model_ids - fetched_model_ids
+        else:
+            unfetched_model_ids = model_ids
+
+        # Check if new records
+        if unfetched_model_ids:
+
+            # Fetch the records and add them to the model_objs_map
+            model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
+            model_objs_to_sync = model_qset.filter(id__in=unfetched_model_ids)
+            for model_obj in model_objs_to_sync:
+                model_objs_by_ctype[ctype].append(model_obj)
+                model_objs_map[(ctype, model_obj.id)] = model_obj
+
+
+def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, model_objs_by_ctype, sync_all):
     """
     Given the model IDs to sync, fetch all model objects to sync
     """
     model_objs_to_sync = {}
-    for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
-        model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
 
-        if not sync_all:
-            model_objs_to_sync[ctype] = model_qset.filter(id__in=model_ids_to_sync_for_ctype)
-        else:
-            model_objs_to_sync[ctype] = [
-                model_objs_map[ctype, model_id] for model_id in model_ids_to_sync_for_ctype
-            ]
+    _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype, sync_all)
+
+    for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
+        model_objs_to_sync[ctype] = [
+            model_objs_map[ctype, model_id]
+            for model_id in model_ids_to_sync_for_ctype
+        ]
 
     return model_objs_to_sync
 
@@ -231,32 +262,10 @@ class EntitySyncer(object):
         # IDs of sub/super entity relationships
         super_entities_by_ctype = _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all)
 
-        # Handle the case where accounts are created before _get_super_entities_by_ctype and
-        # the model_ids_to_sync do not match the model_objs_map
-        for ctype, model_ids in model_ids_to_sync.items():
-
-            # Build a set of ids of already fetched models
-            ids_of_fetched_models = {
-                model.id
-                for model in model_objs_by_ctype[ctype]
-            }
-
-            # Compute the set diff to see if any new records were created
-            created_model_ids = model_ids - ids_of_fetched_models
-
-            # Check if new records
-            if created_model_ids:
-
-                # Fetch the records and add them to the model_objs_map
-                new_records = ctype.model_class().objects.filter(id__in=created_model_ids)
-                for new_record in new_records:
-                    model_objs_by_ctype[ctype].append(new_record)
-                    model_objs_map[(ctype, new_record.id)] = new_record
-
         # Now that we have all models we need to sync, fetch them so that we can extract
         # metadata and entity kinds. If we are syncing all entities, we've already fetched
         # everything and can fill in this data struct without doing another DB hit
-        model_objs_to_sync = _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all)
+        model_objs_to_sync = _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, model_objs_by_ctype, sync_all)
 
         # Obtain all entity kind tuples associated with the models
         entity_kind_tuples_to_sync = set()
@@ -384,7 +393,7 @@ class EntitySyncer(object):
             # Select all our existing entity kinds for update so we can do proper locking
             # We have to select all here for some odd reason, if we only select the ones
             # we are syncing we still run into deadlock issues
-            list(EntityKind.all_objects.all().select_for_update().values_list('id', flat=True))
+            list(EntityKind.all_objects.all().order_by('id').select_for_update().values_list('id', flat=True))
 
             # Upsert the entity kinds
             upserted_enitity_kinds = manager_utils.bulk_upsert(
@@ -412,7 +421,7 @@ class EntitySyncer(object):
         if entities:
             # Default select for update query when syncing all
             select_for_update_query = (
-                'SELECT FROM {table_name} FOR NO KEY UPDATE'
+                'SELECT FROM {table_name} ORDER BY id ASC FOR NO KEY UPDATE'
             ).format(
                 table_name=Entity._meta.db_table
             )
@@ -421,7 +430,10 @@ class EntitySyncer(object):
             # If we are not syncing all, only select those we are updating
             if not sync:
                 select_for_update_query = (
-                    'SELECT FROM {table_name} WHERE (entity_type_id, entity_id) IN %s FOR NO KEY UPDATE'
+                    'SELECT FROM {table_name} '
+                    'WHERE (entity_type_id, entity_id) IN %s '
+                    'ORDER BY id ASC '
+                    'FOR NO KEY UPDATE'
                 ).format(
                     table_name=Entity._meta.db_table
                 )
@@ -506,7 +518,7 @@ class EntitySyncer(object):
 
         # Select the relationships for update
         if entity_relationships:
-            list(queryset.select_for_update().values_list(
+            list(queryset.order_by('id').select_for_update().values_list(
                 'id',
                 flat=True
             ))
