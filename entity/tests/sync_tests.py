@@ -954,7 +954,7 @@ class TestCachingAndCascading(EntityTestCase):
         team_group = G(TeamGroup)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(15):
             team_group.save()
 
     def test_optimal_queries_registered_entity_w_qset(self):
@@ -964,7 +964,7 @@ class TestCachingAndCascading(EntityTestCase):
         account = G(Account)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(18):
             account.save()
 
     def test_sync_all_optimal_queries(self):
