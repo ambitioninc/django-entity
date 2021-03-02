@@ -140,10 +140,10 @@ def _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype)
 
             # Fetch the records and add them to the model_objs_map
             model_qset = entity_registry.entity_registry.get(ctype.model_class()).queryset
-            new_records = model_qset.filter(id__in=unfetched_model_ids)
-            for new_record in new_records:
-                model_objs_by_ctype[ctype].append(new_record)
-                model_objs_map[(ctype, new_record.id)] = new_record
+            model_objs_to_sync = model_qset.filter(id__in=unfetched_model_ids)
+            for model_obj in model_objs_to_sync:
+                model_objs_by_ctype[ctype].append(model_obj)
+                model_objs_map[(ctype, model_obj.id)] = model_obj
 
 
 def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all, model_objs_by_ctype):
@@ -151,14 +151,15 @@ def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all, model_o
     Given the model IDs to sync, fetch all model objects to sync
     """
     model_objs_to_sync = {}
+
+    _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype)
+
+    # if sync_all:
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
-
-        _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype)
-
-        if sync_all:
-            model_objs_to_sync[ctype] = [
-                model_objs_map[ctype, model_id] for model_id in model_ids_to_sync_for_ctype
-            ]
+        model_objs_to_sync[ctype] = [
+            model_objs_map[ctype, model_id]
+            for model_id in model_ids_to_sync_for_ctype
+        ]
 
     return model_objs_to_sync
 
