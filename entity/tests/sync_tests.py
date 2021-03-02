@@ -316,14 +316,14 @@ class SyncAllEntitiesTest(EntityTestCase):
 
             return _get_super_entities_by_ctype(*args, **kwargs)
 
-        # Sync the accounts, it will not have the updated active flag because it is fetched before it is changed
+        # Sync the accounts
         with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
             sync_entities(*accounts)
             account = Account.objects.get(email='fake@fake.com')
             entity = Entity.all_objects.get_for_obj(account)
-            self.assertEqual(entity.is_active, True)
+            self.assertEqual(entity.is_active, False)
 
-        # Fetch accounts and sync again
+        # Fetch accounts and sync again - hits other block in wrapped function
         with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
             accounts = Account.objects.all()
             sync_entities(*accounts)
