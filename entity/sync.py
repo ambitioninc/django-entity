@@ -146,7 +146,7 @@ def _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype)
                 model_objs_map[(ctype, model_obj.id)] = model_obj
 
 
-def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all, model_objs_by_ctype):
+def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, model_objs_by_ctype):
     """
     Given the model IDs to sync, fetch all model objects to sync
     """
@@ -154,7 +154,6 @@ def _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all, model_o
 
     _fetch_entity_models(model_ids_to_sync, model_objs_map, model_objs_by_ctype)
 
-    # if sync_all:
     for ctype, model_ids_to_sync_for_ctype in model_ids_to_sync.items():
         model_objs_to_sync[ctype] = [
             model_objs_map[ctype, model_id]
@@ -262,7 +261,7 @@ class EntitySyncer(object):
         # Now that we have all models we need to sync, fetch them so that we can extract
         # metadata and entity kinds. If we are syncing all entities, we've already fetched
         # everything and can fill in this data struct without doing another DB hit
-        model_objs_to_sync = _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, sync_all, model_objs_by_ctype)
+        model_objs_to_sync = _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, model_objs_by_ctype)
 
         # Obtain all entity kind tuples associated with the models
         entity_kind_tuples_to_sync = set()
