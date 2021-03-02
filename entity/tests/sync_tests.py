@@ -309,23 +309,34 @@ class SyncAllEntitiesTest(EntityTestCase):
         accounts[3].save()
 
         def wrapped_super_entities(*args, **kwargs):
-            if Account.objects.filter(email='fake@fake.com').exists():
-                Account.objects.filter(email='fake@fake.com').delete()
+            account = Account.objects.filter(email='fake@fake.com', is_active=True).first()
+            if account:
+                account.is_active = False
+                account.save()
 
             return _get_super_entities_by_ctype(*args, **kwargs)
 
-        # Sync all the entities. There should be 6 (4 accounts 2 teams)
+        # Sync the accounts, it will not have the updated active flag because it is fetched before it is changed
         with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
             sync_entities(*accounts)
-            # Sync again to hit other wrapped function branch and make sure it doesn't error
+            account = Account.objects.get(email='fake@fake.com')
+            entity = Entity.all_objects.get_for_obj(account)
+            self.assertEqual(entity.is_active, True)
+
+        # Fetch accounts and sync again
+        with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
+            accounts = Account.objects.all()
             sync_entities(*accounts)
+            account = Account.objects.get(email='fake@fake.com')
+            entity = Entity.all_objects.get_for_obj(account)
+            self.assertEqual(entity.is_active, False)
 
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 4)
         self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
         self.assertEquals(Entity.objects.all().count(), 6)
 
         # There should be six entity relationships
-        self.assertEquals(EntityRelationship.objects.all().count(), 3)
+        self.assertEquals(EntityRelationship.objects.all().count(), 4)
 
     def test_sync_all_accounts_teams_inactive_entity_kind(self):
         """
@@ -943,7 +954,7 @@ class TestCachingAndCascading(EntityTestCase):
         team_group = G(TeamGroup)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             team_group.save()
 
     def test_optimal_queries_registered_entity_w_qset(self):
@@ -953,7 +964,7 @@ class TestCachingAndCascading(EntityTestCase):
         account = G(Account)
 
         ContentType.objects.clear_cache()
-        with self.assertNumQueries(18):
+        with self.assertNumQueries(17):
             account.save()
 
     def test_sync_all_optimal_queries(self):
