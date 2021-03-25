@@ -92,6 +92,25 @@ def defer_entity_syncing(wrapped, instance, args, kwargs):
         sync_entities.buffer = {}
 
 
+@wrapt.decorator
+def suppress_entity_syncing(wrapped, instance, args, kwargs):
+    """
+    A decorator that can be used to completely suppress syncing of entities as a result of
+    execution of the decorated method
+    """
+
+    # Suppress entity syncing for the scope of the decorated method
+    sync_entities.suppress = True
+
+    # Run the method
+    try:
+        return wrapped(*args, **kwargs)
+
+    # After we run the method return the entity sync state for future use
+    finally:
+        sync_entities.suppress = False
+
+
 def _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all):
     """
     Given model objects organized by content type and a dictionary of all model IDs that need
@@ -174,6 +193,9 @@ def sync_entities(*model_objs):
     Args:
         model_objs (List[Model]): The model objects to sync. If empty, all entities will be synced
     """
+    if sync_entities.suppress:
+        # Return false that we did not do anything
+        return False
 
     # Check if we are deferring processing
     if sync_entities.defer:
@@ -196,6 +218,8 @@ def sync_entities(*model_objs):
 # This is used by the defer_entity_syncing decorator
 sync_entities.defer = False
 sync_entities.buffer = {}
+# Add a suppress attribute to the sync entities method
+sync_entities.suppress = False
 
 
 def sync_entities_watching(instance):
