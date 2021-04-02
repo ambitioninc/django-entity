@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 5.1.0:
+    - Add decorator to suppress entity syncing
 - 5.0.2:
     - Only fetch new entities on a sync_all
 - 5.0.1:
