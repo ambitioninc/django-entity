@@ -7,7 +7,10 @@ from django.core.management import call_command
 from django_dynamic_fixture import G
 from entity.config import EntityRegistry
 from entity.models import Entity, EntityRelationship, EntityKind
-from entity.sync import sync_entities, defer_entity_syncing, transaction_atomic_with_retry, _get_super_entities_by_ctype
+from entity.sync import (
+    sync_entities, defer_entity_syncing, transaction_atomic_with_retry, _get_super_entities_by_ctype,
+    suppress_entity_syncing,
+)
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
 from mock import patch, MagicMock, call
 
@@ -1060,6 +1063,31 @@ class DeferEntitySyncingTests(EntityTestCase):
 
             # Ensure that we did not call sync entities
             self.assertFalse(mock_sync_entities.called)
+
+
+class SuppressEntitySyncingTests(EntityTestCase):
+    """
+    Tests the suppress entity syncing decorator
+    """
+
+    def test_defer(self):
+        @suppress_entity_syncing
+        def test_method(test, count):
+            # Create some entities
+            for i in range(count):
+                Account.objects.create()
+
+            # Assert that we do not have any entities
+            test.assertEquals(Entity.objects.all().count(), 0)
+
+        # Call the test method
+        test_method(self, count=5)
+
+        # Assert that after the method was run we did sync the entities
+        self.assertEquals(Entity.objects.all().count(), 0)
+
+        # Assert that we restored the suppress flag
+        self.assertFalse(sync_entities.suppress)
 
 
 class TransactionAtomicWithRetryTests(EntityTestCase):
