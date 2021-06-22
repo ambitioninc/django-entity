@@ -1030,6 +1030,7 @@ class EntityGroupTest(TestCase):
         turn_off_syncing()
 
         account_type = ContentType.objects.get_for_model(Account)
+        team_type = ContentType.objects.get_for_model(Team)
 
         # Set up teams
         teams = Team.objects.bulk_create([
@@ -1072,3 +1073,22 @@ class EntityGroupTest(TestCase):
         self.assertEqual(len(entity_groups[0].get_all_entities()), 3)
         self.assertEqual(len(entity_groups[0].get_all_entities(is_active=False)), 1)
         self.assertEqual(len(entity_groups[0].get_all_entities(is_active=None)), 4)
+
+        # Check the same thing for an entity group defined by a super entity and sub entity kind
+        team_entities = list(Entity.all_objects.filter(entity_type=team_type).order_by('entity_id'))
+        entity_groups[1].bulk_add_entities([
+            [team_entities[0], account_entities[0].entity_kind]
+        ])
+        entity_ids = list(entity_groups[1].get_all_entities())
+
+        # There will be 6 active entities
+        self.assertEqual(len(entity_ids), 6)
+
+        # Make 3 of them inactive
+        entity_ids = [
+            entity_id
+            for entity_id in entity_ids[0:3]
+        ]
+        Entity.objects.filter(id__in=entity_ids).update(is_active=False)
+        entity_ids = entity_groups[1].get_all_entities()
+        self.assertEqual(len(entity_ids), 3)

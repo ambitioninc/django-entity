@@ -595,7 +595,8 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
     # Get relationships
     relationships = EntityRelationship.objects.filter(
         super_entity_id__in=super_ids,
-        sub_entity__entity_kind_id__in=kinds_with_supers
+        sub_entity__entity_kind_id__in=kinds_with_supers,
+        sub_entity__is_active=is_active,
     ).values_list(
         'super_entity_id', 'sub_entity_id', 'sub_entity__entity_kind_id'
     )
