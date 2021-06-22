@@ -596,8 +596,11 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
     # Get entities for 'all'
     all_entities_for_types = Entity.all_objects.filter(
         entity_kind_id__in=kinds_with_all,
-        is_active=is_active,
-    ).values_list('id', 'entity_kind_id')
+    )
+    if is_active is not None:
+        all_entities_for_types = all_entities_for_types.filter(is_active=is_active)
+
+    all_entities_for_types = all_entities_for_types.values_list('id', 'entity_kind_id')
 
     # Add entity ids to entity kind's all list
     for id, entity_kind_id in all_entities_for_types:
