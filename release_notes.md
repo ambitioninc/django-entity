@@ -1,7 +1,7 @@
 ## Release Notes
 
 - 5.1.1:
-    - Fix logic holes related to the active flag when generating entity group cache
+    - Fix logic holes related to the active flag when generating entity group cache.
 - 5.1.0:
     - Add decorator to suppress entity syncing
 - 5.0.2:
