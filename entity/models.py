@@ -321,8 +321,11 @@ class EntityGroupManager(models.Manager):
         :rtype: dict
         """
         membership_queryset = EntityGroupMembership.objects.filter(
-            Q(entity__isnull=True) | (Q(entity__isnull=False) & Q(entity__is_active=is_active))
+            Q(entity__isnull=True) |
+            (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=True) & Q(entity__is_active=is_active)) |
+            (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=False))
         )
+
         if is_active is None:
             membership_queryset = EntityGroupMembership.objects.all()
 
@@ -387,7 +390,9 @@ class EntityGroup(models.Model):
             membership_cache = EntityGroup.objects.get_membership_cache([self.id], is_active=is_active)
 
         if entities_by_kind is None:
-            entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
+            entities_by_kind = entities_by_kind or get_entities_by_kind(
+                membership_cache=membership_cache, is_active=is_active
+            )
 
         # Build set of all entity ids for this group
         entity_ids = set()
@@ -584,8 +589,9 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
                     kinds_with_all.add(entity_kind_id)
 
     # Get entities for 'all'
-    all_entities_for_types = Entity.objects.filter(
-        entity_kind_id__in=kinds_with_all
+    all_entities_for_types = Entity.all_objects.filter(
+        entity_kind_id__in=kinds_with_all,
+        is_active=is_active,
     ).values_list('id', 'entity_kind_id')
 
     # Add entity ids to entity kind's all list
@@ -596,8 +602,12 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
     relationships = EntityRelationship.objects.filter(
         super_entity_id__in=super_ids,
         sub_entity__entity_kind_id__in=kinds_with_supers,
-        sub_entity__is_active=is_active,
-    ).values_list(
+    )
+
+    if is_active is not None:
+        relationships = relationships.filter(sub_entity__is_active=is_active)
+
+    relationships = relationships.values_list(
         'super_entity_id', 'sub_entity_id', 'sub_entity__entity_kind_id'
     )
 
