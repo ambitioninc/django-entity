@@ -321,8 +321,12 @@ class EntityGroupManager(models.Manager):
         :rtype: dict
         """
         membership_queryset = EntityGroupMembership.objects.filter(
+            # Select all memberships that are defined by a sub entity kind only
             Q(entity__isnull=True) |
+            # Select memberships that define a single entity (null kind) and respect active flag
             (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=True) & Q(entity__is_active=is_active)) |
+            # Select memberships that are all of a kind under an entity
+            # The active flag is not specified here because the entities are queried in
             (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=False))
         )
 
@@ -391,7 +395,8 @@ class EntityGroup(models.Model):
 
         if entities_by_kind is None:
             entities_by_kind = entities_by_kind or get_entities_by_kind(
-                membership_cache=membership_cache, is_active=is_active
+                membership_cache=membership_cache,
+                is_active=is_active,
             )
 
         # Build set of all entity ids for this group
@@ -598,12 +603,13 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
     for id, entity_kind_id in all_entities_for_types:
         entities_by_kind[entity_kind_id]['all'].append(id)
 
-    # Get relationships
+    # Get relationships for memberships defined by all of a kind under a super
     relationships = EntityRelationship.objects.filter(
         super_entity_id__in=super_ids,
         sub_entity__entity_kind_id__in=kinds_with_supers,
     )
 
+    # Make sure to respect the active flag for the sub entities under the supers
     if is_active is not None:
         relationships = relationships.filter(sub_entity__is_active=is_active)
 
