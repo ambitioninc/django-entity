@@ -321,8 +321,14 @@ class EntityGroupManager(models.Manager):
         :rtype: dict
         """
         membership_queryset = EntityGroupMembership.objects.filter(
-            Q(entity__isnull=True) | (Q(entity__isnull=False) & Q(entity__is_active=is_active))
+            # Select all memberships that are defined by a sub entity kind only
+            Q(entity__isnull=True) |
+            # Select memberships that define a single entity (null kind) and respect active flag
+            (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=True) & Q(entity__is_active=is_active)) |
+            # Select memberships that are all of a kind under an entity and only query active supers
+            (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=False) & Q(entity__is_active=True))
         )
+
         if is_active is None:
             membership_queryset = EntityGroupMembership.objects.all()
 
@@ -387,7 +393,10 @@ class EntityGroup(models.Model):
             membership_cache = EntityGroup.objects.get_membership_cache([self.id], is_active=is_active)
 
         if entities_by_kind is None:
-            entities_by_kind = entities_by_kind or get_entities_by_kind(membership_cache=membership_cache)
+            entities_by_kind = entities_by_kind or get_entities_by_kind(
+                membership_cache=membership_cache,
+                is_active=is_active,
+            )
 
         # Build set of all entity ids for this group
         entity_ids = set()
@@ -584,19 +593,29 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
                     kinds_with_all.add(entity_kind_id)
 
     # Get entities for 'all'
-    all_entities_for_types = Entity.objects.filter(
-        entity_kind_id__in=kinds_with_all
-    ).values_list('id', 'entity_kind_id')
+    all_entities_for_types = Entity.all_objects.filter(
+        entity_kind_id__in=kinds_with_all,
+    )
+    if is_active is not None:
+        all_entities_for_types = all_entities_for_types.filter(is_active=is_active)
+
+    all_entities_for_types = all_entities_for_types.values_list('id', 'entity_kind_id')
 
     # Add entity ids to entity kind's all list
     for id, entity_kind_id in all_entities_for_types:
         entities_by_kind[entity_kind_id]['all'].append(id)
 
-    # Get relationships
+    # Get relationships for memberships defined by all of a kind under a super
     relationships = EntityRelationship.objects.filter(
         super_entity_id__in=super_ids,
-        sub_entity__entity_kind_id__in=kinds_with_supers
-    ).values_list(
+        sub_entity__entity_kind_id__in=kinds_with_supers,
+    )
+
+    # Make sure to respect the active flag for the sub entities under the supers
+    if is_active is not None:
+        relationships = relationships.filter(sub_entity__is_active=is_active)
+
+    relationships = relationships.values_list(
         'super_entity_id', 'sub_entity_id', 'sub_entity__entity_kind_id'
     )
 
