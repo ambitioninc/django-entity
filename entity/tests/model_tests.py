@@ -1070,6 +1070,7 @@ class EntityGroupTest(TestCase):
             [account_entities[3], None],
         ])
 
+        # Group 0 consists of an inactive account (0) and 3 actives (1-3)
         self.assertEqual(len(entity_groups[0].get_all_entities()), 3)
         self.assertEqual(len(entity_groups[0].get_all_entities(is_active=False)), 1)
         self.assertEqual(len(entity_groups[0].get_all_entities(is_active=None)), 4)
@@ -1080,6 +1081,8 @@ class EntityGroupTest(TestCase):
             [team_entities[0], account_entities[0].entity_kind]
         ])
 
+        # Team 0 has accounts 0, 3, 6, 9, 12, 15, 18
+        # account 0 is inactive
         self.assertEqual(len(entity_groups[1].get_all_entities()), 6)
         self.assertEqual(len(entity_groups[1].get_all_entities(is_active=False)), 1)
         self.assertEqual(len(entity_groups[1].get_all_entities(is_active=None)), 7)
@@ -1095,3 +1098,15 @@ class EntityGroupTest(TestCase):
         self.assertEqual(len(entity_groups[1].get_all_entities()), 3)
         self.assertEqual(len(entity_groups[1].get_all_entities(is_active=False)), 4)
         self.assertEqual(len(entity_groups[1].get_all_entities(is_active=None)), 7)
+
+        # Set a super to inactive and make sure the active subs are ignored
+        team_entities = list(Entity.all_objects.filter(entity_type=team_type).order_by('entity_id'))
+        entity_groups[2].bulk_add_entities([
+            [team_entities[1], account_entities[0].entity_kind]
+        ])
+        Entity.objects.filter(id=team_entities[1].id).update(is_active=False)
+
+        # Nothing should be returned because the super is inactive which makes the group invalid
+        self.assertEqual(len(entity_groups[2].get_all_entities()), 0)
+        self.assertEqual(len(entity_groups[2].get_all_entities(is_active=False)), 0)
+        self.assertEqual(len(entity_groups[2].get_all_entities(is_active=None)), 7)

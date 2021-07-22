@@ -325,9 +325,8 @@ class EntityGroupManager(models.Manager):
             Q(entity__isnull=True) |
             # Select memberships that define a single entity (null kind) and respect active flag
             (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=True) & Q(entity__is_active=is_active)) |
-            # Select memberships that are all of a kind under an entity
-            # The active flag is not specified here because the entities are queried in
-            (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=False))
+            # Select memberships that are all of a kind under an entity and only query active supers
+            (Q(entity__isnull=False) & Q(sub_entity_kind__isnull=False) & Q(entity__is_active=True))
         )
 
         if is_active is None:
