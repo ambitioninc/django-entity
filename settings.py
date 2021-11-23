@@ -26,8 +26,9 @@ def configure_settings():
         elif test_db == 'postgres':
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql',
-                'USER': 'postgres',
+                'USER': 'travis',
                 'NAME': 'entity',
+                'PORT': '5433',
             }
         else:
             raise RuntimeError('Unsupported test DB {0}'.format(test_db))
