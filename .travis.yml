@@ -15,6 +15,10 @@ env:
 
 addons:
   postgresql: '13'
+  apt:
+    packages:
+      - postgresql-13
+      - postgresql-client-13
 
 matrix:
   include:
