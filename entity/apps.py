@@ -7,4 +7,4 @@ class EntityConfig(AppConfig):
 
     def ready(self):
         import entity.signal_handlers
-        assert(entity)
+        assert entity
