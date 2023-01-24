@@ -1,5 +1,6 @@
-coverage==4.5.1
-django-nose==1.4.5
+coverage
+django-nose
 django-dynamic-fixture
-mock==2.0.0
-psycopg2-binary==2.8.6
+mock
+psycopg2
+flake8
