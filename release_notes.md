@@ -1,5 +1,8 @@
 ## Release Notes
 
+- 6.0.0:
+    - django support for 2.2-4.1
+    - python support for 3.7-3.9
 - 5.1.1:
     - Fix logic holes related to the active flag when generating entity group cache
 - 5.1.0:
