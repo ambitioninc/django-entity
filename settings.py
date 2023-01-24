@@ -1,4 +1,5 @@
 import os
+import json
 
 from django.conf import settings
 
@@ -15,23 +16,25 @@ def configure_settings():
         if test_db is None:
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql',
-                'NAME': 'ambition',
-                'USER': 'ambition',
-                'PASSWORD': 'ambition',
+                'NAME': 'entity',
+                'USER': 'postgres',
+                'PASSWORD': '',
                 'HOST': 'db',
-                'TEST': {
-                    'CHARSET': 'UTF8',
-                }
             }
         elif test_db == 'postgres':
             db_config = {
                 'ENGINE': 'django.db.backends.postgresql',
-                'USER': 'travis',
                 'NAME': 'entity',
-                'PORT': '5433',
+                'USER': 'postgres',
+                'PASSWORD': '',
+                'HOST': 'db',
             }
         else:
             raise RuntimeError('Unsupported test DB {0}'.format(test_db))
+
+        # Check env for db override (used for github actions)
+        if os.environ.get('DB_SETTINGS'):
+            db_config = json.loads(os.environ.get('DB_SETTINGS'))
 
         installed_apps = [
             'django.contrib.auth',
@@ -44,6 +47,7 @@ def configure_settings():
 
         settings.configure(
             TEST_RUNNER='django_nose.NoseTestSuiteRunner',
+            SECRET_KEY='*',
             NOSE_ARGS=['--nocapture', '--nologcapture', '--verbosity=1'],
             DATABASES={
                 'default': db_config,
