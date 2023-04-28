@@ -12,7 +12,7 @@ from entity.sync import (
     suppress_entity_syncing,
 )
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
-from mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
