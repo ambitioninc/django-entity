@@ -74,5 +74,5 @@ def configure_settings():
             ROOT_URLCONF='entity.urls',
             DEBUG=False,
             DDF_FILL_NULLABLE_FIELDS=False,
-            DEFAULT_AUTO_FIELD = 'django.db.models.AutoField',
+            DEFAULT_AUTO_FIELD='django.db.models.AutoField',
         )
