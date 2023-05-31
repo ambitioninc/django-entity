@@ -20,12 +20,12 @@ class EntityKindManagerTest(EntityTestCase):
     def test_only_active(self):
         G(EntityKind, is_active=False)
         active_ek = G(EntityKind, is_active=True)
-        self.assertEquals([active_ek], list(EntityKind.objects.all()))
+        self.assertEqual([active_ek], list(EntityKind.objects.all()))
 
     def test_all_objects(self):
         inactive_ek = G(EntityKind, is_active=False)
         active_ek = G(EntityKind, is_active=True)
-        self.assertEquals(set([active_ek, inactive_ek]), set(EntityKind.all_objects.all()))
+        self.assertEqual(set([active_ek, inactive_ek]), set(EntityKind.all_objects.all()))
 
 
 class EntityKindTest(EntityTestCase):
@@ -34,7 +34,7 @@ class EntityKindTest(EntityTestCase):
     """
     def test_unicode(self):
         ek = N(EntityKind, display_name='hello')
-        self.assertEquals(u'{0}'.format(ek), u'hello')
+        self.assertEqual(u'{0}'.format(ek), u'hello')
 
     def test_regular_delete(self):
         """
@@ -52,7 +52,7 @@ class TestActiveEntityManager(EntityTestCase):
         """
         e = G(Entity, is_active=True)
         G(Entity, is_active=False)
-        self.assertEquals([e], list(Entity.objects.all()))
+        self.assertEqual([e], list(Entity.objects.all()))
 
 
 class TestAllEntityManager(EntityTestCase):
@@ -86,7 +86,7 @@ class TestAllEntityManager(EntityTestCase):
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) >= 0)
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
-        self.assertEquals(entities.count(), 6)
+        self.assertEqual(entities.count(), 6)
 
     def test_manager_cache_relationships_only_sub(self):
         """
@@ -103,7 +103,7 @@ class TestAllEntityManager(EntityTestCase):
             entities = Entity.objects.cache_relationships(cache_super=False)
             for entity in entities:
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
-        self.assertEquals(entities.count(), 6)
+        self.assertEqual(entities.count(), 6)
 
     def test_manager_cache_relationships_only_super(self):
         """
@@ -120,7 +120,7 @@ class TestAllEntityManager(EntityTestCase):
             entities = Entity.objects.cache_relationships(cache_sub=False)
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) >= 0)
-        self.assertEquals(entities.count(), 6)
+        self.assertEqual(entities.count(), 6)
 
     def test_manager_cache_relationships_none(self):
         """
@@ -136,7 +136,7 @@ class TestAllEntityManager(EntityTestCase):
         with self.assertNumQueries(1):
             entities = Entity.objects.cache_relationships(cache_sub=False, cache_super=False)
             self.assertTrue(len(entities) > 0)
-        self.assertEquals(entities.count(), 6)
+        self.assertEqual(entities.count(), 6)
 
     def test_queryset_cache_relationships(self):
         """
@@ -155,7 +155,7 @@ class TestAllEntityManager(EntityTestCase):
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) >= 0)
                 self.assertTrue(len(list(entity.get_sub_entities())) >= 0)
-        self.assertEquals(entities.count(), 6)
+        self.assertEqual(entities.count(), 6)
 
     def test_cache_subset(self):
         """
@@ -173,7 +173,7 @@ class TestAllEntityManager(EntityTestCase):
             for entity in entities:
                 self.assertTrue(len(list(entity.get_super_entities())) == 1)
                 self.assertTrue(len(list(entity.get_sub_entities())) == 0)
-            self.assertEquals(len(entities), 5)
+            self.assertEqual(len(entities), 5)
 
     def test_get_for_obj(self):
         """
@@ -183,7 +183,7 @@ class TestAllEntityManager(EntityTestCase):
         account = Account.objects.create()
         # Get its resulting entity
         entity = Entity.objects.get(entity_type=ContentType.objects.get_for_model(account), entity_id=account.id)
-        self.assertEquals(entity, Entity.objects.get_for_obj(account))
+        self.assertEqual(entity, Entity.objects.get_for_obj(account))
 
     def test_filter_manager_active(self):
         """
@@ -194,7 +194,7 @@ class TestAllEntityManager(EntityTestCase):
         Account.objects.create(is_active=False)
         # Get its resulting entity
         entity = Entity.objects.get_for_obj(account)
-        self.assertEquals([entity], list(Entity.objects.active()))
+        self.assertEqual([entity], list(Entity.objects.active()))
 
     def test_filter_manager_inactive(self):
         """
@@ -205,7 +205,7 @@ class TestAllEntityManager(EntityTestCase):
         account = Account.objects.create(is_active=False)
         # Get its resulting entity
         entity = Entity.all_objects.get_for_obj(account)
-        self.assertEquals([entity], list(Entity.all_objects.inactive()))
+        self.assertEqual([entity], list(Entity.all_objects.inactive()))
 
     def test_filter_queryset_active(self):
         """
@@ -214,7 +214,7 @@ class TestAllEntityManager(EntityTestCase):
         # Create an active and inactive account
         active_entity = Entity.objects.get_for_obj(Account.objects.create())
         inactive_entity = Entity.all_objects.get_for_obj(Account.objects.create(is_active=False))
-        self.assertEquals(
+        self.assertEqual(
             [active_entity], list(Entity.objects.filter(id__in=[active_entity.id, inactive_entity.id]).active()))
 
     def test_filter_queryset_inactive(self):
@@ -224,7 +224,7 @@ class TestAllEntityManager(EntityTestCase):
         # Create an active and inactive account
         active_entity = Entity.objects.get_for_obj(Account.objects.create())
         inactive_entity = Entity.all_objects.get_for_obj(Account.objects.create(is_active=False))
-        self.assertEquals(
+        self.assertEqual(
             [inactive_entity],
             list(Entity.all_objects.filter(id__in=[active_entity.id, inactive_entity.id]).inactive()))
 
@@ -238,7 +238,7 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         ]
-        self.assertEquals(set([team_entity] + account_entities), set(Entity.objects.is_any_kind()))
+        self.assertEqual(set([team_entity] + account_entities), set(Entity.objects.is_any_kind()))
 
     def test_filter_manager_one_kind(self):
         """
@@ -250,8 +250,8 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals([team_entity], list(Entity.objects.is_any_kind(self.team_kind)))
-        self.assertEquals(account_entities, set(Entity.objects.is_any_kind(self.account_kind)))
+        self.assertEqual([team_entity], list(Entity.objects.is_any_kind(self.team_kind)))
+        self.assertEqual(account_entities, set(Entity.objects.is_any_kind(self.account_kind)))
 
     def test_filter_manager_two_kinds(self):
         """
@@ -263,7 +263,7 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals(
+        self.assertEqual(
             account_entities.union([team_entity]), set(Entity.objects.is_any_kind(self.account_kind, self.team_kind)))
 
     def test_is_sub_to_all_kinds_none(self):
@@ -404,7 +404,7 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals(
+        self.assertEqual(
             account_entities.union([team_entity]),
             set(
                 Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_any_kind(
@@ -418,7 +418,7 @@ class TestAllEntityManager(EntityTestCase):
         team = Team.objects.create()
         for i in range(5):
             Account.objects.create(team=team)
-        self.assertEquals([], list(Entity.objects.is_not_any_kind(self.team_kind, self.account_kind)))
+        self.assertEqual([], list(Entity.objects.is_not_any_kind(self.team_kind, self.account_kind)))
 
     def test_filter_manager_is_not_kind_one(self):
         """
@@ -430,8 +430,8 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals([team_entity], list(Entity.objects.is_not_any_kind(self.account_kind)))
-        self.assertEquals(account_entities, set(Entity.objects.is_not_any_kind(self.team_kind)))
+        self.assertEqual([team_entity], list(Entity.objects.is_not_any_kind(self.account_kind)))
+        self.assertEqual(account_entities, set(Entity.objects.is_not_any_kind(self.team_kind)))
 
     def test_filter_manager_is_not_kind_none(self):
         """
@@ -443,7 +443,7 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals(
+        self.assertEqual(
             account_entities.union([team_entity]), set(Entity.objects.is_not_any_kind()))
 
     def test_filter_queryset_two_is_not_kinds(self):
@@ -456,7 +456,7 @@ class TestAllEntityManager(EntityTestCase):
             Entity.objects.get_for_obj(Account.objects.create(team=team))
             for i in range(5)
         )
-        self.assertEquals(
+        self.assertEqual(
             [],
             list(Entity.objects.filter(id__in=(i.id for i in account_entities.union([team_entity]))).is_not_any_kind(
                 self.account_kind, self.team_kind))
@@ -480,7 +480,7 @@ class TestAllEntityManager(EntityTestCase):
         for i in range(5):
             Entity.objects.get_for_obj(Account.objects.create())
 
-        self.assertEquals(
+        self.assertEqual(
             set(Entity.objects.all()), set(Entity.objects.is_sub_to_all()))
 
     def test_is_sub_to_all_none_is_any_kind(self):
@@ -501,7 +501,7 @@ class TestAllEntityManager(EntityTestCase):
         for i in range(5):
             Entity.objects.get_for_obj(Account.objects.create())
 
-        self.assertEquals(
+        self.assertEqual(
             set(Entity.objects.filter(entity_type=self.account_type)),
             set(Entity.objects.is_sub_to_all().is_any_kind(self.account_kind)))
 
@@ -537,16 +537,16 @@ class TestAllEntityManager(EntityTestCase):
         entities_1se = set(Entity.objects.get_for_obj(Account.objects.create(team=team)) for i in range(5))
 
         # Test various subset results
-        self.assertEquals(
+        self.assertEqual(
             entities_4se, set(Entity.objects.is_sub_to_all(
                 team_entity, team2_entity, team_group_entity, competitor_entity)))
-        self.assertEquals(
+        self.assertEqual(
             entities_1se | entities_2se2 | entities_4se, set(Entity.objects.is_sub_to_all(team_entity)))
-        self.assertEquals(
+        self.assertEqual(
             entities_4se | entities_2se2, set(Entity.objects.is_sub_to_all(team_entity, competitor_entity)))
-        self.assertEquals(
+        self.assertEqual(
             entities_4se | entities_2se1, set(Entity.objects.is_sub_to_all(team_group_entity)))
-        self.assertEquals(
+        self.assertEqual(
             entities_4se | entities_2se1 | entities_2se2,
             set(Entity.objects.is_sub_to_all(competitor_entity)))
 
@@ -572,7 +572,7 @@ class TestAllEntityManager(EntityTestCase):
         )
 
         # Test subset results
-        self.assertEquals(
+        self.assertEqual(
             set(entities_4se).difference([entities_4se[0]]),
             set(Entity.objects.exclude(id=entities_4se[0].id).is_sub_to_all(
                 team_entity, team2_entity, team_group_entity, competitor_entity)))
@@ -603,7 +603,7 @@ class TestAllEntityManager(EntityTestCase):
                 team_entity, team2_entity, team_group_entity, competitor_entity))
 
         # Test subset results
-        self.assertEquals(set(entities_4se).difference([entities_4se[0]]), entities)
+        self.assertEqual(set(entities_4se).difference([entities_4se[0]]), entities)
 
     def test_is_sub_to_any_none(self):
         """
@@ -623,7 +623,7 @@ class TestAllEntityManager(EntityTestCase):
         for i in range(5):
             Entity.objects.get_for_obj(Account.objects.create())
 
-        self.assertEquals(
+        self.assertEqual(
             set(Entity.objects.all()), set(Entity.objects.is_sub_to_any()))
 
     def test_is_sub_to_any_queryset(self):
@@ -648,7 +648,7 @@ class TestAllEntityManager(EntityTestCase):
         )
 
         # Test subset results
-        self.assertEquals(
+        self.assertEqual(
             set(entities_4se).difference([entities_4se[0]]),
             set(Entity.objects.exclude(id=entities_4se[0].id).is_sub_to_any(
                 team_entity, team2_entity, team_group_entity, competitor_entity)))
@@ -672,7 +672,7 @@ class TestAllEntityManager(EntityTestCase):
             Account.objects.create(team=team2)
 
         # Test subset results
-        self.assertEquals(set(entities_w_team), set(Entity.objects.is_sub_to_any(team_entity)))
+        self.assertEqual(set(entities_w_team), set(Entity.objects.is_sub_to_any(team_entity)))
 
 
 class TestEntityModel(EntityTestCase):
@@ -689,7 +689,7 @@ class TestEntityModel(EntityTestCase):
         # Get its resulting entity
         entity = Entity.objects.get_for_obj(account)
         # Get its super entities. It should be an empty list
-        self.assertEquals(list(entity.get_super_entities()), [])
+        self.assertEqual(list(entity.get_super_entities()), [])
 
     def test_get_super_entities_one(self):
         """
@@ -702,7 +702,7 @@ class TestEntityModel(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Verify that the super entities of the account is the team
-        self.assertEquals(list(account_entity.get_super_entities()), [team_entity])
+        self.assertEqual(list(account_entity.get_super_entities()), [team_entity])
 
     def test_get_sub_entities_none(self):
         """
@@ -713,7 +713,7 @@ class TestEntityModel(EntityTestCase):
         # Get the entity of the team
         team_entity = Entity.objects.get_for_obj(team)
         # Verify that the sub entities of the team is an empty list
-        self.assertEquals(list(team_entity.get_super_entities()), [])
+        self.assertEqual(list(team_entity.get_super_entities()), [])
 
     def test_get_sub_entities_one(self):
         """
@@ -726,7 +726,7 @@ class TestEntityModel(EntityTestCase):
         account_entity = Entity.objects.get_for_obj(account)
         team_entity = Entity.objects.get_for_obj(team)
         # Verify that the sub entities of the team is the account
-        self.assertEquals(list(team_entity.get_sub_entities()), [account_entity])
+        self.assertEqual(list(team_entity.get_sub_entities()), [account_entity])
 
     def test_unicode(self):
         """
@@ -735,7 +735,7 @@ class TestEntityModel(EntityTestCase):
         account = Account.objects.create(email='hi')
         entity = Entity.objects.get_for_obj(account)
         entity_unicode = entity.__str__()
-        self.assertEquals(entity_unicode, 'hi')
+        self.assertEqual(entity_unicode, 'hi')
 
 
 class EntityGroupAllEntitiesTest(EntityTestCase):
