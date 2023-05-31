@@ -18,12 +18,10 @@ jobs:
         # AttributeError: module 'collections' has no attribute 'Callable'
         # https://github.com/nose-devs/nose/issues/1099
         django:
-          - 'Django~=2.2.0'
-          - 'Django~=3.0.0'
-          - 'Django~=3.1.0'
           - 'Django~=3.2.0'
           - 'Django~=4.0.0'
           - 'Django~=4.1.0'
+          - 'Django~=4.2.0'
         experimental: [false]
 #        include:
 #        - python: '3.9'
@@ -38,6 +36,8 @@ jobs:
           django: 'Django~=4.0.0'
         - python: '3.7'
           django: 'Django~=4.1.0'
+        - python: '3.7'
+          django: 'Django~=4.2.0'
     services:
       postgres:
         image: postgres:latest
@@ -53,8 +53,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python }}
     - name: Setup
