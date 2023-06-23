@@ -1023,6 +1023,15 @@ class EntityGroupTest(TestCase):
         # Make sure to hit the no group cache case
         self.assertEqual(entity_groups[0].get_all_entities(membership_cache={1000: []}), set())
 
+        # Assert all added entities to the groups can be retrieved.
+        # Groups with only sub_entity_kind yield no specific entities added.
+        self.assertEqual(len(entity_groups[0].added_entities()), 4)
+        self.assertEqual(len(entity_groups[1].added_entities()), 4)
+        self.assertEqual(len(entity_groups[2].added_entities()), 2)
+        self.assertEqual(len(entity_groups[3].added_entities()), 1)
+        self.assertEqual(len(entity_groups[4].added_entities()), 0)
+        self.assertEqual(len(entity_groups[5].added_entities()), 0)
+
     def test_get_all_entities_active(self):
         """
         Makes sure only active entity ids are returned

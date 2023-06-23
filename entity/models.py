@@ -1,4 +1,5 @@
 from itertools import compress
+from typing import List
 
 from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -363,6 +364,12 @@ class EntityGroup(models.Model):
     """
 
     objects = EntityGroupManager()
+
+    def added_entities(self) -> List[Entity]:
+        """
+        Returns the list of specific entities that have been added to the group.
+        """
+        return [egm.entity for egm in self.entitygroupmembership_set.filter(entity__isnull=False)]
 
     def all_entities(self, is_active=True):
         """
