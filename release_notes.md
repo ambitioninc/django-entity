@@ -1,5 +1,8 @@
 ## Release Notes
 
+- 6.1.0:
+    - django support for 4.2
+    - drop django 2.2
 - 6.0.0:
     - django support for 2.2-4.1
     - python support for 3.7-3.9
