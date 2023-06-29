@@ -1,6 +1,5 @@
 coverage
 django-nose
 django-dynamic-fixture
-mock
 psycopg2
 flake8

@@ -12,7 +12,7 @@ from entity.sync import (
     suppress_entity_syncing,
 )
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
-from mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
@@ -91,7 +91,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         with patch('entity.models.Entity.all_objects.delete_for_obj') as mock_handler:
             # Delete the object. The signal should be called
             a.delete()
-            self.assertEquals(mock_handler.call_count, 1)
+            self.assertEqual(mock_handler.call_count, 1)
 
     def test_bulk_operation_turned_off_by_default(self):
         """
@@ -149,7 +149,7 @@ class TestTurnOnOffSyncing(EntityTestCase):
         with patch('entity.models.Entity.all_objects.delete_for_obj') as mock_handler:
             a = Account.objects.create()
             a.delete()
-            self.assertEquals(mock_handler.call_count, 1)
+            self.assertEqual(mock_handler.call_count, 1)
 
     def test_turn_on_bulk(self):
         """
@@ -178,9 +178,9 @@ class SyncAllEntitiesTest(EntityTestCase):
         turn_on_syncing()
 
         # Test that the management command syncs all five entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
         call_command('sync_entities')
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
 
     def test_sync_dummy_data(self):
         """
@@ -191,7 +191,7 @@ class SyncAllEntitiesTest(EntityTestCase):
         DummyModel.objects.create()
         # Sync all entities and verify that none were created
         sync_entities()
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
     def test_sync_multi_inherited_data(self):
         """
@@ -201,7 +201,7 @@ class SyncAllEntitiesTest(EntityTestCase):
         MultiInheritEntity.objects.create()
         # Sync all entities and verify that one was created
         sync_entities()
-        self.assertEquals(Entity.objects.all().count(), 1)
+        self.assertEqual(Entity.objects.all().count(), 1)
 
     def test_sync_all_account_no_teams(self):
         """
@@ -213,9 +213,9 @@ class SyncAllEntitiesTest(EntityTestCase):
         turn_on_syncing()
 
         # Sync all of the entities and verify that five Entity models were created for the Account model
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
         sync_entities()
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
 
         # Delete an account. When all entities are synced again,
         # there should only be four accounts
@@ -223,9 +223,9 @@ class SyncAllEntitiesTest(EntityTestCase):
         accounts[0].delete()
         turn_on_syncing()
 
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
         sync_entities()
-        self.assertEquals(Entity.objects.all().count(), 4)
+        self.assertEqual(Entity.objects.all().count(), 4)
 
     def test_sync_all_accounts_teams(self):
         """
@@ -246,12 +246,12 @@ class SyncAllEntitiesTest(EntityTestCase):
 
         # Sync all the entities. There should be 7 (5 accounts 2 teams)
         sync_entities()
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
-        self.assertEquals(Entity.objects.all().count(), 7)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 7)
 
         # There should be four entity relationships since four accounts have teams
-        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+        self.assertEqual(EntityRelationship.objects.all().count(), 4)
 
     def test_sync_all_accounts_teams_new_account_during_sync(self):
         """
@@ -285,12 +285,12 @@ class SyncAllEntitiesTest(EntityTestCase):
         with patch('entity.sync._get_super_entities_by_ctype', wraps=wrapped_super_entities):
             sync_entities()
 
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 6)
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
-        self.assertEquals(Entity.objects.all().count(), 8)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 6)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 8)
 
         # There should be six entity relationships
-        self.assertEquals(EntityRelationship.objects.all().count(), 6)
+        self.assertEqual(EntityRelationship.objects.all().count(), 6)
 
     def test_sync_all_accounts_teams_deleted_account_during_sync(self):
         """
@@ -334,12 +334,12 @@ class SyncAllEntitiesTest(EntityTestCase):
             entity = Entity.all_objects.get_for_obj(account)
             self.assertEqual(entity.is_active, False)
 
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 4)
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
-        self.assertEquals(Entity.objects.all().count(), 6)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 4)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 6)
 
         # There should be six entity relationships
-        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+        self.assertEqual(EntityRelationship.objects.all().count(), 4)
 
     def test_sync_all_accounts_teams_inactive_entity_kind(self):
         """
@@ -363,12 +363,12 @@ class SyncAllEntitiesTest(EntityTestCase):
 
         # Sync all the entities. There should be 7 (5 accounts 2 teams)
         sync_entities()
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
-        self.assertEquals(Entity.objects.all().count(), 7)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 7)
 
         # There should be four entity relationships since four accounts have teams
-        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+        self.assertEqual(EntityRelationship.objects.all().count(), 4)
 
 
 class SyncSignalTests(EntityTestCase):
@@ -390,9 +390,9 @@ class SyncSignalTests(EntityTestCase):
         turn_on_syncing()
 
         # Test that the management command syncs all five entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
         sync_entities()
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
         initial_entity_ids = list(Entity.objects.all().values_list('id', flat=True))
         mock_model_activations_changed.send.assert_called_once_with(
             sender=Entity,
@@ -454,7 +454,7 @@ class TestEntityBulkSignalSync(EntityTestCase):
         accounts = [Account() for i in range(5)]
         Account.objects.bulk_create(accounts)
         # Verify that there are 5 entities
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
 
     def test_post_bulk_update(self):
         """
@@ -466,16 +466,16 @@ class TestEntityBulkSignalSync(EntityTestCase):
             Account.objects.create(email='test1@test.com')
         # Verify that there are five entities all with the 'test1@test.com' email
         for entity in Entity.objects.all():
-            self.assertEquals(entity.entity_meta['email'], 'test1@test.com')
-        self.assertEquals(Entity.objects.all().count(), 5)
+            self.assertEqual(entity.entity_meta['email'], 'test1@test.com')
+        self.assertEqual(Entity.objects.all().count(), 5)
 
         # Bulk update the account emails to a different one
         Account.objects.all().update(email='test2@test.com')
 
         # Verify that the email was updated properly in all entities
         for entity in Entity.objects.all():
-            self.assertEquals(entity.entity_meta['email'], 'test2@test.com')
-        self.assertEquals(Entity.objects.all().count(), 5)
+            self.assertEqual(entity.entity_meta['email'], 'test2@test.com')
+        self.assertEqual(Entity.objects.all().count(), 5)
 
     def test_invalid_entity_model(self):
         """
@@ -492,7 +492,7 @@ class TestEntityBulkSignalSync(EntityTestCase):
         # Create five dummy models with a bulk update
         DummyModel.objects.bulk_create([DummyModel() for i in range(5)])
         # There should be no synced entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
 
 class TestWatching(EntityTestCase):
@@ -507,14 +507,14 @@ class TestWatching(EntityTestCase):
         team = G(Team)
         points_to_m2m_entity = G(PointsToM2mEntity, m2m_entity=m2m_entity)
         # Three entities should be synced and there should not yet be any relationships
-        self.assertEquals(Entity.objects.count(), 3)
+        self.assertEqual(Entity.objects.count(), 3)
         self.assertFalse(EntityRelationship.objects.exists())
 
         # When a team is added to the m2m entity, it should be a super entity to the points_to_m2m_entity and
         # of m2m_entity
         m2m_entity.teams.add(team)
-        self.assertEquals(Entity.objects.count(), 3)
-        self.assertEquals(EntityRelationship.objects.count(), 2)
+        self.assertEqual(Entity.objects.count(), 3)
+        self.assertEqual(EntityRelationship.objects.count(), 2)
 
         points_to_m2m_entity = Entity.objects.get_for_obj(points_to_m2m_entity)
         team_entity = Entity.objects.get_for_obj(team)
@@ -530,7 +530,7 @@ class TestWatching(EntityTestCase):
         account = G(Account)
         pta = G(PointsToAccount, account=account)
         pta_entity = Entity.objects.get_for_obj(pta)
-        self.assertEquals(pta_entity.entity_meta, {
+        self.assertEqual(pta_entity.entity_meta, {
             'team_name': 'None',
             'competitor_name': 'None',
         })
@@ -545,7 +545,7 @@ class TestWatching(EntityTestCase):
         # and team models for changes. Since these models were changed before they were linked to the
         # account, the changes are not propagated.
         pta_entity = Entity.objects.get_for_obj(pta)
-        self.assertEquals(pta_entity.entity_meta, {
+        self.assertEqual(pta_entity.entity_meta, {
             'team_name': 'None',
             'competitor_name': 'None',
         })
@@ -554,7 +554,7 @@ class TestWatching(EntityTestCase):
         team.name = 'team2'
         team.save()
         pta_entity = Entity.objects.get_for_obj(pta)
-        self.assertEquals(pta_entity.entity_meta, {
+        self.assertEqual(pta_entity.entity_meta, {
             'team_name': 'team2',
             'competitor_name': 'competitor1',
         })
@@ -562,7 +562,7 @@ class TestWatching(EntityTestCase):
         competitor.name = 'competitor2'
         competitor.save()
         pta_entity = Entity.objects.get_for_obj(pta)
-        self.assertEquals(pta_entity.entity_meta, {
+        self.assertEqual(pta_entity.entity_meta, {
             'team_name': 'team2',
             'competitor_name': 'competitor2',
         })
@@ -584,19 +584,19 @@ class TestEntityM2mChangedSignalSync(EntityTestCase):
         turn_on_syncing()
 
         m.save()
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 1)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 1)
 
     def test_sync_when_m2m_add(self):
         """
         Verifies an entity is synced properly when and m2m field is added.
         """
         m = G(M2mEntity)
-        self.assertEquals(Entity.objects.count(), 1)
-        self.assertEquals(EntityRelationship.objects.count(), 0)
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertEqual(EntityRelationship.objects.count(), 0)
         m.teams.add(G(Team))
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 1)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 1)
 
     def test_sync_when_m2m_delete(self):
         """
@@ -605,11 +605,11 @@ class TestEntityM2mChangedSignalSync(EntityTestCase):
         m = G(M2mEntity)
         team = G(Team)
         m.teams.add(team)
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 1)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 1)
         m.teams.remove(team)
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 0)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 0)
 
     def test_sync_when_m2m_clear(self):
         """
@@ -618,11 +618,11 @@ class TestEntityM2mChangedSignalSync(EntityTestCase):
         m = G(M2mEntity)
         team = G(Team)
         m.teams.add(team)
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 1)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 1)
         m.teams.clear()
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 0)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 0)
 
 
 class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
@@ -656,7 +656,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         """
         a = Account.objects.create(email='test_email')
         e = Entity.objects.get_for_obj(a)
-        self.assertEquals(e.display_name, 'test_email')
+        self.assertEqual(e.display_name, 'test_email')
 
     def test_display_name_mirrored_custom(self):
         """
@@ -665,7 +665,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         """
         t = G(Team)
         e = Entity.objects.get_for_obj(t)
-        self.assertEquals(e.display_name, 'team')
+        self.assertEqual(e.display_name, 'team')
 
     def test_post_save_dummy_data(self):
         """
@@ -674,7 +674,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         """
         DummyModel.objects.create()
         # Verify that no entities were created
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
     def test_post_save_multi_inherit_model(self):
         """
@@ -682,7 +682,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         """
         MultiInheritEntity.objects.create()
         # Verify that one entity was synced
-        self.assertEquals(Entity.objects.all().count(), 1)
+        self.assertEqual(Entity.objects.all().count(), 1)
 
     def test_post_delete_inactive_entity(self):
         """
@@ -690,7 +690,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         """
         account = Account.objects.create(is_active=False)
         account.delete()
-        self.assertEquals(Entity.all_objects.all().count(), 0)
+        self.assertEqual(Entity.all_objects.all().count(), 0)
 
     def test_post_delete_no_entity(self):
         """
@@ -704,7 +704,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         # Delete the created model. No errors should occur and nothing should
         # be in the entity table
         account.delete()
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
     def test_post_delete_account(self):
         """
@@ -723,8 +723,8 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         # Delete the created model. No errors should occur and the other account
         # should still be an entity in the Entity table.
         main_account.delete()
-        self.assertEquals(Entity.objects.all().count(), 1)
-        self.assertEquals(Entity.objects.filter(entity_id=other_account.id).count(), 1)
+        self.assertEqual(Entity.objects.all().count(), 1)
+        self.assertEqual(Entity.objects.filter(entity_id=other_account.id).count(), 1)
 
     def test_post_delete_account_under_team(self):
         """
@@ -736,13 +736,13 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         account = Account.objects.create(email='test@test.com', team=team)
 
         # There should be two entities and a relationship between them.
-        self.assertEquals(Entity.objects.all().count(), 2)
-        self.assertEquals(EntityRelationship.objects.all().count(), 1)
+        self.assertEqual(Entity.objects.all().count(), 2)
+        self.assertEqual(EntityRelationship.objects.all().count(), 1)
 
         # Delete the account. The team entity should still exist
         account.delete()
-        self.assertEquals(Entity.objects.all().count(), 1)
-        self.assertEquals(EntityRelationship.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 1)
+        self.assertEqual(EntityRelationship.objects.all().count(), 0)
         Entity.objects.get_for_obj(team)
 
     def test_post_create_account_no_relationships_active(self):
@@ -751,22 +751,22 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         created. Tests the case where the entity has no relationships.
         """
         # Verify that there are no entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
         # Create an account. An entity with no relationships should be created
         account = Account.objects.create(email='test@test.com')
         entity = Entity.objects.get_for_obj(account)
         # Check that the metadata and is_active fields were set properly
-        self.assertEquals(entity.entity_meta, {
+        self.assertEqual(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': None,
             'team_is_active': None,
         })
-        self.assertEquals(entity.is_active, True)
+        self.assertEqual(entity.is_active, True)
 
-        self.assertEquals(entity.sub_relationships.all().count(), 0)
-        self.assertEquals(entity.super_relationships.all().count(), 0)
+        self.assertEqual(entity.sub_relationships.all().count(), 0)
+        self.assertEqual(entity.super_relationships.all().count(), 0)
 
     def test_post_create_account_relationships(self):
         """
@@ -774,7 +774,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         properly.
         """
         # Verify that there are no entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
         # Create a team
         team = Team.objects.create(name='Team')
@@ -782,22 +782,22 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         account = Account.objects.create(email='test@test.com', team=team)
 
         # There should be two entities. Test their existence and values
-        self.assertEquals(Entity.objects.all().count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 2)
         account_entity = Entity.objects.get_for_obj(account)
-        self.assertEquals(account_entity.entity_meta, {
+        self.assertEqual(account_entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
             'team_is_active': True,
         })
         team_entity = Entity.objects.get_for_obj(team)
-        self.assertEquals(team_entity.entity_meta, None)
+        self.assertEqual(team_entity.entity_meta, None)
 
         # Check that the appropriate entity relationship was created
-        self.assertEquals(EntityRelationship.objects.all().count(), 1)
+        self.assertEqual(EntityRelationship.objects.all().count(), 1)
         relationship = EntityRelationship.objects.first()
-        self.assertEquals(relationship.sub_entity, account_entity)
-        self.assertEquals(relationship.super_entity, team_entity)
+        self.assertEqual(relationship.sub_entity, account_entity)
+        self.assertEqual(relationship.super_entity, team_entity)
 
     def test_post_updated_entity_no_cascade(self):
         """
@@ -807,7 +807,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         # Create a test account
         account = Account.objects.create(email='test@test.com')
         entity = Entity.objects.get_for_obj(account)
-        self.assertEquals(entity.entity_meta, {
+        self.assertEqual(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': None,
@@ -824,17 +824,17 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         account.save()
         # Verify that the mirrored entity has the same ID
         entity = Entity.objects.get_for_obj(account)
-        self.assertEquals(entity.entity_meta, {
+        self.assertEqual(entity.entity_meta, {
             'email': 'newemail@test.com',
             'is_captain': False,
             'team': None,
             'team_is_active': None,
         })
-        self.assertEquals(old_entity_id, entity.id)
+        self.assertEqual(old_entity_id, entity.id)
 
         # Verify that the pointer still exists and wasn't cascade deleted
         test_pointer = EntityPointer.objects.get(id=test_pointer.id)
-        self.assertEquals(test_pointer.entity, entity)
+        self.assertEqual(test_pointer.entity, entity)
 
     def test_post_update_account_meta(self):
         """
@@ -843,7 +843,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         # Create an account and check it's mirrored metadata
         account = Account.objects.create(email='test@test.com')
         entity = Entity.objects.get_for_obj(account)
-        self.assertEquals(entity.entity_meta, {
+        self.assertEqual(entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': None,
@@ -854,7 +854,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         account.email = 'newemail@test.com'
         account.save()
         entity = Entity.objects.get_for_obj(account)
-        self.assertEquals(entity.entity_meta, {
+        self.assertEqual(entity.entity_meta, {
             'email': 'newemail@test.com',
             'is_captain': False,
             'team': None,
@@ -867,7 +867,7 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         properly when changing the activity of a relationship.
         """
         # Verify that there are no entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
         # Create a team
         team = Team.objects.create(name='Team')
@@ -875,22 +875,22 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         account = Account.objects.create(email='test@test.com', team=team)
 
         # There should be two entities. Test their existence and values
-        self.assertEquals(Entity.objects.all().count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 2)
         account_entity = Entity.objects.get_for_obj(account)
-        self.assertEquals(account_entity.entity_meta, {
+        self.assertEqual(account_entity.entity_meta, {
             'email': 'test@test.com',
             'is_captain': False,
             'team': 'Team',
             'team_is_active': True,
         })
         team_entity = Entity.objects.get_for_obj(team)
-        self.assertEquals(team_entity.entity_meta, None)
+        self.assertEqual(team_entity.entity_meta, None)
 
         # Check that the appropriate entity relationship was created
-        self.assertEquals(EntityRelationship.objects.all().count(), 1)
+        self.assertEqual(EntityRelationship.objects.all().count(), 1)
         relationship = EntityRelationship.objects.first()
-        self.assertEquals(relationship.sub_entity, account_entity)
-        self.assertEquals(relationship.super_entity, team_entity)
+        self.assertEqual(relationship.sub_entity, account_entity)
+        self.assertEqual(relationship.super_entity, team_entity)
 
         # Update the account to be a team captain. According to our test project, this
         # means it no longer has an active relationship to a team
@@ -898,10 +898,10 @@ class TestEntityPostSavePostDeleteSignalSync(EntityTestCase):
         account.save()
 
         # Verify that it no longer has an active relationship
-        self.assertEquals(EntityRelationship.objects.all().count(), 1)
+        self.assertEqual(EntityRelationship.objects.all().count(), 1)
         relationship = EntityRelationship.objects.first()
-        self.assertEquals(relationship.sub_entity, account_entity)
-        self.assertEquals(relationship.super_entity, team_entity)
+        self.assertEqual(relationship.sub_entity, account_entity)
+        self.assertEqual(relationship.super_entity, team_entity)
 
 
 class TestSyncingMultipleEntities(EntityTestCase):
@@ -916,8 +916,8 @@ class TestSyncingMultipleEntities(EntityTestCase):
         G(TeamGroup)
         sync_entities(account1, account2)
 
-        self.assertEquals(Entity.objects.count(), 3)
-        self.assertEquals(EntityRelationship.objects.count(), 2)
+        self.assertEqual(Entity.objects.count(), 3)
+        self.assertEqual(EntityRelationship.objects.count(), 2)
 
     def test_sync_two_accounts_one_team_group(self):
         turn_off_syncing()
@@ -927,8 +927,8 @@ class TestSyncingMultipleEntities(EntityTestCase):
         team_group = G(TeamGroup)
         sync_entities(account1, account2, team_group)
 
-        self.assertEquals(Entity.objects.count(), 4)
-        self.assertEquals(EntityRelationship.objects.count(), 2)
+        self.assertEqual(Entity.objects.count(), 4)
+        self.assertEqual(EntityRelationship.objects.count(), 2)
 
 
 class TestCachingAndCascading(EntityTestCase):
@@ -946,8 +946,8 @@ class TestCachingAndCascading(EntityTestCase):
 
         self.assertFalse(Entity.objects.exists())
         G(Account, team=team)
-        self.assertEquals(Entity.objects.count(), 2)
-        self.assertEquals(EntityRelationship.objects.count(), 1)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityRelationship.objects.count(), 1)
 
     def test_optimal_queries_registered_entity_with_no_qset(self):
         """
@@ -999,12 +999,12 @@ class TestCachingAndCascading(EntityTestCase):
             with self.assertNumQueries(20):
                 sync_entities()
 
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
-        self.assertEquals(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
-        self.assertEquals(Entity.objects.all().count(), 7)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Account)).count(), 5)
+        self.assertEqual(Entity.objects.filter(entity_type=ContentType.objects.get_for_model(Team)).count(), 2)
+        self.assertEqual(Entity.objects.all().count(), 7)
 
         # There should be four entity relationships since four accounts have teams
-        self.assertEquals(EntityRelationship.objects.all().count(), 4)
+        self.assertEqual(EntityRelationship.objects.all().count(), 4)
 
 
 class DeferEntitySyncingTests(EntityTestCase):
@@ -1023,13 +1023,13 @@ class DeferEntitySyncingTests(EntityTestCase):
                 sync_entities()
 
             # Assert that we do not have any entities
-            test.assertEquals(Entity.objects.all().count(), 0)
+            test.assertEqual(Entity.objects.all().count(), 0)
 
         # Call the test method
         test_method(self, count=5)
 
         # Assert that after the method was run we did sync the entities
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
 
         # Delete all entities
         Entity.all_objects.all()._raw_delete(Entity.objects.db)
@@ -1038,7 +1038,7 @@ class DeferEntitySyncingTests(EntityTestCase):
         test_method(self, count=0, sync_all=True)
 
         # Assert that after the method was run we did sync the entities
-        self.assertEquals(Entity.objects.all().count(), 5)
+        self.assertEqual(Entity.objects.all().count(), 5)
 
         # Assert that we restored the defer flag
         self.assertFalse(sync_entities.defer)
@@ -1054,7 +1054,7 @@ class DeferEntitySyncingTests(EntityTestCase):
         @defer_entity_syncing
         def test_method(test):
             # Assert that we do not have any entities
-            test.assertEquals(Entity.objects.all().count(), 0)
+            test.assertEqual(Entity.objects.all().count(), 0)
 
         # Call the test method
         with patch('entity.sync.sync_entities') as mock_sync_entities:
@@ -1078,13 +1078,13 @@ class SuppressEntitySyncingTests(EntityTestCase):
                 Account.objects.create()
 
             # Assert that we do not have any entities
-            test.assertEquals(Entity.objects.all().count(), 0)
+            test.assertEqual(Entity.objects.all().count(), 0)
 
         # Call the test method
         test_method(self, count=5)
 
         # Assert that after the method was run we did sync the entities
-        self.assertEquals(Entity.objects.all().count(), 0)
+        self.assertEqual(Entity.objects.all().count(), 0)
 
         # Assert that we restored the suppress flag
         self.assertFalse(sync_entities.suppress)
