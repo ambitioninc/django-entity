@@ -1,6 +1,6 @@
 from django.db.models import Model
 from django.test import TestCase
-from mock import patch
+from unittest.mock import patch
 
 from entity.config import EntityConfig, entity_registry, EntityRegistry, register_entity
 
