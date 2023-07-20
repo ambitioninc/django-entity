@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('display_name', models.TextField(db_index=True, blank=True)),
                 ('entity_id', models.IntegerField()),
-                ('entity_meta', db.models.JSONField(null=True)),
+                ('entity_meta', models.JSONField(null=True)),
                 ('is_active', models.BooleanField(default=True, db_index=True)),
             ],
             options={
