@@ -396,14 +396,18 @@ class EntitySyncer(object):
             unchanged_entity_kinds = {
                 (entity_kind.name, entity_kind.display_name): entity_kind
                 for entity_kind in EntityKind.all_objects.extra(
-                    where=['(name, display_name) IN %s'],
-                    params=[tuple(
-                        (entity_kind.name, entity_kind.display_name)
-                        for entity_kind in entity_kinds
-                    )]
+                    where=['name = ANY(%s)'],
+                    params=[[entity_kind.name for entity_kind in entity_kinds]]
+                ).extra(
+                    where=['display_name = ANY(%s)'],
+                    params=[[entity_kind.display_name for entity_kind in entity_kinds]]
+                    # where=['(name, display_name) IN %s'],
+                    # params=[tuple(
+                    #     (entity_kind.name, entity_kind.display_name)
+                    #     for entity_kind in entity_kinds
+                    # )]
                 )
             }
-
         # Filter out the unchanged entity kinds
         changed_entity_kinds = [
             entity_kind
@@ -455,16 +459,30 @@ class EntitySyncer(object):
             if not sync:
                 select_for_update_query = (
                     'SELECT FROM {table_name} '
-                    'WHERE (entity_type_id, entity_id) IN %s '
+                    'WHERE entity_type_id = ANY(%s) '
+                    'AND entity_id = ANY(%s) '
                     'ORDER BY id ASC '
                     'FOR NO KEY UPDATE'
                 ).format(
                     table_name=Entity._meta.db_table
                 )
-                select_for_update_query_params = [tuple(
-                    (entity.entity_type_id, entity.entity_id)
-                    for entity in entities
-                )]
+                select_for_update_query_params = [
+                    [entity.entity_type_id for entity in entities],
+                    [entity.entity_id for entity in entities]
+                ]
+
+                # select_for_update_query = (
+                #     'SELECT FROM {table_name} '
+                #     'WHERE (entity_type_id, entity_id) IN %s '
+                #     'ORDER BY id ASC '
+                #     'FOR NO KEY UPDATE'
+                # ).format(
+                #     table_name=Entity._meta.db_table
+                # )
+                # select_for_update_query_params = [tuple(
+                #     (entity.entity_type_id, entity.entity_id)
+                #     for entity in entities
+                # )]
 
             # Select the items for update
             with connection.cursor() as cursor:
@@ -476,11 +494,16 @@ class EntitySyncer(object):
         initial_queryset = Entity.all_objects.all()
         if not sync:
             initial_queryset = Entity.all_objects.extra(
-                where=['(entity_type_id, entity_id) IN %s'],
-                params=[tuple(
-                    (entity.entity_type_id, entity.entity_id)
-                    for entity in entities
-                )]
+                where=['entity_type_id = ANY(%s)'],
+                params=[[entity.entity_type_id for entity in entities]]
+            ).extra(
+                where=['entity_id = ANY(%s)'],
+                params=[[entity.entity_id for entity in entities]]
+                # where=['(entity_type_id, entity_id) IN %s'],
+                # params=[tuple(
+                #     (entity.entity_type_id, entity.entity_id)
+                #     for entity in entities
+                # )]
             )
         initial_entity_activation_state = {
             entity[0]: entity[1]
