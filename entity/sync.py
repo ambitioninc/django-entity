@@ -393,16 +393,37 @@ class EntitySyncer(object):
         # Filter out unchanged entity kinds
         unchanged_entity_kinds = {}
         if entity_kinds:
+            # Get the entity kind values in the db that match our names
+            db_entity_kinds = EntityKind.objects.filter(
+                name__in=[entity_kind.name for entity_kind in entity_kinds]
+            )
+
+            # Get a set of the name/display_name tuples
+            db_entity_kinds_set = {
+                (entity_kind.name, entity_kind.display_name)
+                for entity_kind in db_entity_kinds
+            }
+
+            # Create a set on name/display_name so we can calculate an intersection
+            entity_kinds_set = {
+                (entity_kind.name, entity_kind.display_name)
+                for entity_kind in entity_kinds
+            }
+
+            # Get the intersection to find those that haven't changed
+            unchanged_entity_kinds_set = db_entity_kinds_set & entity_kinds_set
+
+            # Get the names of the unchanged entity kinds
+            unchanged_entity_kinds_names = [
+                pair[0] for pair in unchanged_entity_kinds_set
+            ]
+
+            # Turn it into the dict that we need for later comparison
             unchanged_entity_kinds = {
                 (entity_kind.name, entity_kind.display_name): entity_kind
-                for entity_kind in EntityKind.all_objects.extra(
-                    where=['name = ANY(%s)'],
-                    params=[[entity_kind.name for entity_kind in entity_kinds]]
-                ).extra(
-                    where=['display_name = ANY(%s)'],
-                    params=[[entity_kind.display_name for entity_kind in entity_kinds]]
-                )
+                for entity_kind in db_entity_kinds if entity_kind.name in unchanged_entity_kinds_names
             }
+
         # Filter out the unchanged entity kinds
         changed_entity_kinds = [
             entity_kind
@@ -454,17 +475,16 @@ class EntitySyncer(object):
             if not sync:
                 select_for_update_query = (
                     'SELECT FROM {table_name} '
-                    'WHERE entity_type_id = ANY(%s) '
-                    'AND entity_id = ANY(%s) '
+                    'WHERE (entity_type_id, entity_id) = ANY(%s) '
                     'ORDER BY id ASC '
                     'FOR NO KEY UPDATE'
                 ).format(
                     table_name=Entity._meta.db_table
                 )
-                select_for_update_query_params = [
-                    [entity.entity_type_id for entity in entities],
-                    [entity.entity_id for entity in entities]
-                ]
+                select_for_update_query_params = [list(
+                    (entity.entity_type_id, entity.entity_id)
+                    for entity in entities
+                )]
 
             # Select the items for update
             with connection.cursor() as cursor:
@@ -476,11 +496,11 @@ class EntitySyncer(object):
         initial_queryset = Entity.all_objects.all()
         if not sync:
             initial_queryset = Entity.all_objects.extra(
-                where=['entity_type_id = ANY(%s)'],
-                params=[[entity.entity_type_id for entity in entities]]
-            ).extra(
-                where=['entity_id = ANY(%s)'],
-                params=[[entity.entity_id for entity in entities]]
+                where=['(entity_type_id, entity_id) = ANY(%s)'],
+                params=[list(
+                    (entity.entity_type_id, entity.entity_id)
+                    for entity in entities
+                )]
             )
         initial_entity_activation_state = {
             entity[0]: entity[1]
