@@ -9,6 +9,8 @@ from django.db.models import Count, Q, JSONField
 from python3_utils import compare_on_attr
 from functools import reduce
 
+from entity.constants import MembershipType
+
 
 class AllEntityKindManager(ActivatableManager):
     """
@@ -363,6 +365,13 @@ class EntityGroup(models.Model):
 
     objects = EntityGroupManager()
 
+    membership_type_choices = [
+        (MembershipType.UNION, 'Union'),
+        (MembershipType.INTERSECTION, 'Intersection'),
+    ]
+
+    membership_type = models.CharField(choices=membership_type_choices, default=MembershipType.UNION)
+
     def all_entities(self, is_active=True):
         """
         Return all the entities in the group.
@@ -405,16 +414,26 @@ class EntityGroup(models.Model):
 
             # Loop over each membership in this group
             for entity_id, entity_kind_id in membership_cache[self.id]:
+                entity_ids_to_apply = set()
                 if entity_id:
                     if entity_kind_id:
                         # All sub entities of this kind under this entity
-                        entity_ids.update(entities_by_kind[entity_kind_id][entity_id])
+                        entity_ids_to_apply.update(entities_by_kind[entity_kind_id][entity_id])
                     else:
                         # Individual entity
-                        entity_ids.add(entity_id)
+                        entity_ids_to_apply.add(entity_id)
                 else:
                     # All entities of this kind
-                    entity_ids.update(entities_by_kind[entity_kind_id]['all'])
+                    entity_ids_to_apply.update(entities_by_kind[entity_kind_id]['all'])
+
+                # Check membership type
+                if self.membership_type == MembershipType.UNION:
+                    entity_ids.update(entity_ids_to_apply)
+                elif self.membership_type == MembershipType.INTERSECTION:
+                    if not entity_ids:
+                        entity_ids.update(entity_ids_to_apply)
+                    else:
+                        entity_ids = entity_ids.intersection(entity_ids_to_apply)
 
         # Check if a queryset needs to be returned
         if return_models:
