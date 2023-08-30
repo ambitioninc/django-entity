@@ -1,7 +1,7 @@
 ## Release Notes
 
 - 6.2.0:
-    - Add support for intersection type memberships
+    - Add support for boolean logic strings to apply to entity group memberships
 - 6.1.1:
     - django support for 4.2
     - drop django 2.2

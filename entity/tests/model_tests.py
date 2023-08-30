@@ -5,7 +5,6 @@ from entity.sync import sync_entities
 
 from entity.signal_handlers import turn_off_syncing, turn_on_syncing
 
-from entity.constants import MembershipType
 from entity.models import (
     Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_entities_by_kind
 )
@@ -758,53 +757,76 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
 
         self.group = G(EntityGroup)
 
-    def test_membership_type_intersection(self):
+    def test_logic_string(self):
         """
-        Given two memberships of entities under different entity kinds, verify that only the intersection is returned
-        instead of the union.
+        Given 10 users User 0 - User 9 and 4 groups Group A - Group D
+        Group A: 0, 1, 2
+        Group B: 1, 2, 3
+        Group C: 4, 5, 6
+        Group D: 6, 7, 8
 
-        This test sets up:
-        - 5 sub entities under super 1
-        - 5 sub entities under super 2
-        - 3 sub entities under both
+        Memberships:
+        1. User in Group A
+        2. User in Group B
+        3. User in Group C
+        4. User in Group D
+        5. User = User 1
+        6. User = User 9
+
+        Logic: (1 AND 2) OR (3 AND 4) AND NOT(5) OR 6
+        ((0, 1, 2) AND (1, 2, 3)) OR ((4, 5, 6) AND (6, 7, 8)) AND NOT(1) OR (9)
+        (1, 2) OR (6) AND NOT(1) OR 9
+        (1, 2, 6) AND NOT(1) OR 9
+        2, 6, 9
         """
-        super_entity_kind1 = G(EntityKind)
-        super_entity_kind2 = G(EntityKind)
+        super_entity_kind = G(EntityKind)
         sub_entity_kind = G(EntityKind)
-        super_entity1 = G(Entity, entity_kind=super_entity_kind1)
-        super_entity2 = G(Entity, entity_kind=super_entity_kind2)
-        sub_entities1 = [
+        super_entity_a = G(Entity, entity_kind=super_entity_kind)
+        super_entity_b = G(Entity, entity_kind=super_entity_kind)
+        super_entity_c = G(Entity, entity_kind=super_entity_kind)
+        super_entity_d = G(Entity, entity_kind=super_entity_kind)
+        sub_entities = [
             G(Entity, entity_kind=sub_entity_kind)
-            for _ in range(5)
-        ]
-        sub_entities2 = [
-            G(Entity, entity_kind=sub_entity_kind)
-            for _ in range(5)
+            for _ in range(10)
         ]
 
         # Create the relationships
-        for entity in sub_entities1:
-            G(EntityRelationship, sub_entity=entity, super_entity=super_entity1)
-        for entity in sub_entities2:
-            G(EntityRelationship, sub_entity=entity, super_entity=super_entity2)
+        relationships = [
+            EntityRelationship(sub_entity=sub_entities[0], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_a),
 
-        # Create the intersection relationships
-        G(EntityRelationship, sub_entity=sub_entities1[0], super_entity=super_entity2)
-        G(EntityRelationship, sub_entity=sub_entities1[1], super_entity=super_entity2)
-        G(EntityRelationship, sub_entity=sub_entities1[2], super_entity=super_entity2)
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_b),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_b),
+            EntityRelationship(sub_entity=sub_entities[3], super_entity=super_entity_b),
+
+            EntityRelationship(sub_entity=sub_entities[4], super_entity=super_entity_c),
+            EntityRelationship(sub_entity=sub_entities[5], super_entity=super_entity_c),
+            EntityRelationship(sub_entity=sub_entities[6], super_entity=super_entity_c),
+
+            EntityRelationship(sub_entity=sub_entities[6], super_entity=super_entity_d),
+            EntityRelationship(sub_entity=sub_entities[7], super_entity=super_entity_d),
+            EntityRelationship(sub_entity=sub_entities[8], super_entity=super_entity_d),
+        ]
+        EntityRelationship.objects.bulk_create(relationships)
 
         # Create the entity group
-        entity_group = G(EntityGroup, membership_type=MembershipType.INTERSECTION)
+        entity_group = G(EntityGroup, logic_string='(((1 AND 2) OR (3 AND 4)) AND NOT(5) OR 6) AND 7')
 
         # Create the memberships -- two memberships of all subs under a kind
-        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity1)
-        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity2)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_a)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_b)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_c)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_d)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=None, entity=sub_entities[1])
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=None, entity=sub_entities[9])
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=None)
 
         entity_ids = entity_group.get_all_entities()
         self.assertEqual(entity_ids, set([
-            sub_entities1[0].id,
-            sub_entities1[1].id,
-            sub_entities1[2].id,
+            sub_entities[2].id,
+            sub_entities[6].id,
+            sub_entities[9].id,
         ]))
 
     def test_individual_entities_returned(self):
