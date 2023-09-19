@@ -4,6 +4,7 @@ from itertools import compress, chain
 from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Count, Q, JSONField
