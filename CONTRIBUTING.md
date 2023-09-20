@@ -7,29 +7,41 @@ a great idea but it involves big changes, please file a ticket before making a
 pull request! We want to make sure you don't spend your time coding something
 that might not fit the scope of the project.
 
-## Running the tests
+## Development
 
-To get the source source code and run the unit tests, run:
-```bash
-git clone git://github.com/ambitioninc/django-entity.git
-cd django-entity
-virtualenv env
-. env/bin/activate
-python setup.py install
-coverage run setup.py test
-coverage report --fail-under=100
+> Prerequisites:
+> - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running on your system
+> - Postgres default host port (5432) is available (likely need to stop any other running postgres servers)
+
+Fork and clone your fork then use the docker compose services for development tasks.
+
+**Lint**
+```shell
+docker compose run --rm lint
+```
+
+**Test**
+```shell
+docker compose run --rm test
+```
+
+**Test (with coverage)**
+```shell
+docker compose run --rm test-coverage
 ```
 
 While 100% code coverage does not make a library bug-free, it significantly
 reduces the number of easily caught bugs! Please make sure coverage is at 100%
 before submitting a pull request!
 
-## Code Quality
+**Shell**
+```shell
+docker compose run --rm shell
+```
 
-For code quality, please run flake8:
-```bash
-pip install flake8
-flake8 .
+For dependency changes, rebuild before running:
+```shell
+docker compose build
 ```
 
 ## Code Styling

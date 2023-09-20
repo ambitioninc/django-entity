@@ -1,0 +1,47 @@
+services:
+  # Shared services
+  entity-base:
+    build: .
+    volumes:
+      - ./:/django-entity
+  entity:
+    extends: entity-base
+    environment:
+      DB_SETTINGS: >-
+        {
+         "ENGINE":"django.db.backends.postgresql",
+         "NAME":"entity",
+         "USER":"postgres",
+         "PASSWORD":"postgres",
+         "HOST":"db",
+         "PORT":"5432"
+        }
+    depends_on:
+      - db
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: pg_isready
+      start_interval: 5s
+      interval: 10s
+      retries: 5
+
+  # Task specific services
+  lint:
+    extends: entity-base
+    command: flake8 .
+  test:
+    extends: entity
+    command: python manage.py test entity
+  test-coverage:
+    extends: entity
+    command: bash -c "rm -rf .coverage/ && coverage run manage.py test entity && coverage report --fail-under=99"
+  shell:
+    extends: entity
+    command: /bin/bash
