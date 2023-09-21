@@ -666,6 +666,7 @@ class EntityGroupMembership(models.Model):
     entity_group = models.ForeignKey(EntityGroup, on_delete=models.CASCADE)
     entity = models.ForeignKey(Entity, null=True, on_delete=models.CASCADE)
     sub_entity_kind = models.ForeignKey(EntityKind, null=True, on_delete=models.CASCADE)
+    sort_order = models.IntegerField(default=0)
 
 
 def get_entities_by_kind(membership_cache=None, is_active=True):
