@@ -39,6 +39,18 @@ before submitting a pull request!
 docker compose run --rm shell
 ```
 
+You can also pass arguments to the shell command for django manage tasks: 
+
+Add migrations for model changes
+```shell
+docker compose run --rm shell python manage.py makemigrations
+```
+
+Run migrations
+```shell
+docker compose run --rm shell python manage.py migrate
+```
+
 For dependency changes, rebuild before running:
 ```shell
 docker compose build

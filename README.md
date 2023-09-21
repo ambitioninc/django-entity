@@ -12,6 +12,11 @@ Imagine that you have a Django project that defines many types of groupings of y
 
 Using Django Entity, the email app could be written to take an Entity model rather than having to understand the complex relationships of each group. The Entity model passed to the email app could be a CompanyPosition model, and the get_sub_entities().is_any_type(ContentType.objects.get_for_model(User)) would return all of the User models under that CompanyPosition model. This allows the email app to be completely segregated from how the main project defines its relationships. Similarly, the query to obtain all User models under a CompanyPosition could be much more efficient than querying directly from the project (depending on how the project has its models structured).
 
+## Development
+
+For more info on making changes to this project
+see the Development section of [CONTRIBUTING.md](CONTRIBUTING.md#development).
+
 ## Getting Started - Configuring Entity Syncing
 ### Basic Use Case
 

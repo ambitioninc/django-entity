@@ -38,7 +38,7 @@ services:
     command: flake8 .
   test:
     extends: entity
-    command: python manage.py test entity
+    command: python manage.py test
   test-coverage:
     extends: entity
     command: bash -c "rm -rf .coverage/ && coverage run manage.py test entity && coverage report --fail-under=99"
