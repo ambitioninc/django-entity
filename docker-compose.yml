@@ -21,7 +21,7 @@ services:
   db:
     image: postgres:latest
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: entity
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
     ports:

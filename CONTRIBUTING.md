@@ -44,6 +44,11 @@ For dependency changes, rebuild before running:
 docker compose build
 ```
 
+To reset everything, use docker compose down with additional flags for images and volumes:
+```shell
+docker compose down --volumes --remove-orphans --rmi local
+```
+
 ## Code Styling
 Please arrange imports with the following style
 
