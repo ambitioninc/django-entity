@@ -7,58 +7,29 @@ a great idea but it involves big changes, please file a ticket before making a
 pull request! We want to make sure you don't spend your time coding something
 that might not fit the scope of the project.
 
-## Development
+## Running the tests
 
-> Prerequisites:
-> - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running on your system
-> - Postgres default host port (5432) is available (likely need to stop any other running postgres servers)
-
-Fork and clone your fork then use the docker compose services for development tasks.
-
-**Lint**
-```shell
-docker compose run --rm lint
-```
-
-**Test**
-```shell
-docker compose run --rm test
-```
-
-**Test (with coverage)**
-```shell
-docker compose run --rm test-coverage
+To get the source source code and run the unit tests, run:
+```bash
+git clone git://github.com/ambitioninc/django-entity.git
+cd django-entity
+virtualenv env
+. env/bin/activate
+python setup.py install
+coverage run setup.py test
+coverage report --fail-under=100
 ```
 
 While 100% code coverage does not make a library bug-free, it significantly
 reduces the number of easily caught bugs! Please make sure coverage is at 100%
 before submitting a pull request!
 
-**Shell**
-```shell
-docker compose run --rm shell
-```
+## Code Quality
 
-You can also pass arguments to the shell command for django manage tasks: 
-
-Add migrations for model changes
-```shell
-docker compose run --rm shell python manage.py makemigrations
-```
-
-Run migrations
-```shell
-docker compose run --rm shell python manage.py migrate
-```
-
-For dependency changes, rebuild before running:
-```shell
-docker compose build
-```
-
-To reset everything, use docker compose down with additional flags for images and volumes:
-```shell
-docker compose down --volumes --remove-orphans --rmi local
+For code quality, please run flake8:
+```bash
+pip install flake8
+flake8 .
 ```
 
 ## Code Styling
