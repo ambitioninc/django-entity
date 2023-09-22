@@ -4,6 +4,7 @@ from itertools import compress, chain
 from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Count, Q, JSONField
@@ -665,6 +666,7 @@ class EntityGroupMembership(models.Model):
     entity_group = models.ForeignKey(EntityGroup, on_delete=models.CASCADE)
     entity = models.ForeignKey(Entity, null=True, on_delete=models.CASCADE)
     sub_entity_kind = models.ForeignKey(EntityKind, null=True, on_delete=models.CASCADE)
+    sort_order = models.IntegerField(default=0)
 
 
 def get_entities_by_kind(membership_cache=None, is_active=True):

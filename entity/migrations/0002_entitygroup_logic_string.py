@@ -15,4 +15,9 @@ class Migration(migrations.Migration):
             name='logic_string',
             field=models.TextField(blank=True, default=None, null=True),
         ),
+        migrations.AddField(
+            model_name='entitygroupmembership',
+            name='sort_order',
+            field=models.IntegerField(default=0),
+        ),
     ]
