@@ -1,4 +1,5 @@
-from itertools import compress
+import ast
+from itertools import compress, chain
 
 from activatable_model.models import BaseActivatableModel, ActivatableManager, ActivatableQuerySet
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -334,6 +335,8 @@ class EntityGroupManager(models.Manager):
         if group_ids:
             membership_queryset = membership_queryset.filter(entity_group_id__in=group_ids)
 
+        membership_queryset = membership_queryset.order_by('id')
+
         membership_queryset = membership_queryset.values_list('entity_group_id', 'entity_id', 'sub_entity_kind_id')
 
         # Iterate over the query results and build the cache dict
@@ -363,6 +366,8 @@ class EntityGroup(models.Model):
 
     objects = EntityGroupManager()
 
+    logic_string = models.TextField(default=None, null=True, blank=True)
+
     def all_entities(self, is_active=True):
         """
         Return all the entities in the group.
@@ -372,6 +377,96 @@ class EntityGroup(models.Model):
         way to get a queryset of all the entities in the group.
         """
         return self.get_all_entities(return_models=True, is_active=is_active)
+
+    def get_filter_indices(self, node):
+        """
+        Makes sure that each filter referenced actually exists
+        """
+        if hasattr(node, 'op'):
+            # multi-operand operators
+            if hasattr(node, 'values'):
+                return list(chain(*[self.get_filter_indices(value) for value in node.values]))
+            # unary operators
+            elif hasattr(node, 'operand'):
+                return list(chain(*[self.get_filter_indices(node.operand)]))
+        elif hasattr(node, 'n'):
+            return [node.n]
+        return None
+
+    def validate_filter_indices(self, indices, memberships):
+        """
+        Raises an error if an invalid filter index is referenced or if an index is not referenced
+        """
+        for index in indices:
+            if hasattr(index, '__iter__'):
+                return self.validate_filter_indices(index, memberships)
+            if index < 1 or index > len(memberships):
+                raise ValidationError('Filter logic contains an invalid filter index ({0})'.format(index))
+
+        for i in range(1, len(memberships) + 1):
+            if i not in indices:
+                raise ValidationError('Filter logic is missing a filter index ({0})'.format(i))
+
+        return True
+
+    def _node_to_kmatch(self, node):
+        """
+        Looks at an ast node and either returns the value or recursively returns the kmatch syntax. This is meant
+        to convert the boolean logic like "1 AND 2" to kmatch syntax like ['&', [1, 2]]
+        :return: kmatch syntax where memberships are represented by numbers
+        :rtype: list
+        """
+        if hasattr(node, 'op'):
+            if hasattr(node, 'values'):
+                return [node.op, [self._node_to_kmatch(value) for value in node.values]]
+            elif hasattr(node, 'operand'):
+                return [node.op, self._node_to_kmatch(node.operand)]
+        elif hasattr(node, 'n'):
+            return node.n
+        return None
+
+    def _map_kmatch_values(self, kmatch, memberships):
+        """
+        Replaces index placeholders in the kmatch with the actual memberships. Any memberships that could not be matched
+        up with a field will be replaced with None
+        :return: the complete kmatch pattern
+        :rtype: list
+        """
+        # Check if single item
+        if isinstance(kmatch, int):
+            return memberships[kmatch - 1]
+        if hasattr(kmatch, '__iter__'):
+            return [self._map_kmatch_values(value, memberships) for value in kmatch]
+
+        cls = getattr(kmatch, '__class__')
+        if cls == ast.And:
+            return '&'
+        elif cls == ast.Or:
+            return '|'
+        elif cls == ast.Not:
+            return '!'
+
+    def _process_kmatch(self, kmatch, full_set):
+        """
+        Every item is 2 elements - the operator and the value or list of values
+        """
+        entity_ids = set()
+        operators = {'&', '|', '!'}
+
+        if isinstance(kmatch, set):
+            return kmatch
+
+        if len(kmatch) == 2 and kmatch[0] not in operators:
+            return kmatch
+
+        if kmatch[0] == '&':
+            entity_ids = self._process_kmatch(kmatch[1][0], full_set) & self._process_kmatch(kmatch[1][1], full_set)
+        elif kmatch[0] == '|':
+            entity_ids = self._process_kmatch(kmatch[1][0], full_set) | self._process_kmatch(kmatch[1][1], full_set)
+        elif kmatch[0] == '!':
+            entity_ids = full_set - self._process_kmatch(kmatch[1], full_set)
+
+        return entity_ids
 
     def get_all_entities(self, membership_cache=None, entities_by_kind=None, return_models=False, is_active=True):
         """
@@ -401,20 +496,47 @@ class EntityGroup(models.Model):
         entity_ids = set()
 
         # This group does have entities
-        if membership_cache.get(self.id):
+        memberships = membership_cache.get(self.id)
+        if memberships:
+            if self.logic_string:
+                try:
+                    filter_tree = ast.parse(self.logic_string.lower())
+                except:
+                    raise Exception
 
-            # Loop over each membership in this group
-            for entity_id, entity_kind_id in membership_cache[self.id]:
-                if entity_id:
-                    if entity_kind_id:
-                        # All sub entities of this kind under this entity
-                        entity_ids.update(entities_by_kind[entity_kind_id][entity_id])
+                expanded_memberships = []
+                for entity_id, entity_kind_id in memberships:
+                    if entity_id:
+                        if entity_kind_id:
+                            # All sub entities of this kind under this entity
+                            expanded_memberships.append(set(entities_by_kind[entity_kind_id][entity_id]))
+                        else:
+                            # Individual entity
+                            expanded_memberships.append({entity_id})
                     else:
-                        # Individual entity
-                        entity_ids.add(entity_id)
-                else:
-                    # All entities of this kind
-                    entity_ids.update(entities_by_kind[entity_kind_id]['all'])
+                        # All entities of this kind
+                        expanded_memberships.append(set(entities_by_kind[entity_kind_id]['all']))
+
+                # Make sure each index is valid
+                indices = self.get_filter_indices(filter_tree.body[0].value)
+                self.validate_filter_indices(indices, expanded_memberships)
+                kmatch = self._node_to_kmatch(filter_tree.body[0].value)
+                kmatch = self._map_kmatch_values(kmatch, expanded_memberships)
+                entity_ids = self._process_kmatch(kmatch, full_set=expanded_memberships[-1])
+
+            else:
+                # Loop over each membership in this group
+                for entity_id, entity_kind_id in membership_cache[self.id]:
+                    if entity_id:
+                        if entity_kind_id:
+                            # All sub entities of this kind under this entity
+                            entity_ids.update(entities_by_kind[entity_kind_id][entity_id])
+                        else:
+                            # Individual entity
+                            entity_ids.add(entity_id)
+                    else:
+                        # All entities of this kind
+                        entity_ids.update(entities_by_kind[entity_kind_id]['all'])
 
         # Check if a queryset needs to be returned
         if return_models:
