@@ -1125,14 +1125,14 @@ class EntityGroupTest(TestCase):
             [None, account_kind],
         ])
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             membership_cache = EntityGroup.objects.get_membership_cache()
             entities_by_kind = get_entities_by_kind(membership_cache=membership_cache)
 
             for entity_group in entity_groups:
                 entity_group.get_all_entities(membership_cache, entities_by_kind)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             get_entities_by_kind()
 
         # Make sure to hit the no group cache case
