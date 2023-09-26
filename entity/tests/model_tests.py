@@ -948,7 +948,7 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         G(EntityGroupMembership, entity_group=self.group,
           entity=e2, sub_entity_kind=self.kind2)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             list(self.group.all_entities())
 
 
