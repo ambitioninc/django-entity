@@ -811,7 +811,7 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         EntityRelationship.objects.bulk_create(relationships)
 
         # Create the entity group
-        entity_group = G(EntityGroup, logic_string='(((1 AND 2) OR (3 AND 4)) AND NOT(5) OR 6) AND 7')
+        entity_group = G(EntityGroup, logic_string='((1 AND 2) OR (3 AND 4)) AND NOT(5) OR 6')
 
         # Create the memberships -- two memberships of all subs under a kind
         G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_a)
@@ -820,12 +820,56 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_d)
         G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=None, entity=sub_entities[1])
         G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=None, entity=sub_entities[9])
-        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=None)
 
         entity_ids = entity_group.get_all_entities()
         self.assertEqual(entity_ids, set([
             sub_entities[2].id,
             sub_entities[6].id,
+            sub_entities[9].id,
+        ]))
+
+    def test_logic_string_not(self):
+        """
+        Verifies that the universal set is properly fetched and used to NOT a set
+        Group A: 0, 1, 2
+        NOT(A) = 3, 4, 5, 6, 7, 8
+
+        Memberships:
+        1. User in Group A
+
+        Logic: NOT(1)
+        (3, 4, 5, 6, 7, 8)
+        """
+        super_entity_kind = G(EntityKind)
+        sub_entity_kind = G(EntityKind)
+        super_entity_a = G(Entity, entity_kind=super_entity_kind)
+        sub_entities = [
+            G(Entity, entity_kind=sub_entity_kind)
+            for _ in range(10)
+        ]
+
+        # Create the relationships
+        relationships = [
+            EntityRelationship(sub_entity=sub_entities[0], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_a),
+        ]
+        EntityRelationship.objects.bulk_create(relationships)
+
+        # Create the entity group
+        entity_group = G(EntityGroup, logic_string='NOT(1)')
+
+        # Create the membership
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_a)
+
+        entity_ids = entity_group.get_all_entities()
+        self.assertEqual(entity_ids, set([
+            sub_entities[3].id,
+            sub_entities[4].id,
+            sub_entities[5].id,
+            sub_entities[6].id,
+            sub_entities[7].id,
+            sub_entities[8].id,
             sub_entities[9].id,
         ]))
 

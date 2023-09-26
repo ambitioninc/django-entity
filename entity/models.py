@@ -500,6 +500,8 @@ class EntityGroup(models.Model):
         memberships = membership_cache.get(self.id)
         if memberships:
             if self.logic_string:
+                entity_kind_id = memberships[0][1]
+                full_set = set(entities_by_kind[entity_kind_id]['all'])
                 try:
                     filter_tree = ast.parse(self.logic_string.lower())
                 except:
@@ -523,7 +525,7 @@ class EntityGroup(models.Model):
                 self.validate_filter_indices(indices, expanded_memberships)
                 kmatch = self._node_to_kmatch(filter_tree.body[0].value)
                 kmatch = self._map_kmatch_values(kmatch, expanded_memberships)
-                entity_ids = self._process_kmatch(kmatch, full_set=expanded_memberships[-1])
+                entity_ids = self._process_kmatch(kmatch, full_set=full_set)
 
             else:
                 # Loop over each membership in this group
@@ -693,6 +695,12 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
     kinds_with_supers = set()
     super_ids = set()
 
+    # Determine if we need to include the "universal set" aka all for a kind based on the presence of a logic_string
+    group_ids_with_logic_string = set(EntityGroup.objects.filter(
+        id__in=membership_cache.keys(),
+        logic_string__isnull=False,
+    ).values_list('id', flat=True))
+
     # Loop over each group
     for group_id, memberships in membership_cache.items():
 
@@ -704,6 +712,11 @@ def get_entities_by_kind(membership_cache=None, is_active=True):
 
                 # Make sure a dict exists for this kind
                 entities_by_kind.setdefault(entity_kind_id, {})
+
+                # Always include all if there is a logic string
+                if group_id in group_ids_with_logic_string:
+                    entities_by_kind[entity_kind_id]['all'] = []
+                    kinds_with_all.add(entity_kind_id)
 
                 # Check if this is all entities of a kind under a specific entity
                 if entity_id:
