@@ -338,7 +338,7 @@ class EntityGroupManager(models.Manager):
         if group_ids:
             membership_queryset = membership_queryset.filter(entity_group_id__in=group_ids)
 
-        membership_queryset = membership_queryset.order_by('id')
+        membership_queryset = membership_queryset.order_by('sort_order', 'id')
 
         membership_queryset = membership_queryset.values_list('entity_group_id', 'entity_id', 'sub_entity_kind_id')
 
