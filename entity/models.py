@@ -11,6 +11,8 @@ from django.db.models import Count, Q, JSONField
 from python3_utils import compare_on_attr
 from functools import reduce
 
+from entity.exceptions import InvalidLogicStringException
+
 
 class AllEntityKindManager(ActivatableManager):
     """
@@ -500,33 +502,7 @@ class EntityGroup(models.Model):
         memberships = membership_cache.get(self.id)
         if memberships:
             if self.logic_string:
-                entity_kind_id = memberships[0][1]
-                full_set = set(entities_by_kind[entity_kind_id]['all'])
-                try:
-                    filter_tree = ast.parse(self.logic_string.lower())
-                except:
-                    raise Exception
-
-                expanded_memberships = []
-                for entity_id, entity_kind_id in memberships:
-                    if entity_id:
-                        if entity_kind_id:
-                            # All sub entities of this kind under this entity
-                            expanded_memberships.append(set(entities_by_kind[entity_kind_id][entity_id]))
-                        else:
-                            # Individual entity
-                            expanded_memberships.append({entity_id})
-                    else:
-                        # All entities of this kind
-                        expanded_memberships.append(set(entities_by_kind[entity_kind_id]['all']))
-
-                # Make sure each index is valid
-                indices = self.get_filter_indices(filter_tree.body[0].value)
-                self.validate_filter_indices(indices, expanded_memberships)
-                kmatch = self._node_to_kmatch(filter_tree.body[0].value)
-                kmatch = self._map_kmatch_values(kmatch, expanded_memberships)
-                entity_ids = self._process_kmatch(kmatch, full_set=full_set)
-
+                entity_ids = self.get_entity_ids_from_logic_string(entities_by_kind, memberships)
             else:
                 # Loop over each membership in this group
                 for entity_id, entity_kind_id in membership_cache[self.id]:
@@ -544,6 +520,36 @@ class EntityGroup(models.Model):
         # Check if a queryset needs to be returned
         if return_models:
             return Entity.objects.filter(id__in=entity_ids)
+
+        return entity_ids
+
+    def get_entity_ids_from_logic_string(self, entities_by_kind, memberships):
+        entity_kind_id = memberships[0][1]
+        full_set = set(entities_by_kind[entity_kind_id]['all'])
+        try:
+            filter_tree = ast.parse(self.logic_string.lower())
+        except:
+            raise InvalidLogicStringException()
+
+        expanded_memberships = []
+        for entity_id, entity_kind_id in memberships:
+            if entity_id:
+                if entity_kind_id:
+                    # All sub entities of this kind under this entity
+                    expanded_memberships.append(set(entities_by_kind[entity_kind_id][entity_id]))
+                else:
+                    # Individual entity
+                    expanded_memberships.append({entity_id})
+            else:
+                # All entities of this kind
+                expanded_memberships.append(set(entities_by_kind[entity_kind_id]['all']))
+
+        # Make sure each index is valid
+        indices = self.get_filter_indices(filter_tree.body[0].value)
+        self.validate_filter_indices(indices, expanded_memberships)
+        kmatch = self._node_to_kmatch(filter_tree.body[0].value)
+        kmatch = self._map_kmatch_values(kmatch, expanded_memberships)
+        entity_ids = self._process_kmatch(kmatch, full_set=full_set)
 
         return entity_ids
 
