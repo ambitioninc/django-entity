@@ -8,7 +8,6 @@ from entity.signal_handlers import turn_off_syncing, turn_on_syncing
 from entity.models import (
     Entity, EntityKind, EntityRelationship, EntityGroup, EntityGroupMembership, get_entities_by_kind
 )
-
 from entity.tests.models import Account, Team, TeamGroup, Competitor
 from entity.tests.utils import EntityTestCase
 
@@ -758,6 +757,122 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
 
         self.group = G(EntityGroup)
 
+    def test_logic_string(self):
+        """
+        Given 10 users User 0 - User 9 and 4 groups Group A - Group D
+        Group A: 0, 1, 2
+        Group B: 1, 2, 3
+        Group C: 4, 5, 6
+        Group D: 6, 7, 8
+
+        Memberships:
+        1. User in Group A
+        2. User in Group B
+        3. User in Group C
+        4. User in Group D
+        5. User = User 1
+        6. User = User 9
+
+        Logic: (1 AND 2) OR (3 AND 4) AND NOT(5) OR 6
+        ((0, 1, 2) AND (1, 2, 3)) OR ((4, 5, 6) AND (6, 7, 8)) AND NOT(1) OR (9)
+        (1, 2) OR (6) AND NOT(1) OR 9
+        (1, 2, 6) AND NOT(1) OR 9
+        2, 6, 9
+        """
+        super_entity_kind = G(EntityKind)
+        sub_entity_kind = G(EntityKind)
+        super_entity_a = G(Entity, entity_kind=super_entity_kind)
+        super_entity_b = G(Entity, entity_kind=super_entity_kind)
+        super_entity_c = G(Entity, entity_kind=super_entity_kind)
+        super_entity_d = G(Entity, entity_kind=super_entity_kind)
+        sub_entities = [
+            G(Entity, entity_kind=sub_entity_kind)
+            for _ in range(10)
+        ]
+
+        # Create the relationships
+        relationships = [
+            EntityRelationship(sub_entity=sub_entities[0], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_a),
+
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_b),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_b),
+            EntityRelationship(sub_entity=sub_entities[3], super_entity=super_entity_b),
+
+            EntityRelationship(sub_entity=sub_entities[4], super_entity=super_entity_c),
+            EntityRelationship(sub_entity=sub_entities[5], super_entity=super_entity_c),
+            EntityRelationship(sub_entity=sub_entities[6], super_entity=super_entity_c),
+
+            EntityRelationship(sub_entity=sub_entities[6], super_entity=super_entity_d),
+            EntityRelationship(sub_entity=sub_entities[7], super_entity=super_entity_d),
+            EntityRelationship(sub_entity=sub_entities[8], super_entity=super_entity_d),
+        ]
+        EntityRelationship.objects.bulk_create(relationships)
+
+        # Create the entity group
+        entity_group = G(EntityGroup, logic_string='((1 AND 2) OR (3 AND 4)) AND NOT(5) OR 6')
+
+        # Create the memberships -- two memberships of all subs under a kind
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_a)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_b)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_c)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_d)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=None, entity=sub_entities[1])
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=None, entity=sub_entities[9])
+
+        entity_ids = entity_group.get_all_entities()
+        self.assertEqual(entity_ids, set([
+            sub_entities[2].id,
+            sub_entities[6].id,
+            sub_entities[9].id,
+        ]))
+
+    def test_logic_string_not(self):
+        """
+        Verifies that the universal set is properly fetched and used to NOT a set
+        Group A: 0, 1, 2
+        NOT(A) = 3, 4, 5, 6, 7, 8
+
+        Memberships:
+        1. User in Group A
+
+        Logic: NOT(1)
+        (3, 4, 5, 6, 7, 8)
+        """
+        super_entity_kind = G(EntityKind)
+        sub_entity_kind = G(EntityKind)
+        super_entity_a = G(Entity, entity_kind=super_entity_kind)
+        sub_entities = [
+            G(Entity, entity_kind=sub_entity_kind)
+            for _ in range(10)
+        ]
+
+        # Create the relationships
+        relationships = [
+            EntityRelationship(sub_entity=sub_entities[0], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_a),
+        ]
+        EntityRelationship.objects.bulk_create(relationships)
+
+        # Create the entity group
+        entity_group = G(EntityGroup, logic_string='NOT(1)')
+
+        # Create the membership
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_a)
+
+        entity_ids = entity_group.get_all_entities()
+        self.assertEqual(entity_ids, set([
+            sub_entities[3].id,
+            sub_entities[4].id,
+            sub_entities[5].id,
+            sub_entities[6].id,
+            sub_entities[7].id,
+            sub_entities[8].id,
+            sub_entities[9].id,
+        ]))
+
     def test_individual_entities_returned(self):
         e = self.super_entities[0]
         G(EntityGroupMembership, entity_group=self.group, entity=e, sub_entity_kind=None)
@@ -833,7 +948,7 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
         G(EntityGroupMembership, entity_group=self.group,
           entity=e2, sub_entity_kind=self.kind2)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             list(self.group.all_entities())
 
 
@@ -1010,14 +1125,14 @@ class EntityGroupTest(TestCase):
             [None, account_kind],
         ])
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             membership_cache = EntityGroup.objects.get_membership_cache()
             entities_by_kind = get_entities_by_kind(membership_cache=membership_cache)
 
             for entity_group in entity_groups:
                 entity_group.get_all_entities(membership_cache, entities_by_kind)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             get_entities_by_kind()
 
         # Make sure to hit the no group cache case
