@@ -1,5 +1,9 @@
 ## Release Notes
 
+- 6.2.2:
+    - Fixed entity group logic string for logic sets containing more than 2 items being operated on
+- 6.2.1:
+    - Rebumped because publish messed up
 - 6.2.0:
     - Add support for boolean logic strings to apply to entity group memberships
 - 6.1.1:
