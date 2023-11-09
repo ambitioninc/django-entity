@@ -11,6 +11,7 @@ from django.db.models import Count, Q, JSONField
 from python3_utils import compare_on_attr
 from functools import reduce
 
+from entity.constants import LOGIC_STRING_OPERATORS
 from entity.exceptions import InvalidLogicStringException
 
 
@@ -454,18 +455,25 @@ class EntityGroup(models.Model):
         Every item is 2 elements - the operator and the value or list of values
         """
         entity_ids = set()
-        operators = {'&', '|', '!'}
 
         if isinstance(kmatch, set):
             return kmatch
 
-        if len(kmatch) == 2 and kmatch[0] not in operators:
+        # We can always assume operator + list where the list is either sets or another operator + list
+        if len(kmatch) != 2 or kmatch[0] not in LOGIC_STRING_OPERATORS:
             return kmatch
 
+        # Apply the operator to the rest of the sets
         if kmatch[0] == '&':
-            entity_ids = self._process_kmatch(kmatch[1][0], full_set) & self._process_kmatch(kmatch[1][1], full_set)
+            # Add the first element to the set
+            entity_ids.update(self._process_kmatch(kmatch[1][0], full_set))
+            for next_element in kmatch[1][1:]:
+                entity_ids &= self._process_kmatch(next_element, full_set)
         elif kmatch[0] == '|':
-            entity_ids = self._process_kmatch(kmatch[1][0], full_set) | self._process_kmatch(kmatch[1][1], full_set)
+            # Add the first element to the set
+            entity_ids.update(self._process_kmatch(kmatch[1][0], full_set))
+            for next_element in kmatch[1][1:]:
+                entity_ids |= self._process_kmatch(next_element, full_set)
         elif kmatch[0] == '!':
             entity_ids = full_set - self._process_kmatch(kmatch[1], full_set)
 
@@ -526,6 +534,7 @@ class EntityGroup(models.Model):
     def get_entity_ids_from_logic_string(self, entities_by_kind, memberships):
         entity_kind_id = memberships[0][1]
         full_set = set(entities_by_kind[entity_kind_id]['all'])
+
         try:
             filter_tree = ast.parse(self.logic_string.lower())
         except:

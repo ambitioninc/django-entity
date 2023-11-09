@@ -831,44 +831,77 @@ class EntityGroupAllEntitiesTest(EntityTestCase):
     def test_logic_string_not(self):
         """
         Verifies that the universal set is properly fetched and used to NOT a set
-        Group A: 0, 1, 2
-        NOT(A) = 3, 4, 5, 6, 7, 8
+        Location A: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+        Role A: 0, 1
+        Role B: 2, 3
+        Role C: 4, 5
+        Role D: 6, 7
 
         Memberships:
-        1. User in Group A
+        1. Accounts in Location A
+        2. Accounts in Role A
+        3. Accounts in Role B
+        4. Accounts in Role C
+        5. Accounts in Role D
 
-        Logic: NOT(1)
-        (3, 4, 5, 6, 7, 8)
+        Logic: 1 AND NOT(2 OR 3 OR 4 OR 5)
+        Breakdown:
+            (0, 1, 2, 3, 4, 5, 6, 7, 8, 9) AND NOT((0, 1) OR (2, 3) OR (4, 5) OR (6, 7))
+            (0, 1, 2, 3, 4, 5, 6, 7, 8, 9) AND NOT(0, 1, 2, 3, 4, 5, 6, 7)
+            (0, 1, 2, 3, 4, 5, 6, 7, 8, 9) AND (8, 9)
+            (8, 9)
         """
-        super_entity_kind = G(EntityKind)
-        sub_entity_kind = G(EntityKind)
-        super_entity_a = G(Entity, entity_kind=super_entity_kind)
+        logic_string = '1 AND NOT(2 OR 3 OR 4 OR 5)'
+
+        # Create entity kinds
+        location_kind = G(EntityKind)
+        role_kind = G(EntityKind)
+        account_kind = G(EntityKind)
+
+        location_a = G(Entity, entity_kind=location_kind)
+        role_a = G(Entity, entity_kind=role_kind)
+        role_b = G(Entity, entity_kind=role_kind)
+        role_c = G(Entity, entity_kind=role_kind)
+        role_d = G(Entity, entity_kind=role_kind)
+
         sub_entities = [
-            G(Entity, entity_kind=sub_entity_kind)
+            G(Entity, entity_kind=account_kind)
             for _ in range(10)
         ]
 
-        # Create the relationships
+        # Create the role relationships
         relationships = [
-            EntityRelationship(sub_entity=sub_entities[0], super_entity=super_entity_a),
-            EntityRelationship(sub_entity=sub_entities[1], super_entity=super_entity_a),
-            EntityRelationship(sub_entity=sub_entities[2], super_entity=super_entity_a),
+            EntityRelationship(sub_entity=sub_entities[0], super_entity=role_a),
+            EntityRelationship(sub_entity=sub_entities[1], super_entity=role_a),
+            EntityRelationship(sub_entity=sub_entities[2], super_entity=role_b),
+            EntityRelationship(sub_entity=sub_entities[3], super_entity=role_b),
+            EntityRelationship(sub_entity=sub_entities[4], super_entity=role_c),
+            EntityRelationship(sub_entity=sub_entities[5], super_entity=role_c),
+            EntityRelationship(sub_entity=sub_entities[6], super_entity=role_d),
+            EntityRelationship(sub_entity=sub_entities[7], super_entity=role_d),
         ]
+
+        # Create location relationships
+        for sub_entity in sub_entities:
+            relationships.append(EntityRelationship(sub_entity=sub_entity, super_entity=location_a))
+
         EntityRelationship.objects.bulk_create(relationships)
 
         # Create the entity group
-        entity_group = G(EntityGroup, logic_string='NOT(1)')
+        entity_group = G(EntityGroup, logic_string=logic_string)
 
-        # Create the membership
-        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=sub_entity_kind, entity=super_entity_a)
+        # Create the memberships
+        G(
+            EntityGroupMembership,
+            entity_group=entity_group, sub_entity_kind=account_kind, entity=location_a, sort_order=1
+        )
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=account_kind, entity=role_a, sort_order=2)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=account_kind, entity=role_b, sort_order=3)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=account_kind, entity=role_c, sort_order=4)
+        G(EntityGroupMembership, entity_group=entity_group, sub_entity_kind=account_kind, entity=role_d, sort_order=5)
 
         entity_ids = entity_group.get_all_entities()
         self.assertEqual(entity_ids, set([
-            sub_entities[3].id,
-            sub_entities[4].id,
-            sub_entities[5].id,
-            sub_entities[6].id,
-            sub_entities[7].id,
             sub_entities[8].id,
             sub_entities[9].id,
         ]))
