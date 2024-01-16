@@ -5,6 +5,10 @@ import sys
 from optparse import OptionParser
 from settings import configure_settings
 
+# These lines allow nose tests to work in Python 3.10
+import collections.abc
+collections.Callable = collections.abc.Callable
+
 # Configure the default settings and setup django
 configure_settings()
 
