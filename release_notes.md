@@ -1,6 +1,6 @@
 ## Release Notes
 - 6.3.0:
-    - psycopg3   
+    - Add support for psycopg3. Still supports psycopg2.
 - 6.2.2:
     - Fixed entity group logic string for logic sets containing more than 2 items being operated on
 - 6.2.1:
