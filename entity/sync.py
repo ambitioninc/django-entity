@@ -55,41 +55,56 @@ def transaction_atomic_with_retry(num_retries=5, backoff=0.1):
     # Return the decorator
     return wrapper
 
-
-@wrapt.decorator
-def defer_entity_syncing(wrapped, instance, args, kwargs):
+def defer_entity_syncing(*args, handler=None):
     """
-    A decorator that can be used to defer the syncing of entities until after the method has been run
-    This is being introduced to help avoid deadlocks in the meantime as we attempt to better understand
-    why they are happening
+    A decorator for deferring entity syncing until after the function is complete
+    An optional handler can be specified to handle the entity syncing.
+    If no handler is passed the default sync_entities method will be called
     """
 
-    # Defer entity syncing while we run our method
-    sync_entities.defer = True
+    # Set a default handler
+    handler = handler or sync_entities
 
-    # Run the method
-    try:
-        return wrapped(*args, **kwargs)
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
+        """
+        A decorator that can be used to defer the syncing of entities until after the method has been run
+        This is being introduced to help avoid deadlocks in the meantime as we attempt to better understand
+        why they are happening
+        """
 
-    # After we run the method disable the deferred syncing
-    # and sync all the entities that have been buffered to be synced
-    finally:
-        # Enable entity syncing again
-        sync_entities.defer = False
+        # Defer entity syncing while we run our method
+        sync_entities.defer = True
 
-        # Get the models that need to be synced
-        model_objs = list(sync_entities.buffer.values())
+        # Run the method
+        try:
+            return wrapped(*args, **kwargs)
 
-        # If none is in the model objects we need to sync all
-        if None in sync_entities.buffer:
-            model_objs = list()
+        # After we run the method disable the deferred syncing
+        # and sync all the entities that have been buffered to be synced
+        finally:
+            # Enable entity syncing again
+            sync_entities.defer = False
 
-        # Sync the entities that were deferred if any
-        if len(sync_entities.buffer):
-            sync_entities(*model_objs)
+            # Get the models that need to be synced
+            model_objs = list(sync_entities.buffer.values())
 
-        # Clear the buffer
-        sync_entities.buffer = {}
+            # If none is in the model objects we need to sync all
+            if None in sync_entities.buffer:
+                model_objs = list()
+
+            # Sync the entities that were deferred if any
+            if len(sync_entities.buffer):
+                handler(*model_objs)
+
+            # Clear the buffer
+            sync_entities.buffer = {}
+
+    # If the decorator is called without arguments
+    if len(args) == 1 and callable(args[0]):
+        return wrapper(args[0])
+    else:
+        return wrapper
 
 
 @wrapt.decorator
