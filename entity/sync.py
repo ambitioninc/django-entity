@@ -55,6 +55,7 @@ def transaction_atomic_with_retry(num_retries=5, backoff=0.1):
     # Return the decorator
     return wrapper
 
+
 def defer_entity_syncing(*args, handler=None):
     """
     A decorator for deferring entity syncing until after the function is complete
@@ -208,6 +209,7 @@ def sync_entities(*model_objs):
     Args:
         model_objs (List[Model]): The model objects to sync. If empty, all entities will be synced
     """
+
     if sync_entities.suppress:
         # Return false that we did not do anything
         return False
