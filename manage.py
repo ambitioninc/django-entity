@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 import sys
 
+# These lines allow nose tests to work in Python 3.10
+import collections.abc
+collections.Callable = collections.abc.Callable
+
 # Show warnings about django deprecations - uncomment for version upgrade testing
 import warnings
 from django.utils.deprecation import RemovedInNextVersionWarning
