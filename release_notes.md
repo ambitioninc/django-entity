@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 6.2.3:
+    - Update the `defer_entity_syncing` decorator to support an optional handler. 
 - 6.2.2:
     - Fixed entity group logic string for logic sets containing more than 2 items being operated on
 - 6.2.1:
