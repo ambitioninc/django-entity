@@ -12,7 +12,7 @@ from entity.sync import (
     suppress_entity_syncing,
 )
 from entity.signal_handlers import turn_on_syncing, turn_off_syncing
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call, Mock
 
 from entity.tests.models import (
     Account, Team, EntityPointer, DummyModel, MultiInheritEntity, AccountConfig, TeamConfig, TeamGroup,
@@ -1063,6 +1063,26 @@ class DeferEntitySyncingTests(EntityTestCase):
 
             # Ensure that we did not call sync entities
             self.assertFalse(mock_sync_entities.called)
+
+    def test_defer_custom_handler(self):
+        # Create a mock handler
+        mock_handler = Mock()
+
+        # Create a test sync method to be decorated
+        @defer_entity_syncing(handler=mock_handler)
+        def test_method(count=5):
+            # Create some entities
+            for i in range(count):
+                Account.objects.create()
+
+        # Call the test method
+        test_method(count=5)
+
+        # Assert that we called our custom handler
+        self.assertEqual(Entity.objects.all().count(), 0)
+        mock_handler.assert_called_once_with(
+            *Account.objects.all()
+        )
 
 
 class SuppressEntitySyncingTests(EntityTestCase):
