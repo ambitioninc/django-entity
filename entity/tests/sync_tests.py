@@ -1065,7 +1065,10 @@ class DeferEntitySyncingTests(EntityTestCase):
             self.assertFalse(mock_sync_entities.called)
 
     def test_defer_custom_handler(self):
+        # Create a mock handler
         mock_handler = Mock()
+
+        # Create a test sync method to be decorated
         @defer_entity_syncing(handler=mock_handler)
         def test_method(count=5):
             # Create some entities
