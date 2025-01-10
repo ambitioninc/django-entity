@@ -484,32 +484,6 @@ class EntitySyncer:
         :param entities: The entities to sync
         :param sync: Do a sync instead of an upsert
         """
-        # Select the entities we are upserting for update to reduce deadlocks
-        if entities:
-            # Default select for update query when syncing all
-            select_for_update_query = (
-                "SELECT FROM {table_name} ORDER BY id ASC FOR NO KEY UPDATE"
-            ).format(table_name=Entity._meta.db_table)
-            select_for_update_query_params = []
-
-            # If we are not syncing all, only select those we are updating
-            if not sync:
-                select_for_update_query = (
-                    "SELECT FROM {table_name} "
-                    "WHERE (entity_type_id, entity_id) IN %s "
-                    "ORDER BY id ASC "
-                    "FOR NO KEY UPDATE"
-                ).format(table_name=Entity._meta.db_table)
-                select_for_update_query_params = [
-                    tuple(
-                        (entity.entity_type_id, entity.entity_id) for entity in entities
-                    )
-                ]
-
-            # Select the items for update
-            with connection.cursor() as cursor:
-                cursor.execute(select_for_update_query, select_for_update_query_params)
-
         # Compute the initial queryset and the initial state of the entities we are syncing
         # We need the initial state so we can compare it to the new state to determine any
         # entities that were activated or deactivated
@@ -565,6 +539,7 @@ class EntitySyncer:
                     id__in=[entity[0] for entity in cursor.fetchall()]
                 )
 
+                # Delete entities not created/upserted if sync is True
                 if sync:
                     # Use the same VALUES list in the cleanup query
                     sync_cleanup_query = (
