@@ -1,5 +1,7 @@
 ## Release Notes
 
+- 6.3.0:
+    - Ignore no-op updates when syncing entities and entity relationships in order to avoid downstream cost
 - 6.2.3:
     - Update the `defer_entity_syncing` decorator to support an optional handler. 
 - 6.2.2:
