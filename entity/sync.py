@@ -400,8 +400,7 @@ class EntitySyncer:
             for sub_ctype, super_entities_by_sub_ctype in super_entities_by_ctype.items()
             for super_ctype, relationships in super_entities_by_sub_ctype.items()
             for sub_entity_id, super_entity_id in relationships
-            if (sub_ctype.id, sub_entity_id) in entities_map
-            and (super_ctype.id, super_entity_id) in entities_map
+            if (sub_ctype.id, sub_entity_id) in entities_map and (super_ctype.id, super_entity_id) in entities_map
         ]
 
         # Find the entities of the original model objects we were syncing. These
@@ -616,7 +615,8 @@ class EntitySyncer:
                     values_list_items.append("(%s, %s)")
                 values_list = ",".join(values_list_items)
 
-                # If we upserted relationships, we need to delete relationships from the initial set that weren't just upserted
+                # If we upserted relationships,
+                # we need to delete relationships from the initial set that weren't just upserted
                 # We'll use the temp table as a reference for what was upserted
                 sync_cleanup_query = (
                     f"DELETE FROM entity_entityrelationship WHERE id IN ("
