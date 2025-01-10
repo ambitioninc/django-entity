@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from time import sleep, time
+from time import sleep
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pgbulk
-from uuid import uuid4
 import wrapt
 from activatable_model import model_activations_changed
 from django import db
@@ -23,19 +23,6 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 LOG = logging.getLogger(__name__)
-
-
-from contextlib import contextmanager
-
-@contextmanager
-def time_spend(message):
-    start_time = time()
-    try:
-        yield
-    finally:
-        end_time = time()
-        time_spent = end_time - start_time
-        print(f'{message}: {time_spent}')
 
 
 def transaction_atomic_with_retry(num_retries=5, backoff=0.1):
@@ -282,7 +269,6 @@ class EntitySyncer:
         # Are we syncing all
         self.sync_all = not model_objs
 
-    @time_spend('sync()')
     def sync(self):
         # Log what we are syncing
         LOG.debug('sync_entities')
@@ -411,7 +397,6 @@ class EntitySyncer:
             entity_relationships=entity_relationships_to_sync
         )
 
-    @time_spend('upsert_entity_kinds()')
     @transaction_atomic_with_retry()
     def upsert_entity_kinds(self, entity_kinds):
         """
@@ -462,7 +447,6 @@ class EntitySyncer:
         # Return all the entity kinds
         return upserted_enitity_kinds + list(unchanged_entity_kinds.values())
 
-    @time_spend('upsert_entities()')
     @transaction_atomic_with_retry()
     def upsert_entities(self, entities, sync=False):
         """
@@ -516,15 +500,14 @@ class EntitySyncer:
             for entity in initial_queryset.values_list('id', 'is_active')
         }
 
-        with time_spend('upsert entities'):
-            # Upsert entities
-            pgbulk.upsert(
-                queryset=initial_queryset,
-                model_objs=entities,
-                unique_fields=['entity_type_id', 'entity_id'],
-                update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-                ignore_unchanged=True,
-            )
+        # Upsert entities
+        pgbulk.upsert(
+            queryset=initial_queryset,
+            model_objs=entities,
+            unique_fields=['entity_type_id', 'entity_id'],
+            update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
+            ignore_unchanged=True,
+        )
 
         upserted_entities = []
         # Delete unreferenced entities if sync=True
@@ -532,34 +515,31 @@ class EntitySyncer:
             with connection.cursor() as cursor:
                 uuid = uuid4()
                 table_name = f'sync_entities_{uuid}'.replace('-', '_')
-                with time_spend('entities - create temp table'):
-                    cursor.execute(
-                        f'CREATE TEMPORARY TABLE {table_name} ('
-                        'entity_type_id INTEGER, '
-                        'entity_id INTEGER, '
-                        'PRIMARY KEY(entity_type_id, entity_id))'
-                    )
+                cursor.execute(
+                    f'CREATE TEMPORARY TABLE {table_name} ('
+                    'entity_type_id INTEGER, '
+                    'entity_id INTEGER, '
+                    'PRIMARY KEY(entity_type_id, entity_id))'
+                )
                 values = []
                 for entity in entities:
                     values.extend([entity.entity_type_id, entity.entity_id])
                 values_escaped = ','.join([
                     '(%s, %s)' for i in range(0, int(len(values) / 2))
                 ])
-                with time_spend('entities - insert into temp table'):
-                    cursor.execute(
-                        f'INSERT INTO {table_name} (entity_type_id, entity_id) VALUES {values_escaped}',
-                        values
-                    )
+                cursor.execute(
+                    f'INSERT INTO {table_name} (entity_type_id, entity_id) VALUES {values_escaped}',
+                    values
+                )
 
                 # Fetch upserted entities
-                with time_spend('fetching upserted entities'):
-                    cursor.execute(
-                        f'SELECT t1.id FROM entity_entity t1 '
-                        f'JOIN {table_name} t2 ON t1.entity_type_id=t2.entity_type_id AND t1.entity_id=t2.entity_id'
-                    )
-                    upserted_entities = Entity.all_objects.filter(
-                        id__in=[entity[0] for entity in cursor.fetchall()]
-                    )
+                cursor.execute(
+                    f'SELECT t1.id FROM entity_entity t1 '
+                    f'JOIN {table_name} t2 ON t1.entity_type_id=t2.entity_type_id AND t1.entity_id=t2.entity_id'
+                )
+                upserted_entities = Entity.all_objects.filter(
+                    id__in=[entity[0] for entity in cursor.fetchall()]
+                )
 
                 if sync:
                     sync_cleanup_query = (
@@ -574,8 +554,7 @@ class EntitySyncer:
                         f') as ids'
                         f')'
                     )
-                    with time_spend('entities - delete records'):
-                        cursor.execute(sync_cleanup_query)
+                    cursor.execute(sync_cleanup_query)
 
         # Compute the current state of the entities
         current_entity_activation_state = {
@@ -603,7 +582,6 @@ class EntitySyncer:
         # Return the upserted entities
         return upserted_entities, changed_entity_activation_state
 
-    @time_spend('upsert_entity_relationships()')
     @transaction_atomic_with_retry()
     def upsert_entity_relationships(self, original_entity_ids, entity_relationships):
         """
@@ -615,37 +593,34 @@ class EntitySyncer:
         initial_queryset = self._get_entity_relationships_to_sync(original_entity_ids)
 
         # Upsert the relationships
-        with time_spend('entity relationships - upsert'):
-            pgbulk.upsert(
-                initial_queryset,
-                entity_relationships,
-                ['sub_entity_id', 'super_entity_id'],
-                ignore_unchanged=True,
-            )
+        pgbulk.upsert(
+            initial_queryset,
+            entity_relationships,
+            ['sub_entity_id', 'super_entity_id'],
+            ignore_unchanged=True,
+        )
 
         if entity_relationships:
             # Get the new and updated relationships that were upserted
             uuid = uuid4()
             table_name = f'sync_entity_relationships_{uuid}'.replace('-', '_')
             with connection.cursor() as cursor:
-                with time_spend('entity relationships - create temp table'):
-                    cursor.execute(
-                        f'CREATE TEMPORARY TABLE {table_name} ('
-                        'sub_entity_id INTEGER, '
-                        'super_entity_id INTEGER, '
-                        'PRIMARY KEY(sub_entity_id, super_entity_id))'
-                    )
+                cursor.execute(
+                    f'CREATE TEMPORARY TABLE {table_name} ('
+                    'sub_entity_id INTEGER, '
+                    'super_entity_id INTEGER, '
+                    'PRIMARY KEY(sub_entity_id, super_entity_id))'
+                )
                 values = []
                 for relationship in entity_relationships:
                     values.extend([relationship.sub_entity_id, relationship.super_entity_id])
                 values_escaped = ','.join([
                     '(%s, %s)' for i in range(0, int(len(values) / 2))
                 ])
-                with time_spend('entity relationships - insert into temp table'):
-                    cursor.execute(
-                        f'INSERT INTO {table_name} (sub_entity_id, super_entity_id) VALUES {values_escaped}',
-                        values
-                    )
+                cursor.execute(
+                    f'INSERT INTO {table_name} (sub_entity_id, super_entity_id) VALUES {values_escaped}',
+                    values
+                )
 
         # If we upserted relationships, we need to delete relationships from the initial set that weren't just upserted
         # We'll use the temp table as a reference for what was upserted
@@ -663,8 +638,7 @@ class EntitySyncer:
                     f') as ids'
                     f')'
                 )
-                with time_spend('entity relationships - delete records'):
-                    cursor.execute(query)
+                cursor.execute(query)
         # Else, just delete everything from the initial queryset, since we didn't upsert anything
         else:
             initial_queryset.delete()
