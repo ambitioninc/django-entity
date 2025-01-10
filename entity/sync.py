@@ -9,7 +9,6 @@ import logging
 from collections import defaultdict
 from time import sleep
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pgbulk
 import wrapt
@@ -608,45 +607,31 @@ class EntitySyncer:
 
         if entity_relationships:
             # Get the new and updated relationships that were upserted
-            uuid = uuid4()
-            table_name = f"sync_entity_relationships_{uuid}".replace("-", "_")
             with connection.cursor() as cursor:
-                cursor.execute(
-                    f"CREATE TEMPORARY TABLE {table_name} ("
-                    "sub_entity_id INTEGER, "
-                    "super_entity_id INTEGER, "
-                    "PRIMARY KEY(sub_entity_id, super_entity_id))"
-                )
+                # Create the values string for the VALUES list
                 values = []
+                values_list_items = []
                 for relationship in entity_relationships:
-                    values.extend(
-                        [relationship.sub_entity_id, relationship.super_entity_id]
-                    )
-                values_escaped = ",".join(
-                    ["(%s, %s)" for i in range(0, int(len(values) / 2))]
-                )
-                cursor.execute(
-                    f"INSERT INTO {table_name} (sub_entity_id, super_entity_id) VALUES {values_escaped}",
-                    values,
-                )
+                    values.extend([relationship.super_entity_id, relationship.sub_entity_id])
+                    values_list_items.append("(%s, %s)")
+                values_list = ",".join(values_list_items)
 
-        # If we upserted relationships, we need to delete relationships from the initial set that weren't just upserted
-        # We'll use the temp table as a reference for what was upserted
-        if entity_relationships:
-            with connection.cursor() as cursor:
-                query = (
+                # If we upserted relationships, we need to delete relationships from the initial set that weren't just upserted
+                # We'll use the temp table as a reference for what was upserted
+                sync_cleanup_query = (
                     f"DELETE FROM entity_entityrelationship WHERE id IN ("
                     f"SELECT id FROM ("
                     f"WITH initial AS ({initial_queryset.query}), "
-                    f"syncd AS (SELECT sub_entity_id, super_entity_id FROM {table_name}) "
+                    f"syncd AS (SELECT super_entity_id, sub_entity_id FROM (VALUES {values_list}) "
+                    f"AS v(super_entity_id, sub_entity_id)) "
                     f"SELECT initial.id, initial.super_entity_id FROM initial "
-                    f"LEFT OUTER JOIN syncd ON initial.sub_entity_id=syncd.sub_entity_id AND "
-                    f"initial.super_entity_id=syncd.super_entity_id "
+                    f"LEFT OUTER JOIN syncd ON initial.super_entity_id=syncd.super_entity_id AND "
+                    f"initial.sub_entity_id=syncd.sub_entity_id "
                     f"WHERE syncd.super_entity_id IS NULL"
                     f") as ids"
                     f")"
                 )
-                cursor.execute(query)
+                cursor.execute(sync_cleanup_query, values)
         # Else, just delete everything from the initial queryset, since we didn't upsert anything
         else:
             initial_queryset.delete()
