@@ -2,23 +2,40 @@
 Provides functions for syncing entities and their relationships to the
 Entity and EntityRelationship tables.
 """
+from __future__ import annotations
+
 import logging
-from time import sleep
-
-import wrapt
 from collections import defaultdict
+from time import sleep, time
+from typing import TYPE_CHECKING
 
+import pgbulk
+from uuid import uuid4
+import wrapt
 from activatable_model import model_activations_changed
 from django import db
 from django.contrib.contenttypes.models import ContentType
-import manager_utils
-from django.db import transaction, connection
-
+from django.db import connection, transaction
 from entity.config import entity_registry
-from entity.models import Entity, EntityRelationship, EntityKind
+from entity.models import Entity, EntityKind, EntityRelationship
 
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
 
 LOG = logging.getLogger(__name__)
+
+
+from contextlib import contextmanager
+
+@contextmanager
+def time_spend(message):
+    start_time = time()
+    try:
+        yield
+    finally:
+        end_time = time()
+        time_spent = end_time - start_time
+        print(f'{message}: {time_spent}')
 
 
 def transaction_atomic_with_retry(num_retries=5, backoff=0.1):
@@ -249,7 +266,7 @@ def sync_entities_watching(instance):
             sync_entities(*model_objs)
 
 
-class EntitySyncer(object):
+class EntitySyncer:
     """
     A class that will handle the syncing of entities
     """
@@ -265,13 +282,12 @@ class EntitySyncer(object):
         # Are we syncing all
         self.sync_all = not model_objs
 
+    @time_spend('sync()')
     def sync(self):
         # Log what we are syncing
         LOG.debug('sync_entities')
         LOG.debug(self.model_objs)
 
-        # Determine if we are syncing all
-        sync_all = not self.model_objs
         model_objs_map = {
             (ContentType.objects.get_for_model(model_obj, for_concrete_model=False), model_obj.id): model_obj
             for model_obj in self.model_objs
@@ -301,12 +317,17 @@ class EntitySyncer(object):
         # For each ctype, obtain super entities. This is a dict keyed on ctype. Each value
         # is a dict keyed on the ctype of the super entity with a list of tuples for
         # IDs of sub/super entity relationships
-        super_entities_by_ctype = _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, sync_all)
+        super_entities_by_ctype = _get_super_entities_by_ctype(model_objs_by_ctype, model_ids_to_sync, self.sync_all)
 
         # Now that we have all models we need to sync, fetch them so that we can extract
         # metadata and entity kinds. If we are syncing all entities, we've already fetched
         # everything and can fill in this data struct without doing another DB hit
-        model_objs_to_sync = _get_model_objs_to_sync(model_ids_to_sync, model_objs_map, model_objs_by_ctype, sync_all)
+        model_objs_to_sync = _get_model_objs_to_sync(
+            model_ids_to_sync,
+            model_objs_map,
+            model_objs_by_ctype,
+            self.sync_all,
+        )
 
         # Obtain all entity kind tuples associated with the models
         entity_kind_tuples_to_sync = set()
@@ -384,19 +405,13 @@ class EntitySyncer(object):
             if (ctype.id, model_obj.id) in entities_map
         ]
 
-        if self.sync_all:
-            # If we're syncing everything, just sync against the entire entity relationship
-            # table instead of doing a complex __in query
-            sync_against = EntityRelationship.objects.all()
-        else:
-            sync_against = EntityRelationship.objects.filter(sub_entity_id__in=original_entity_ids)
-
         # Sync the relations
         self.upsert_entity_relationships(
-            queryset=sync_against,
+            original_entity_ids,
             entity_relationships=entity_relationships_to_sync
         )
 
+    @time_spend('upsert_entity_kinds()')
     @transaction_atomic_with_retry()
     def upsert_entity_kinds(self, entity_kinds):
         """
@@ -406,7 +421,6 @@ class EntitySyncer(object):
 
         :param entity_kinds: The list of entity kinds to sync
         """
-
         # Filter out unchanged entity kinds
         unchanged_entity_kinds = {}
         if entity_kinds:
@@ -437,19 +451,18 @@ class EntitySyncer(object):
             list(EntityKind.all_objects.all().order_by('id').select_for_update().values_list('id', flat=True))
 
             # Upsert the entity kinds
-            upserted_enitity_kinds = manager_utils.bulk_upsert(
-                queryset=EntityKind.all_objects.filter(
-                    name__in=[entity_kind.name for entity_kind in changed_entity_kinds]
-                ),
-                model_objs=changed_entity_kinds,
-                unique_fields=['name'],
-                update_fields=['display_name'],
-                return_upserts=True
+            upserted_enitity_kinds = pgbulk.upsert(
+                EntityKind,
+                changed_entity_kinds,
+                ['name'],
+                ['display_name'],
+                returning=True,
             )
 
         # Return all the entity kinds
         return upserted_enitity_kinds + list(unchanged_entity_kinds.values())
 
+    @time_spend('upsert_entities()')
     @transaction_atomic_with_retry()
     def upsert_entities(self, entities, sync=False):
         """
@@ -457,7 +470,6 @@ class EntitySyncer(object):
         :param entities: The entities to sync
         :param sync: Do a sync instead of an upsert
         """
-
         # Select the entities we are upserting for update to reduce deadlocks
         if entities:
             # Default select for update query when syncing all
@@ -504,24 +516,66 @@ class EntitySyncer(object):
             for entity in initial_queryset.values_list('id', 'is_active')
         }
 
-        # Sync all the entities if the sync flag is passed
-        if sync:
-            upserted_entities = manager_utils.sync(
+        with time_spend('upsert entities'):
+            # Upsert entities
+            pgbulk.upsert(
                 queryset=initial_queryset,
                 model_objs=entities,
                 unique_fields=['entity_type_id', 'entity_id'],
                 update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-                return_upserts=True
+                ignore_unchanged=True,
             )
-        # Otherwise we want to upsert our entities
-        else:
-            upserted_entities = manager_utils.bulk_upsert(
-                queryset=initial_queryset,
-                model_objs=entities,
-                unique_fields=['entity_type_id', 'entity_id'],
-                update_fields=['entity_kind_id', 'entity_meta', 'display_name', 'is_active'],
-                return_upserts=True
-            )
+
+        upserted_entities = []
+        # Delete unreferenced entities if sync=True
+        if entities:
+            with connection.cursor() as cursor:
+                uuid = uuid4()
+                table_name = f'sync_entities_{uuid}'.replace('-', '_')
+                with time_spend('entities - create temp table'):
+                    cursor.execute(
+                        f'CREATE TEMPORARY TABLE {table_name} ('
+                        'entity_type_id INTEGER, '
+                        'entity_id INTEGER, '
+                        'PRIMARY KEY(entity_type_id, entity_id))'
+                    )
+                values = []
+                for entity in entities:
+                    values.extend([entity.entity_type_id, entity.entity_id])
+                values_escaped = ','.join([
+                    '(%s, %s)' for i in range(0, int(len(values) / 2))
+                ])
+                with time_spend('entities - insert into temp table'):
+                    cursor.execute(
+                        f'INSERT INTO {table_name} (entity_type_id, entity_id) VALUES {values_escaped}',
+                        values
+                    )
+
+                # Fetch upserted entities
+                with time_spend('fetching upserted entities'):
+                    cursor.execute(
+                        f'SELECT t1.id FROM entity_entity t1 '
+                        f'JOIN {table_name} t2 ON t1.entity_type_id=t2.entity_type_id AND t1.entity_id=t2.entity_id'
+                    )
+                    upserted_entities = Entity.all_objects.filter(
+                        id__in=[entity[0] for entity in cursor.fetchall()]
+                    )
+
+                if sync:
+                    sync_cleanup_query = (
+                        f'DELETE FROM entity_entity WHERE id IN ('
+                        f'SELECT id FROM ('
+                        f'WITH initial AS ({initial_queryset.query}), '
+                        f'syncd AS (SELECT entity_type_id, entity_id FROM {table_name}) '
+                        f'SELECT initial.id, initial.entity_id FROM initial '
+                        f'LEFT OUTER JOIN syncd ON initial.entity_type_id=syncd.entity_type_id AND '
+                        f'initial.entity_id=syncd.entity_id '
+                        f'WHERE syncd.entity_id IS NULL'
+                        f') as ids'
+                        f')'
+                    )
+                    with time_spend('entities - delete records'):
+                        cursor.execute(sync_cleanup_query)
 
         # Compute the current state of the entities
         current_entity_activation_state = {
@@ -549,29 +603,87 @@ class EntitySyncer(object):
         # Return the upserted entities
         return upserted_entities, changed_entity_activation_state
 
+    @time_spend('upsert_entity_relationships()')
     @transaction_atomic_with_retry()
-    def upsert_entity_relationships(self, queryset, entity_relationships):
+    def upsert_entity_relationships(self, original_entity_ids, entity_relationships):
         """
-        Upsert entity relationships to the database
-        :param queryset: The base queryset to use
+        Sync entity relationships to the database
+
+        :param queryset: The ids of the original entity objects that are being sync'd
         :param entity_relationships: The entity relationships to ensure exist in the database
         """
+        initial_queryset = self._get_entity_relationships_to_sync(original_entity_ids)
 
-        # Select the relationships for update
+        # Upsert the relationships
+        with time_spend('entity relationships - upsert'):
+            pgbulk.upsert(
+                initial_queryset,
+                entity_relationships,
+                ['sub_entity_id', 'super_entity_id'],
+                ignore_unchanged=True,
+            )
+
         if entity_relationships:
-            list(queryset.order_by('id').select_for_update().values_list(
-                'id',
-                flat=True
-            ))
+            # Get the new and updated relationships that were upserted
+            uuid = uuid4()
+            table_name = f'sync_entity_relationships_{uuid}'.replace('-', '_')
+            with connection.cursor() as cursor:
+                with time_spend('entity relationships - create temp table'):
+                    cursor.execute(
+                        f'CREATE TEMPORARY TABLE {table_name} ('
+                        'sub_entity_id INTEGER, '
+                        'super_entity_id INTEGER, '
+                        'PRIMARY KEY(sub_entity_id, super_entity_id))'
+                    )
+                values = []
+                for relationship in entity_relationships:
+                    values.extend([relationship.sub_entity_id, relationship.super_entity_id])
+                values_escaped = ','.join([
+                    '(%s, %s)' for i in range(0, int(len(values) / 2))
+                ])
+                with time_spend('entity relationships - insert into temp table'):
+                    cursor.execute(
+                        f'INSERT INTO {table_name} (sub_entity_id, super_entity_id) VALUES {values_escaped}',
+                        values
+                    )
 
-        # Sync the relationships
-        return manager_utils.sync(
-            queryset=queryset,
-            model_objs=entity_relationships,
-            unique_fields=['sub_entity_id', 'super_entity_id'],
-            update_fields=[],
-            return_upserts=True
-        )
+        # If we upserted relationships, we need to delete relationships from the initial set that weren't just upserted
+        # We'll use the temp table as a reference for what was upserted
+        if entity_relationships:
+            with connection.cursor() as cursor:
+                query = (
+                    f'DELETE FROM entity_entityrelationship WHERE id IN ('
+                    f'SELECT id FROM ('
+                    f'WITH initial AS ({initial_queryset.query}), '
+                    f'syncd AS (SELECT sub_entity_id, super_entity_id FROM {table_name}) '
+                    f'SELECT initial.id, initial.super_entity_id FROM initial '
+                    f'LEFT OUTER JOIN syncd ON initial.sub_entity_id=syncd.sub_entity_id AND '
+                    f'initial.super_entity_id=syncd.super_entity_id '
+                    f'WHERE syncd.super_entity_id IS NULL'
+                    f') as ids'
+                    f')'
+                )
+                with time_spend('entity relationships - delete records'):
+                    cursor.execute(query)
+        # Else, just delete everything from the initial queryset, since we didn't upsert anything
+        else:
+            initial_queryset.delete()
+
+    def _get_entity_relationships_to_sync(self, original_entity_ids) -> QuerySet:
+        """
+        Given the calling context and the ids of the entities this process was originally syncing,
+        return the entity relationship queryset that should be replaced/sync'd with an updated set of relationships
+
+        :param original_entity_ids: The list of the entities originally meant to be sync'd by this process
+        """
+        queryset = EntityRelationship.objects.filter(sub_entity_id__in=original_entity_ids)
+
+        if self.sync_all:
+            # If we're syncing everything, just sync against the entire entity relationship
+            # table instead of doing a complex __in query
+            queryset = EntityRelationship.objects.all()
+
+        return queryset
 
     def send_entity_activation_events(self, changed_entity_activation_state):
         """
